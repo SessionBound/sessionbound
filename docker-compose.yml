@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: taskbounddb-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: travel
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d travel"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  demo:
+    build: ./app
+    environment:
+      DATABASE_URL: postgresql://agent_app:agentpass@postgres:5432/travel
+      ADMIN_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/travel
+      AGENT_QUERY_DB_HOST: postgres
+      AGENT_QUERY_DB_PORT: "5432"
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
+      TASKBOUND_SECRET: dev-secret-change-me
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["demo"]
+
+  api:
+    build: ./app
+    command: ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+    entrypoint: []
+    environment:
+      DATABASE_URL: postgresql://agent_app:agentpass@postgres:5432/travel
+      ADMIN_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/travel
+      AGENT_QUERY_DB_HOST: postgres
+      AGENT_QUERY_DB_PORT: "5432"
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
+      TASKBOUND_SECRET: dev-secret-change-me
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy

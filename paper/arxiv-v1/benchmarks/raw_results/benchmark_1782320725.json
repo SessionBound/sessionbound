@@ -1,0 +1,120 @@
+{
+  "run_id": "1782320725",
+  "generated_at": "2026-06-24T17:05:26.401263+00:00",
+  "warmup_iterations": 10,
+  "measurement_iterations": 100,
+  "baseline": "admin/test role executes equivalent SQL over raw app_data tables with tenant/month predicates matching the task scope",
+  "postgresql_version": "PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+  "results": [
+    {
+      "query_pattern": "SELECT",
+      "raw_postgresql": {
+        "p50_ms": 0.09220049969371757,
+        "p95_ms": 0.16591244966548396,
+        "mean_ms": 0.10198843003308866,
+        "stddev_ms": 0.04275938164335318,
+        "rows": 3,
+        "iterations": 100
+      },
+      "taskbound_run": {
+        "p50_ms": 1.356491500246193,
+        "p95_ms": 1.6158775998974306,
+        "mean_ms": 1.385517969947614,
+        "stddev_ms": 0.1154390385747081,
+        "rows": 3,
+        "iterations": 100
+      },
+      "overhead_pct_p50": 1371.2409420256347,
+      "raw_sql": "SELECT e.expense_id, emp.employee_name, e.amount FROM app_data.expenses e JOIN app_data.employees emp ON emp.employee_id=e.employee_id WHERE e.tenant_id='company_a' AND e.expense_month='2026-06' ORDER BY e.amount DESC LIMIT 3",
+      "taskbound_sql": "SELECT expense_id, employee_name, amount FROM expenses ORDER BY amount DESC LIMIT 3"
+    },
+    {
+      "query_pattern": "JOIN",
+      "raw_postgresql": {
+        "p50_ms": 0.06895199976497679,
+        "p95_ms": 0.15543339945907061,
+        "mean_ms": 0.08708726005352219,
+        "stddev_ms": 0.032338320498149074,
+        "rows": 3,
+        "iterations": 100
+      },
+      "taskbound_run": {
+        "p50_ms": 1.4183560001583828,
+        "p95_ms": 1.6590622506100772,
+        "mean_ms": 1.4477888300552877,
+        "stddev_ms": 0.1558938844569863,
+        "rows": 3,
+        "iterations": 100
+      },
+      "overhead_pct_p50": 1957.0193830387166,
+      "raw_sql": "SELECT e.expense_id, e.amount, d.department_name FROM app_data.expenses e JOIN app_data.departments d ON e.department_id=d.department_id WHERE e.tenant_id='company_a' AND e.expense_month='2026-06' ORDER BY e.amount DESC LIMIT 3",
+      "taskbound_sql": "SELECT e.expense_id, e.amount, d.department_name FROM expenses e JOIN departments d ON e.department_id = d.department_id ORDER BY e.amount DESC LIMIT 3"
+    },
+    {
+      "query_pattern": "GROUP BY",
+      "raw_postgresql": {
+        "p50_ms": 0.06252799948924803,
+        "p95_ms": 0.14481889957096425,
+        "mean_ms": 0.07073247998960142,
+        "stddev_ms": 0.028491410159506934,
+        "rows": 3,
+        "iterations": 100
+      },
+      "taskbound_run": {
+        "p50_ms": 1.378892000502674,
+        "p95_ms": 1.5597905001413892,
+        "mean_ms": 1.3747940999746788,
+        "stddev_ms": 0.10796522095191528,
+        "rows": 3,
+        "iterations": 100
+      },
+      "overhead_pct_p50": 2105.2392716318723,
+      "raw_sql": "SELECT d.department_name, COUNT(*) AS n, SUM(e.amount) AS total FROM app_data.expenses e JOIN app_data.departments d ON e.department_id=d.department_id WHERE e.tenant_id='company_a' AND e.expense_month='2026-06' GROUP BY d.department_name ORDER BY total DESC",
+      "taskbound_sql": "SELECT department_name, COUNT(*) AS n, SUM(amount) AS total FROM expenses GROUP BY department_name ORDER BY total DESC"
+    },
+    {
+      "query_pattern": "CTE",
+      "raw_postgresql": {
+        "p50_ms": 0.04546750005829381,
+        "p95_ms": 0.10373114923822865,
+        "mean_ms": 0.052688330006276374,
+        "stddev_ms": 0.020131349437936312,
+        "rows": 1,
+        "iterations": 100
+      },
+      "taskbound_run": {
+        "p50_ms": 1.3239330000942573,
+        "p95_ms": 1.615398700505466,
+        "mean_ms": 1.3536958300483093,
+        "stddev_ms": 0.13761360445968626,
+        "rows": 1,
+        "iterations": 100
+      },
+      "overhead_pct_p50": 2811.822726995865,
+      "raw_sql": "WITH high AS (SELECT e.expense_id, e.amount FROM app_data.expenses e WHERE e.tenant_id='company_a' AND e.expense_month='2026-06' AND e.amount > 1000) SELECT count(*) AS high_count FROM high",
+      "taskbound_sql": "WITH high AS (SELECT expense_id, amount FROM expenses WHERE amount > 1000) SELECT count(*) AS high_count FROM high"
+    },
+    {
+      "query_pattern": "Window",
+      "raw_postgresql": {
+        "p50_ms": 0.1268285004698555,
+        "p95_ms": 0.1894382500722713,
+        "mean_ms": 0.12915787007841573,
+        "stddev_ms": 0.027342051445329668,
+        "rows": 5,
+        "iterations": 100
+      },
+      "taskbound_run": {
+        "p50_ms": 1.2888014998679864,
+        "p95_ms": 1.551615599419165,
+        "mean_ms": 1.323174399922209,
+        "stddev_ms": 0.14877607610579965,
+        "rows": 5,
+        "iterations": 100
+      },
+      "overhead_pct_p50": 916.1765652778556,
+      "raw_sql": "SELECT e.expense_id, d.department_name, e.amount, row_number() OVER (PARTITION BY d.department_name ORDER BY e.amount DESC) AS rn FROM app_data.expenses e JOIN app_data.departments d ON e.department_id=d.department_id WHERE e.tenant_id='company_a' AND e.expense_month='2026-06' ORDER BY e.amount DESC LIMIT 5",
+      "taskbound_sql": "SELECT expense_id, department_name, amount, row_number() OVER (PARTITION BY department_name ORDER BY amount DESC) AS rn FROM expenses ORDER BY amount DESC LIMIT 5"
+    }
+  ]
+}

@@ -1,0 +1,943 @@
+{
+  "title": "SessionBound evaluation",
+  "commit": "cadd555",
+  "run_id": "1782327881",
+  "base_url": "http://localhost:8000",
+  "passed": 24,
+  "failed": 0,
+  "total": 24,
+  "scenarios": [
+    {
+      "name": "safe_view_select",
+      "category": "allowed",
+      "expected": "allowed",
+      "actual": "allowed",
+      "passed": true,
+      "request": {
+        "sql": "SELECT expense_id, employee_name, amount FROM expenses ORDER BY amount DESC LIMIT 3",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "rows=3",
+      "result": {
+        "ok": true,
+        "row_count": 3,
+        "rows_preview": [
+          {
+            "amount": 12999.0,
+            "expense_id": "exp_008",
+            "employee_name": "Eva Li"
+          },
+          {
+            "amount": 3680.0,
+            "expense_id": "exp_005",
+            "employee_name": "Cindy Wang"
+          },
+          {
+            "amount": 2360.0,
+            "expense_id": "exp_002",
+            "employee_name": "Alice Zhang"
+          }
+        ],
+        "error": null,
+        "state": [
+          {
+            "task_id": "task_1782327881_1_safe_view_select",
+            "budget_account": "task_1782327881_1_safe_view_select",
+            "query_count": 1,
+            "returned_rows": 3,
+            "unique_expense_rows": 3,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 3,
+            "unique_rows_added": 3,
+            "remaining_unique_row_budget": 997,
+            "reason": null,
+            "created_at": "2026-06-24T19:04:41.253334+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "join_safe_views",
+      "category": "allowed",
+      "expected": "allowed",
+      "actual": "allowed",
+      "passed": true,
+      "request": {
+        "sql": "SELECT e.expense_id, e.amount, d.department_name FROM expenses e JOIN departments d ON e.department_id = d.department_id ORDER BY e.amount DESC LIMIT 3",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "rows=3",
+      "result": {
+        "ok": true,
+        "row_count": 3,
+        "rows_preview": [
+          {
+            "amount": 12999.0,
+            "expense_id": "exp_008",
+            "department_name": "Engineering"
+          },
+          {
+            "amount": 3680.0,
+            "expense_id": "exp_005",
+            "department_name": "Sales"
+          },
+          {
+            "amount": 2360.0,
+            "expense_id": "exp_002",
+            "department_name": "Finance"
+          }
+        ],
+        "error": null,
+        "state": [
+          {
+            "task_id": "task_1782327881_2_join_safe_views",
+            "budget_account": "task_1782327881_2_join_safe_views",
+            "query_count": 1,
+            "returned_rows": 3,
+            "unique_expense_rows": 3,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 3,
+            "unique_rows_added": 3,
+            "remaining_unique_row_budget": 997,
+            "reason": null,
+            "created_at": "2026-06-24T19:04:41.275674+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "cte",
+      "category": "allowed",
+      "expected": "allowed",
+      "actual": "allowed",
+      "passed": true,
+      "request": {
+        "sql": "WITH high AS (SELECT expense_id, amount FROM expenses WHERE amount > 1000) SELECT count(*) AS high_count FROM high",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "rows=1",
+      "result": {
+        "ok": true,
+        "row_count": 1,
+        "rows_preview": [
+          {
+            "high_count": 6
+          }
+        ],
+        "error": null,
+        "state": [
+          {
+            "task_id": "task_1782327881_3_cte",
+            "budget_account": "task_1782327881_3_cte",
+            "query_count": 1,
+            "returned_rows": 1,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 1,
+            "unique_rows_added": 0,
+            "remaining_unique_row_budget": 1000,
+            "reason": null,
+            "created_at": "2026-06-24T19:04:41.298440+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "group_by",
+      "category": "allowed",
+      "expected": "allowed",
+      "actual": "allowed",
+      "passed": true,
+      "request": {
+        "sql": "SELECT department_name, COUNT(*) AS n, SUM(amount) AS total FROM expenses GROUP BY department_name ORDER BY total DESC",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "rows=3",
+      "result": {
+        "ok": true,
+        "row_count": 3,
+        "rows_preview": [
+          {
+            "n": 2,
+            "total": 13559.0,
+            "department_name": "Engineering"
+          },
+          {
+            "n": 3,
+            "total": 7460.0,
+            "department_name": "Sales"
+          },
+          {
+            "n": 3,
+            "total": 4420.0,
+            "department_name": "Finance"
+          }
+        ],
+        "error": null,
+        "state": [
+          {
+            "task_id": "task_1782327881_4_group_by",
+            "budget_account": "task_1782327881_4_group_by",
+            "query_count": 1,
+            "returned_rows": 3,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 3,
+            "unique_rows_added": 0,
+            "remaining_unique_row_budget": 1000,
+            "reason": null,
+            "created_at": "2026-06-24T19:04:41.326372+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "window_function",
+      "category": "allowed",
+      "expected": "allowed",
+      "actual": "allowed",
+      "passed": true,
+      "request": {
+        "sql": "SELECT expense_id, department_name, amount, row_number() OVER (PARTITION BY department_name ORDER BY amount DESC) AS rn FROM expenses ORDER BY amount DESC LIMIT 5",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "rows=5",
+      "result": {
+        "ok": true,
+        "row_count": 5,
+        "rows_preview": [
+          {
+            "rn": 1,
+            "amount": 12999.0,
+            "expense_id": "exp_008",
+            "department_name": "Engineering"
+          },
+          {
+            "rn": 1,
+            "amount": 3680.0,
+            "expense_id": "exp_005",
+            "department_name": "Sales"
+          },
+          {
+            "rn": 1,
+            "amount": 2360.0,
+            "expense_id": "exp_002",
+            "department_name": "Finance"
+          },
+          {
+            "rn": 2,
+            "amount": 2100.0,
+            "expense_id": "exp_004",
+            "department_name": "Sales"
+          },
+          {
+            "rn": 2,
+            "amount": 1880.0,
+            "expense_id": "exp_001",
+            "department_name": "Finance"
+          }
+        ],
+        "error": null,
+        "state": [
+          {
+            "task_id": "task_1782327881_5_window_function",
+            "budget_account": "task_1782327881_5_window_function",
+            "query_count": 1,
+            "returned_rows": 5,
+            "unique_expense_rows": 5,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 5,
+            "unique_rows_added": 5,
+            "remaining_unique_row_budget": 995,
+            "reason": null,
+            "created_at": "2026-06-24T19:04:41.353810+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "scoped_drill_down",
+      "category": "allowed",
+      "expected": "allowed",
+      "actual": "allowed",
+      "passed": true,
+      "request": {
+        "sql": "SELECT expense_id, merchant, city, amount FROM expenses WHERE department_name = 'Sales' ORDER BY amount DESC",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "rows=3",
+      "result": {
+        "ok": true,
+        "row_count": 3,
+        "rows_preview": [
+          {
+            "city": "Shenzhen",
+            "amount": 3680.0,
+            "merchant": "Client Dinner",
+            "expense_id": "exp_005"
+          },
+          {
+            "city": "Shenzhen",
+            "amount": 2100.0,
+            "merchant": "China Eastern",
+            "expense_id": "exp_004"
+          },
+          {
+            "city": "Guangzhou",
+            "amount": 1680.0,
+            "merchant": "Marriott",
+            "expense_id": "exp_006"
+          }
+        ],
+        "error": null,
+        "state": [
+          {
+            "task_id": "task_1782327881_6_scoped_drill_down",
+            "budget_account": "task_1782327881_6_scoped_drill_down",
+            "query_count": 1,
+            "returned_rows": 3,
+            "unique_expense_rows": 3,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 3,
+            "unique_rows_added": 3,
+            "remaining_unique_row_budget": 997,
+            "reason": null,
+            "created_at": "2026-06-24T19:04:41.382996+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "salary_access",
+      "category": "denied_field",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT employee_name, salary FROM employees",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: sensitive column is outside this task capability",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: sensitive column is outside this task capability\nCONTEXT:  PL/pgSQL function run(text) line 45 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_7_salary_access",
+            "budget_account": "task_1782327881_7_salary_access",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "bank_account_access",
+      "category": "denied_field",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT employee_name, bank_account FROM employees",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: sensitive column is outside this task capability",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: sensitive column is outside this task capability\nCONTEXT:  PL/pgSQL function run(text) line 45 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_8_bank_account_access",
+            "budget_account": "task_1782327881_8_bank_account_access",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "raw_table_access",
+      "category": "schema_escape",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT * FROM app_data.expenses LIMIT 1",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: direct access to internal schemas or state tables is not allowed",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: direct access to internal schemas or state tables is not allowed\nCONTEXT:  PL/pgSQL function run(text) line 40 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_9_raw_table_access",
+            "budget_account": "task_1782327881_9_raw_table_access",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "mutation_sql",
+      "category": "write_attempt",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "DELETE FROM expenses WHERE expense_month = '2026-06'",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: only SELECT statements are allowed",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: only SELECT statements are allowed\nCONTEXT:  PL/pgSQL function run(text) line 30 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_10_mutation_sql",
+            "budget_account": "task_1782327881_10_mutation_sql",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "ddl",
+      "category": "destructive_operation",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "DROP TABLE expenses",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: only SELECT statements are allowed",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: only SELECT statements are allowed\nCONTEXT:  PL/pgSQL function run(text) line 30 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_11_ddl",
+            "budget_account": "task_1782327881_11_ddl",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "pg_catalog_access",
+      "category": "schema_escape",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT * FROM pg_catalog.pg_tables",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: direct access to internal schemas or state tables is not allowed",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: direct access to internal schemas or state tables is not allowed\nCONTEXT:  PL/pgSQL function run(text) line 40 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_12_pg_catalog_access",
+            "budget_account": "task_1782327881_12_pg_catalog_access",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "json_agg_payload",
+      "category": "payload_aggregation",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT json_agg(e) FROM expenses e",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.\nCONTEXT:  PL/pgSQL function run(text) line 50 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_13_json_agg_payload",
+            "budget_account": "task_1782327881_13_json_agg_payload",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "jsonb_agg_payload",
+      "category": "payload_aggregation",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT jsonb_agg(e) FROM expenses e",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.\nCONTEXT:  PL/pgSQL function run(text) line 50 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_14_jsonb_agg_payload",
+            "budget_account": "task_1782327881_14_jsonb_agg_payload",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "array_agg_payload",
+      "category": "payload_aggregation",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT array_agg(e.expense_id) FROM expenses e",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.\nCONTEXT:  PL/pgSQL function run(text) line 50 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_15_array_agg_payload",
+            "budget_account": "task_1782327881_15_array_agg_payload",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "string_agg_payload",
+      "category": "payload_aggregation",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT string_agg(employee_name, ',') FROM employees",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.\nCONTEXT:  PL/pgSQL function run(text) line 50 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_16_string_agg_payload",
+            "budget_account": "task_1782327881_16_string_agg_payload",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "xmlagg_payload",
+      "category": "payload_aggregation",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT xmlagg(xmlelement(name expense, expense_id)) FROM expenses",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.\nCONTEXT:  PL/pgSQL function run(text) line 50 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_17_xmlagg_payload",
+            "budget_account": "task_1782327881_17_xmlagg_payload",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "row_to_json_payload",
+      "category": "payload_aggregation",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT row_to_json(e) FROM expenses e LIMIT 1",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.\nCONTEXT:  PL/pgSQL function run(text) line 50 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_18_row_to_json_payload",
+            "budget_account": "task_1782327881_18_row_to_json_payload",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "json_build_object_payload",
+      "category": "payload_aggregation",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT json_build_object('expense', e) FROM expenses e LIMIT 1",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.\nCONTEXT:  PL/pgSQL function run(text) line 50 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_19_json_build_object_payload",
+            "budget_account": "task_1782327881_19_json_build_object_payload",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "jsonb_build_object_payload",
+      "category": "payload_aggregation",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT jsonb_build_object('expense', e) FROM expenses e LIMIT 1",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.\nCONTEXT:  PL/pgSQL function run(text) line 50 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_20_jsonb_build_object_payload",
+            "budget_account": "task_1782327881_20_jsonb_build_object_payload",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    },
+    {
+      "name": "out_of_scope_month",
+      "category": "transparent_scope_filtering",
+      "expected": "filtered_0_rows",
+      "actual": "filtered_0_rows",
+      "passed": true,
+      "request": {
+        "sql": "SELECT expense_id, expense_month, amount FROM expenses WHERE expense_month = '2026-05'",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "Allowed query shape returned zero rows under task-bound safe-view scope.",
+      "result": {
+        "ok": true,
+        "row_count": 0,
+        "rows_preview": [],
+        "error": null,
+        "state": [
+          {
+            "task_id": "task_1782327881_21_out_of_scope_month",
+            "budget_account": "task_1782327881_21_out_of_scope_month",
+            "query_count": 1,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 0,
+            "unique_rows_added": 0,
+            "remaining_unique_row_budget": 1000,
+            "reason": null,
+            "created_at": "2026-06-24T19:04:41.679780+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "out_of_scope_department",
+      "category": "transparent_scope_filtering",
+      "expected": "filtered_0_rows",
+      "actual": "filtered_0_rows",
+      "passed": true,
+      "request": {
+        "sql": "SELECT expense_id, department_id, amount FROM expenses WHERE department_id = 'dep_nonexistent'",
+        "max_rows": 1000,
+        "max_queries": 20
+      },
+      "evidence": "Allowed query shape returned zero rows under task-bound safe-view scope.",
+      "result": {
+        "ok": true,
+        "row_count": 0,
+        "rows_preview": [],
+        "error": null,
+        "state": [
+          {
+            "task_id": "task_1782327881_22_out_of_scope_department",
+            "budget_account": "task_1782327881_22_out_of_scope_department",
+            "query_count": 1,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 0,
+            "unique_rows_added": 0,
+            "remaining_unique_row_budget": 1000,
+            "reason": null,
+            "created_at": "2026-06-24T19:04:41.699654+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "query_budget_overflow",
+      "category": "budget",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "two SELECT count(*) calls with max_queries=1",
+        "max_queries": 1
+      },
+      "evidence": "SessionBoundDB denied query: query budget exhausted",
+      "first_result": {
+        "ok": true,
+        "row_count": 1,
+        "rows_preview": [
+          {
+            "n": 8
+          }
+        ],
+        "error": null,
+        "state": [
+          {
+            "task_id": "task_1782327881_23_query_budget_overflow",
+            "budget_account": "task_1782327881_23_query_budget_overflow",
+            "query_count": 1,
+            "returned_rows": 1,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 1,
+            "unique_rows_added": 0,
+            "remaining_unique_row_budget": 1000,
+            "reason": null,
+            "created_at": "2026-06-24T19:04:41.720071+00:00"
+          }
+        ]
+      },
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: query budget exhausted\nCONTEXT:  PL/pgSQL function run(text) line 67 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_23_query_budget_overflow",
+            "budget_account": "task_1782327881_23_query_budget_overflow",
+            "query_count": 1,
+            "returned_rows": 1,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 1,
+            "unique_rows_added": 0,
+            "remaining_unique_row_budget": 1000,
+            "reason": null,
+            "created_at": "2026-06-24T19:04:41.720071+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "name": "disclosure_budget_overflow",
+      "category": "budget",
+      "expected": "denied",
+      "actual": "denied",
+      "passed": true,
+      "request": {
+        "sql": "SELECT expense_id, employee_name, amount FROM expenses ORDER BY amount DESC LIMIT 3",
+        "max_rows": 2,
+        "max_queries": 20
+      },
+      "evidence": "SessionBoundDB denied query: unique expense row budget exceeded",
+      "result": {
+        "ok": false,
+        "row_count": null,
+        "rows_preview": null,
+        "error": "SessionBoundDB denied query: unique expense row budget exceeded\nCONTEXT:  PL/pgSQL function run(text) line 96 at RAISE",
+        "state": [
+          {
+            "task_id": "task_1782327881_24_disclosure_budget_overflow",
+            "budget_account": "task_1782327881_24_disclosure_budget_overflow",
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0,
+            "revoked": false
+          }
+        ],
+        "receipts": []
+      }
+    }
+  ]
+}
