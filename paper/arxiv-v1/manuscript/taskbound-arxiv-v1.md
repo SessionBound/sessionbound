@@ -1,5 +1,3 @@
-# SessionBound: Turning Enterprise Task Approval into Budgeted Database Sessions
-
 ## Safe Views, Budgets, and Receipts for Open-Ended Enterprise Analysis
 
 ## Abstract

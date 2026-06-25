@@ -108,11 +108,6 @@ Independent Researcher}
 \begin{document}
 \maketitle
 
-\hypertarget{sessionbound-turning-enterprise-task-approval-into-budgeted-database-sessions}{%
-\section{SessionBound: Turning Enterprise Task Approval into Budgeted
-Database
-Sessions}\label{sessionbound-turning-enterprise-task-approval-into-budgeted-database-sessions}}
-
 \hypertarget{safe-views-budgets-and-receipts-for-open-ended-enterprise-analysis}{%
 \subsection{Safe Views, Budgets, and Receipts for Open-Ended Enterprise
 Analysis}\label{safe-views-budgets-and-receipts-for-open-ended-enterprise-analysis}}
@@ -1196,16 +1191,18 @@ hashes and registry versions.
 Table~\ref{tab:schema-drift} summarizes drift events and required
 responses.
 
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.33}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.33}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.33}}@{}}
+\begin{table}[t]
+\centering
+\small
 \caption{Safe view drift and required token invalidation behavior.}
-\label{tab:schema-drift}\\
+\label{tab:schema-drift}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.30\columnwidth}
+  >{\raggedright\arraybackslash}p{0.30\columnwidth}
+  >{\raggedright\arraybackslash}p{0.32\columnwidth}@{}}
 \toprule
 Change & Risk & Required Response \\
 \midrule
-\endhead
 Add column to raw table & hidden exposure if safe view uses
 \texttt{SELECT\ *} & safe views must not use \texttt{SELECT\ *};
 registry hash unchanged if not exposed \\
@@ -1220,7 +1217,8 @@ compatibility flag \\
 Column type change & interpretation drift & invalidate if exposed column
 hash changes \\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 A task-bound session should fail closed if its safe view registry
 version or view definition hash no longer matches the approved boundary.
