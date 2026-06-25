@@ -10,7 +10,7 @@ We present **SessionBound**, a control-plane and database-runtime architecture t
 
 SessionBound does not require the database to parse natural-language task descriptions, nor does it trust the agent or an LLM to correctly interpret or obey the task. The agent remains free to generate SQL, join safe business objects, aggregate, rank, and drill down. The database decides whether each attempt stays inside the approved boundary. This design targets a setting distinct from authenticated delegation, task-scoped service-operation authorization, and data-product marketplace access: enterprise-internal analytical work where fixed SaaS screens are too rigid, direct database access is too broad, and approved tasks should become temporary, budgeted, receipt-bearing database sessions.
 
-**Code availability.** The prototype source code and synthetic evaluation dataset are available at https://github.com/SessionBound/sessionbound.
+**Code availability.** The prototype source code, synthetic evaluation dataset, validation reports, benchmark outputs, and arXiv source are available at https://github.com/SessionBound/sessionbound.
 
 ---
 
@@ -745,7 +745,7 @@ It does not prove production-grade SQL safety or eliminate all inference attacks
 
 ### 12.1 Functional scenario suite
 
-We evaluated the imported PostgreSQL prototype after the public SessionBound rename at commit `f793787` using Docker Compose, PostgreSQL 16.14, and the FastAPI task-token and dynamic-credential API. The detailed validation run passed 18 of 18 tested scenarios. The core allowed query patterns worked, and direct sensitive-field, raw-schema, mutation, DDL, query-budget, unique-row disclosure-budget, and payload-aggregation violations were denied.
+We evaluated the SessionBoundDB PostgreSQL prototype using Docker Compose. The public repository contains the evaluation scripts, validation reports, benchmark outputs, and source code needed to reproduce the results. The detailed validation run passed 18 of 18 tested scenarios. The core allowed query patterns worked, and direct sensitive-field, raw-schema, mutation, DDL, query-budget, unique-row disclosure-budget, and payload-aggregation violations were denied.
 
 | Scenario | SQL Feature / Attack | Expected | Observed |
 |---|---|---|---|
@@ -786,7 +786,7 @@ Metrics:
 
 - PostgreSQL version;
 - Docker / hardware environment;
-- commit hash;
+- benchmark environment;
 - number of iterations;
 - p50 latency;
 - p95 latency;
@@ -795,7 +795,7 @@ Metrics:
 - rows returned;
 - overhead percentage.
 
-We ran a microbenchmark at commit `cb2d4ca` with 10 warmup iterations and 100 measured iterations per query pattern. The baseline is an admin/test role executing equivalent SQL over raw `app_data` tables with tenant and month predicates matching the task scope. The SessionBound path binds a signed task token and executes `taskbound.run(sql)` in PostgreSQL. The benchmark intentionally excludes HTTP latency and dynamic credential creation so that it focuses on database runtime overhead.
+We ran a microbenchmark with 10 warmup iterations and 100 measured iterations per query pattern. The baseline is an admin/test role executing equivalent SQL over raw `app_data` tables with tenant and month predicates matching the task scope. The SessionBound path binds a signed task token and executes `taskbound.run(sql)` in PostgreSQL. The benchmark intentionally excludes HTTP latency and dynamic credential creation so that it focuses on database runtime overhead.
 
 | Pattern | Raw p50 | SB p50 | Overhead | Rows |
 |---|---:|---:|---:|---:|
@@ -827,39 +827,73 @@ The prototype adds overhead compared with raw PostgreSQL, but absolute p50 laten
 
 ---
 
-## 13. Related Work
+## 13. Discussion
 
-### 13.1 OAuth, agent identity, and authenticated delegation
+### 13.1 Task approval is not a database policy
+
+SessionBound separates two activities that are often conflated. Business users, managers, data owners, or compliance staff approve tasks. Database runtimes enforce structured boundaries. A finance manager should not need to write SQL predicates, RLS rules, or database policies in order to approve an agent-assisted analysis task. Conversely, the database should not need to understand the business conversation that led to approval.
+
+The control plane is therefore not a convenience layer. It is the place where enterprise intent becomes structured enough for deterministic enforcement: a task template, an application, an approval, a scope, a TTL, a budget vector, and a signed task token. The database runtime consumes this structure and turns it into a bounded session.
+
+### 13.2 The runtime should not be an LLM judge
+
+SessionBound deliberately avoids making the database an LLM-based judge of task intent. Natural-language instructions may help a user describe a request, and an agent may use them to plan analysis. However, the runtime does not rely on the agent or any LLM to correctly interpret or obey the task.
+
+This design differs from systems that verify whether a concrete service operation is implied by a natural-language task. SessionBound instead assumes that the approved task has already been reduced to a structured boundary by the control plane. The agent may generate SQL freely inside that boundary, but the database enforces safe views, denied fields, row scope, budgets, and receipts.
+
+### 13.3 Filtering, denial, and SQL semantics
+
+Not every boundary violation needs to look like an error. For scoped safe views, transparent filtering is often the desired behavior. A query for another month or department may return zero rows because the safe-view predicate binds the session to the approved task scope. This preserves normal SQL semantics while preventing out-of-scope disclosure.
+
+By contrast, attempts to leave the approved query surface should be explicitly denied. Raw table access, denied fields, mutation statements, DDL, unsafe catalog access, and blocked payload aggregation functions are treated as boundary violations. This distinction lets SessionBound support ordinary analytical SQL while still refusing attempts to escape the task session.
+
+### 13.4 Budgets as authority accounting
+
+SessionBound disclosure budgets are not differential privacy guarantees. They do not prove that no inference is possible, and they do not add noise to query results. Instead, they are an operational accounting mechanism for delegated task authority.
+
+This distinction matters in enterprise settings. A business approval often means: this agent may inspect enough data to perform this task, but not unlimited data. Budget vectors make this approval measurable through query count, result rows, result bytes, unique business entities, column weights, and aggregate/detail multipliers. Receipts then record how the approved authority was spent.
+
+### 13.5 Composition with existing authorization systems
+
+SessionBound is intended to compose with, not replace, existing authorization infrastructure. Agent identity systems and authenticated delegation can establish who the agent is and who delegated authority. PAuth-style operation authorization can protect specific service or tool operations. Database security systems such as RLS or Oracle-style policy engines can provide low-level enforcement mechanisms. Data product catalogs can help users discover governed data products.
+
+SessionBound occupies the layer between enterprise task approval and database execution. It turns an approved analytical task into a short-lived, budgeted, auditable database session. This contract gives the agent room to explore while giving the enterprise a deterministic boundary to enforce and audit.
+
+---
+
+## 14. Related Work
+
+### 14.1 OAuth, agent identity, and authenticated delegation
 
 OAuth and related standards support delegated API access. Agent identity systems make agents visible and manageable as first-class non-human identities. Authenticated delegation frameworks make it possible to verify that an agent is acting on behalf of a user and that a credential carries scope.
 
 SessionBound can build on these systems. Authenticated Delegation establishes who may act for whom; SessionBound turns approved enterprise tasks into enforceable database sessions.
 
-### 13.2 PAuth and task-scoped service operations
+### 14.2 PAuth and task-scoped service operations
 
 PAuth provides precise task-scoped authorization for service or tool operations. It derives NL slices from a task and checks that concrete operations and operands match task-implied computations.
 
 SessionBound is complementary. It does not attempt to verify that every SQL query is semantically implied by a natural-language request. Instead, it enforces the approved task boundary over open-ended SQL using structured tokens, safe views, budgets, and receipts. In short, PAuth checks whether an operation is implied by the task description; SessionBound checks whether an agent's SQL exploration stays within a pre-approved, structured task boundary.
 
-### 13.3 Data Product MCP and enterprise data product governance
+### 14.3 Data Product MCP and enterprise data product governance
 
 Data Product MCP integrates data-product marketplaces and MCP so agents can discover, request access to, and query enterprise data products. It is the closest related work to SessionBound's enterprise governance motivation.
 
 SessionBound differs by making the approved task session, not the data product, the primary runtime object. A SessionBound session may span multiple safe views and account for cumulative exposure across queries. Its core abstraction is the budgeted database session created from task approval. In short, Data Product MCP governs access to data products; SessionBound governs the execution session of an exploratory agent.
 
-### 13.4 Oracle DDS and database-enforced access control
+### 14.4 Oracle DDS and database-enforced access control
 
 Oracle Deep Data Security and related systems show that database-enforced access control for agentic AI, AI-assisted applications, direct exploratory access, and analytics is an important industry direction. Such systems are strong data-plane enforcement mechanisms.
 
 SessionBound does not claim that this broad direction is new. It adds an enterprise task control plane and task-bound session model around database enforcement: templates, applications, approvals, signed task tokens, budgets, receipts, and safe-view versioning. In short, Oracle DDS enforces identity- and context-aware database policies; SessionBound provides the task control plane that turns business approval into a bounded, budgeted database session without requiring business users to write SQL predicates.
 
-### 13.5 Zanzibar and relationship-based authorization
+### 14.5 Zanzibar and relationship-based authorization
 
 Zanzibar provides a consistent, global relationship-based authorization system. It performs relationship-based authorization checks at global scale.
 
 SessionBound models budgeted database sessions for agent-generated analysis: once an enterprise task is approved, how should an agent's database session be bounded, budgeted, and audited while it generates SQL?
 
-### 13.6 Differential privacy, inference control, query auditing, and DLP
+### 14.6 Differential privacy, inference control, query auditing, and DLP
 
 Differential privacy and database inference control address leakage from query answers, often in statistical settings. Query auditing and DLP systems track or prevent sensitive data disclosure.
 
@@ -867,7 +901,7 @@ SessionBound is related but does not claim formal DP guarantees. Its disclosure 
 
 ---
 
-## 14. Future Work
+## 15. Future Work
 
 SessionBound opens several research and engineering directions beyond the first prototype.
 
@@ -885,7 +919,7 @@ Finally, SessionBound raises a broader question: how should enterprise software 
 
 ---
 
-## 15. Limitations
+## 16. Limitations
 
 SessionBound is a research prototype and reference architecture.
 
@@ -909,7 +943,7 @@ These limitations are acceptable for a first research prototype if stated clearl
 
 ---
 
-## 16. Conclusion
+## 17. Conclusion
 
 SessionBound turns enterprise task approval into budgeted database sessions for AI agents. It addresses a gap between business governance and database enforcement: business users approve tasks, data platforms register safe views, agents generate SQL, and databases enforce the approved boundary.
 

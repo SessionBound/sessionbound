@@ -76,7 +76,7 @@ Result:
 
 ```text
 arxiv.bbl generated.
-Output written on arxiv.pdf (27 pages, 303179 bytes).
+Output written on arxiv.pdf (29 pages, 307723 bytes).
 ```
 
 Generated PDF:
@@ -111,8 +111,16 @@ Build log review:
 - No undefined reference or undefined citation errors were found.
 - No missing bibliography database errors were found.
 - BibTeX integrated: yes.
+- Bibliography style: `unsrt`.
+- First in-text citation starts at `[1]`.
+- No unused BibTeX references remain.
+- No cited keys are missing from `references.bib`.
 - arxiv.bbl generated: yes.
 - PDF rebuilt: yes.
+- Discussion section added.
+- Paper manuscript no longer contains commit hashes or Git tag references.
+- Code availability points only to `https://github.com/SessionBound/sessionbound`.
+- Upload ZIP regenerated.
 - The Section 7.3 payload-aggregation table, Section 8 budget-semantics paragraph, and performance table overflow issues were fixed.
 - Remaining warnings are minor overfull `hbox` warnings in long verbatim/table lines outside the fixed layout issues; they do not block human PDF review.
 

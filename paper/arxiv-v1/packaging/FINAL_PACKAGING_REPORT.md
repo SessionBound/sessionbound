@@ -57,12 +57,17 @@ pdflatex arxiv.tex
 
 Build result:
 
-- 27 pages
+- 29 pages
 - No fatal LaTeX errors
 - No undefined reference or undefined citation errors found
 - No missing bibliography database errors found
 - BibTeX integrated: yes
+- Bibliography style: `unsrt`
+- First in-text citation starts at `[1]`
+- No unused references remain
+- No missing BibTeX keys remain
 - `arxiv.bbl` generated: yes
+- PDF rebuilt: yes
 - Remaining warnings are minor overfull `hbox` warnings in long verbatim/table lines
 
 The arXiv source bundle manifest is:
@@ -82,6 +87,14 @@ Secret/sensitive-file checks passed:
 - `.env.example` remains as a safe template.
 
 Public text checks passed for placeholder cleanup, old public-brand cleanup in current README/docs/arXiv v1 manuscript, and exact repository URL use in the code-availability text.
+
+Final manuscript fixes completed:
+
+- Discussion section added.
+- Paper manuscript no longer contains commit hashes or Git tag references.
+- Code availability points only to `https://github.com/SessionBound/sessionbound`.
+- `arxiv.bbl` regenerated.
+- Upload ZIP regenerated.
 
 ## Known Limitations
 

@@ -151,9 +151,10 @@ screens are too rigid, direct database access is too broad, and approved
 tasks should become temporary, budgeted, receipt-bearing database
 sessions.
 
-\textbf{Code availability.} The prototype source code and synthetic
-evaluation dataset are available at
-https://github.com/SessionBound/sessionbound.
+\textbf{Code availability.} The prototype source code, synthetic
+evaluation dataset, validation reports, benchmark outputs, and arXiv
+source are available at
+\url{https://github.com/SessionBound/sessionbound}.
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
@@ -1381,13 +1382,13 @@ attacks.
 \subsubsection{12.1 Functional scenario
 suite}\label{functional-scenario-suite}}
 
-We evaluated the imported PostgreSQL prototype after the public
-SessionBound rename at commit \texttt{f793787} using Docker Compose,
-PostgreSQL 16.14, and the FastAPI task-token and dynamic-credential API.
-The detailed validation run passed 18 of 18 tested scenarios. The core
-allowed query patterns worked, and direct sensitive-field, raw-schema,
-mutation, DDL, query-budget, unique-row disclosure-budget, and
-payload-aggregation violations were denied.
+We evaluated the SessionBoundDB PostgreSQL prototype using Docker
+Compose. The public repository contains the evaluation scripts,
+validation reports, benchmark outputs, and source code needed to
+reproduce the results. The detailed validation run passed 18 of 18
+tested scenarios. The core allowed query patterns worked, and direct
+sensitive-field, raw-schema, mutation, DDL, query-budget, unique-row
+disclosure-budget, and payload-aggregation violations were denied.
 
 \begin{longtable}[]{@{}
   >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
@@ -1467,7 +1468,7 @@ Metrics:
 \item
   Docker / hardware environment;
 \item
-  commit hash;
+  benchmark environment;
 \item
   number of iterations;
 \item
@@ -1484,9 +1485,9 @@ Metrics:
   overhead percentage.
 \end{itemize}
 
-We ran a microbenchmark at commit \texttt{cb2d4ca} with 10 warmup
-iterations and 100 measured iterations per query pattern. The baseline
-is an admin/test role executing equivalent SQL over raw
+We ran a microbenchmark with 10 warmup iterations and 100 measured
+iterations per query pattern. The baseline is an admin/test role
+executing equivalent SQL over raw
 \texttt{app\_data} tables with tenant and month predicates matching the
 task scope. The SessionBound path binds a signed task token and executes
 \texttt{taskbound.run(sql)} in PostgreSQL. The benchmark intentionally
@@ -1548,11 +1549,102 @@ Schema drift & safe view version and definition hash checks \\
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
+\hypertarget{discussion}{%
+\subsection{13. Discussion}\label{discussion}}
+
+\hypertarget{task-approval-is-not-a-database-policy}{%
+\subsubsection{13.1 Task approval is not a database
+policy}\label{task-approval-is-not-a-database-policy}}
+
+SessionBound separates two activities that are often conflated.
+Business users, managers, data owners, or compliance staff approve
+tasks. Database runtimes enforce structured boundaries. A finance
+manager should not need to write SQL predicates, RLS rules, or database
+policies in order to approve an agent-assisted analysis task.
+Conversely, the database should not need to understand the business
+conversation that led to approval.
+
+The control plane is therefore not a convenience layer. It is the place
+where enterprise intent becomes structured enough for deterministic
+enforcement: a task template, an application, an approval, a scope, a
+TTL, a budget vector, and a signed task token. The database runtime
+consumes this structure and turns it into a bounded session.
+
+\hypertarget{the-runtime-should-not-be-an-llm-judge}{%
+\subsubsection{13.2 The runtime should not be an LLM
+judge}\label{the-runtime-should-not-be-an-llm-judge}}
+
+SessionBound deliberately avoids making the database an LLM-based judge
+of task intent. Natural-language instructions may help a user describe a
+request, and an agent may use them to plan analysis. However, the
+runtime does not rely on the agent or any LLM to correctly interpret or
+obey the task.
+
+This design differs from systems that verify whether a concrete service
+operation is implied by a natural-language task. SessionBound instead
+assumes that the approved task has already been reduced to a structured
+boundary by the control plane. The agent may generate SQL freely inside
+that boundary, but the database enforces safe views, denied fields, row
+scope, budgets, and receipts.
+
+\hypertarget{filtering-denial-and-sql-semantics}{%
+\subsubsection{13.3 Filtering, denial, and SQL
+semantics}\label{filtering-denial-and-sql-semantics}}
+
+Not every boundary violation needs to look like an error. For scoped
+safe views, transparent filtering is often the desired behavior. A query
+for another month or department may return zero rows because the
+safe-view predicate binds the session to the approved task scope. This
+preserves normal SQL semantics while preventing out-of-scope disclosure.
+
+By contrast, attempts to leave the approved query surface should be
+explicitly denied. Raw table access, denied fields, mutation statements,
+DDL, unsafe catalog access, and blocked payload aggregation functions
+are treated as boundary violations. This distinction lets SessionBound
+support ordinary analytical SQL while still refusing attempts to escape
+the task session.
+
+\hypertarget{budgets-as-authority-accounting}{%
+\subsubsection{13.4 Budgets as authority
+accounting}\label{budgets-as-authority-accounting}}
+
+SessionBound disclosure budgets are not differential privacy guarantees.
+They do not prove that no inference is possible, and they do not add
+noise to query results. Instead, they are an operational accounting
+mechanism for delegated task authority.
+
+This distinction matters in enterprise settings. A business approval
+often means: this agent may inspect enough data to perform this task,
+but not unlimited data. Budget vectors make this approval measurable
+through query count, result rows, result bytes, unique business
+entities, column weights, and aggregate/detail multipliers. Receipts then
+record how the approved authority was spent.
+
+\hypertarget{composition-with-existing-authorization-systems}{%
+\subsubsection{13.5 Composition with existing authorization
+systems}\label{composition-with-existing-authorization-systems}}
+
+SessionBound is intended to compose with, not replace, existing
+authorization infrastructure. Agent identity systems and authenticated
+delegation can establish who the agent is and who delegated authority.
+PAuth-style operation authorization can protect specific service or tool
+operations. Database security systems such as RLS or Oracle-style policy
+engines can provide low-level enforcement mechanisms. Data product
+catalogs can help users discover governed data products.
+
+SessionBound occupies the layer between enterprise task approval and
+database execution. It turns an approved analytical task into a
+short-lived, budgeted, auditable database session. This contract gives
+the agent room to explore while giving the enterprise a deterministic
+boundary to enforce and audit.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
 \hypertarget{related-work}{%
-\subsection{13. Related Work}\label{related-work}}
+\subsection{14. Related Work}\label{related-work}}
 
 \hypertarget{oauth-agent-identity-and-authenticated-delegation}{%
-\subsubsection{13.1 OAuth, agent identity, and authenticated
+\subsubsection{14.1 OAuth, agent identity, and authenticated
 delegation}\label{oauth-agent-identity-and-authenticated-delegation}}
 
 OAuth 2.0 and related standards support delegated API
@@ -1567,7 +1659,7 @@ establishes who may act for whom; SessionBound turns approved enterprise
 tasks into enforceable database sessions.
 
 \hypertarget{pauth-and-task-scoped-service-operations}{%
-\subsubsection{13.2 PAuth and task-scoped service
+\subsubsection{14.2 PAuth and task-scoped service
 operations}\label{pauth-and-task-scoped-service-operations}}
 
 PAuth provides precise task-scoped authorization for service or tool
@@ -1584,7 +1676,7 @@ SessionBound checks whether an agent's SQL exploration stays within a
 pre-approved, structured task boundary.
 
 \hypertarget{data-product-mcp-and-enterprise-data-product-governance}{%
-\subsubsection{13.3 Data Product MCP and enterprise data product
+\subsubsection{14.3 Data Product MCP and enterprise data product
 governance}\label{data-product-mcp-and-enterprise-data-product-governance}}
 
 Data Product MCP integrates data-product marketplaces and MCP so agents
@@ -1602,7 +1694,7 @@ approval. In short, Data Product MCP governs access to data products;
 SessionBound governs the execution session of an exploratory agent.
 
 \hypertarget{oracle-dds-and-database-enforced-access-control}{%
-\subsubsection{13.4 Oracle DDS and database-enforced access
+\subsubsection{14.4 Oracle DDS and database-enforced access
 control}\label{oracle-dds-and-database-enforced-access-control}}
 
 Oracle Deep Data Security and related systems show that
@@ -1621,7 +1713,7 @@ bounded, budgeted database session without requiring business users to
 write SQL predicates.
 
 \hypertarget{zanzibar-and-relationship-based-authorization}{%
-\subsubsection{13.5 Zanzibar and relationship-based
+\subsubsection{14.5 Zanzibar and relationship-based
 authorization}\label{zanzibar-and-relationship-based-authorization}}
 
 Zanzibar provides a consistent, global relationship-based authorization
@@ -1634,7 +1726,7 @@ database session be bounded, budgeted, and audited while it generates
 SQL?
 
 \hypertarget{differential-privacy-inference-control-query-auditing-and-dlp}{%
-\subsubsection{13.6 Differential privacy, inference control, query
+\subsubsection{14.6 Differential privacy, inference control, query
 auditing, and
 DLP}\label{differential-privacy-inference-control-query-auditing-and-dlp}}
 
@@ -1651,7 +1743,7 @@ produces receipts for governance and audit.
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{future-work}{%
-\subsection{14. Future Work}\label{future-work}}
+\subsection{15. Future Work}\label{future-work}}
 
 SessionBound opens several research and engineering directions beyond
 the first prototype.
@@ -1695,7 +1787,7 @@ agentic enterprise systems, not just database analysis.
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{limitations}{%
-\subsection{15. Limitations}\label{limitations}}
+\subsection{16. Limitations}\label{limitations}}
 
 SessionBound is a research prototype and reference architecture.
 
@@ -1741,7 +1833,7 @@ stated clearly and evaluated honestly.
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{conclusion}{%
-\subsection{16. Conclusion}\label{conclusion}}
+\subsection{17. Conclusion}\label{conclusion}}
 
 SessionBound turns enterprise task approval into budgeted database
 sessions for AI agents. It addresses a gap between business governance
@@ -1765,7 +1857,7 @@ database execution:
 The agent can try. The database decides.
 \end{verbatim}
 
-\bibliographystyle{plain}
+\bibliographystyle{unsrt}
 \bibliography{references}
 
 \end{document}
