@@ -14,11 +14,7 @@ SessionBound does not require the database to parse natural-language task descri
 
 AI agents change how enterprise users interact with data. A user no longer needs to know which report exists, which dashboard to open, or which API endpoint to call. Instead, the user can ask an agent:
 
-```text
-Analyze June 2026 travel reimbursements for the Sales department.
-Find unusual merchants, repeated claims, employee-level monthly totals,
-and claims near approval thresholds. Exclude salary and bank data.
-```
+> Analyze June 2026 travel reimbursements for the Sales department. Find unusual merchants, repeated claims, employee-level monthly totals, and claims near approval thresholds. Exclude salary and bank data.
 
 This is exactly the kind of task agents are good at: temporary, exploratory, cross-table, and under-specified. It is also exactly the kind of task traditional enterprise software handles poorly. Building a permanent SaaS page or API for every low-frequency internal analysis task is expensive. Giving the agent raw database access is unsafe. Relying on prompts is not a security boundary. Relying on the application layer alone becomes fragile when SQL is generated dynamically.
 
@@ -26,12 +22,7 @@ The industry and research communities have already recognized several adjacent p
 
 These are necessary pieces, but they leave a gap for enterprise-internal analytical agents. In real organizations, a manager or data owner does not log into a database to write row-level policies for every agent task. A business user applies for or delegates a task. A manager, data owner, or compliance workflow approves it. A data platform has already registered safe business views. A system must convert the approved task into a structured execution boundary that the database can enforce, while still allowing the agent to freely generate useful analytical SQL.
 
-This paper argues for the following principle:
-
-```text
-Business users approve tasks, not database policies.
-Agents generate SQL, but databases enforce the approved boundary.
-```
+This paper argues for the following principle: business users approve tasks, not database policies. Agents generate SQL, but databases enforce the approved boundary.
 
 SessionBound separates three concerns.
 
@@ -86,14 +77,12 @@ SessionBound targets this setting.
 
 In a realistic enterprise, a manager or data owner should not be expected to write SQL policies. A business user might request:
 
-```text
-Task type: monthly_expense_anomaly_review
-Scope: June 2026, Sales department
-Purpose: travel reimbursement audit
-Sensitivity: exclude salary, phone, bank account
-Budget: up to 20 SQL attempts, 5,000 result rows, and limited entity exposure
-TTL: 30 minutes
-```
+- **Task type:** `monthly_expense_anomaly_review`
+- **Scope:** June 2026, Sales department
+- **Purpose:** travel reimbursement audit
+- **Sensitivity:** exclude salary, phone, bank account
+- **Budget:** up to 20 SQL attempts, 5,000 result rows, and limited entity exposure
+- **TTL:** 30 minutes
 
 A manager or data owner can decide whether this task is appropriate. A data platform can provide approved safe views. A compliance system can require tighter budgets. But none of these people should need to edit database roles, row-level security predicates, or cell-level policies for every agent session.
 
@@ -329,11 +318,7 @@ This avoids broad database roles such as:
 finance_user can access all finance tables
 ```
 
-Instead, the database sees a concrete task token:
-
-```text
-agent X may analyze June 2026 Sales reimbursements using views A, B, C under budget Y.
-```
+Instead, the database sees a concrete task token: agent X may analyze June 2026 Sales reimbursements using views A, B, C under budget Y.
 
 ### Budget assignment
 

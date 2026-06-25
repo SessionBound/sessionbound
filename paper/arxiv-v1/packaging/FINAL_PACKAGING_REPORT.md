@@ -58,7 +58,7 @@ pdflatex arxiv.tex
 Build result:
 
 - 28 pages
-- PDF size: 470259 bytes
+- PDF size: 469827 bytes
 - No fatal LaTeX errors
 - No undefined reference or undefined citation errors found
 - No missing bibliography database errors found

@@ -156,11 +156,11 @@ AI agents change how enterprise users interact with data. A user no
 longer needs to know which report exists, which dashboard to open, or
 which API endpoint to call. Instead, the user can ask an agent:
 
-\begin{verbatim}
-Analyze June 2026 travel reimbursements for the Sales department.
-Find unusual merchants, repeated claims, employee-level monthly totals,
-and claims near approval thresholds. Exclude salary and bank data.
-\end{verbatim}
+\begin{quote}
+Analyze June 2026 travel reimbursements for the Sales department. Find
+unusual merchants, repeated claims, employee-level monthly totals, and
+claims near approval thresholds. Exclude salary and bank data.
+\end{quote}
 
 This is exactly the kind of task agents are good at: temporary,
 exploratory, cross-table, and under-specified. It is also exactly the
@@ -199,12 +199,9 @@ registered safe business views. A system must convert the approved task
 into a structured execution boundary that the database can enforce,
 while still allowing the agent to freely generate useful analytical SQL.
 
-This paper argues for the following principle:
-
-\begin{verbatim}
-Business users approve tasks, not database policies.
-Agents generate SQL, but databases enforce the approved boundary.
-\end{verbatim}
+This paper argues for the following principle: business users approve
+tasks, not database policies. Agents generate SQL, but databases enforce
+the approved boundary.
 
 SessionBound separates three concerns.
 
@@ -337,14 +334,23 @@ authoring}\label{enterprise-approval-is-not-database-policy-authoring}}
 In a realistic enterprise, a manager or data owner should not be
 expected to write SQL policies. A business user might request:
 
-\begin{verbatim}
-Task type: monthly_expense_anomaly_review
-Scope: June 2026, Sales department
-Purpose: travel reimbursement audit
-Sensitivity: exclude salary, phone, bank account
-Budget: up to 20 SQL attempts, 5,000 result rows, and limited entity exposure
-TTL: 30 minutes
-\end{verbatim}
+\begin{quote}
+\begin{description}
+\tightlist
+\item[Task type:]
+\texttt{monthly\_expense\_anomaly\_review}
+\item[Scope:]
+June 2026, Sales department
+\item[Purpose:]
+travel reimbursement audit
+\item[Sensitivity:]
+exclude salary, phone, bank account
+\item[Budget:]
+up to 20 SQL attempts, 5,000 result rows, and limited entity exposure
+\item[TTL:]
+30 minutes
+\end{description}
+\end{quote}
 
 A manager or data owner can decide whether this task is appropriate. A
 data platform can provide approved safe views. A compliance system can
@@ -759,11 +765,8 @@ This avoids broad database roles such as:
 finance_user can access all finance tables
 \end{verbatim}
 
-Instead, the database sees a concrete task token:
-
-\begin{verbatim}
-agent X may analyze June 2026 Sales reimbursements using views A, B, C under budget Y.
-\end{verbatim}
+Instead, the database sees a concrete task token: agent X may analyze
+June 2026 Sales reimbursements using views A, B, C under budget Y.
 
 \hypertarget{budget-assignment}{%
 \subsection{Budget assignment}\label{budget-assignment}}

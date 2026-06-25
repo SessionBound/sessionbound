@@ -76,7 +76,7 @@ Result:
 
 ```text
 arxiv.bbl generated.
-Output written on arxiv.pdf (28 pages, 470259 bytes).
+Output written on arxiv.pdf (28 pages, 469827 bytes).
 ```
 
 Generated PDF:
