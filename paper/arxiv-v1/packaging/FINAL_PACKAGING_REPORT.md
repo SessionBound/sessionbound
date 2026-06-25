@@ -58,6 +58,7 @@ pdflatex arxiv.tex
 Build result:
 
 - 28 pages
+- PDF size: 470259 bytes
 - No fatal LaTeX errors
 - No undefined reference or undefined citation errors found
 - No missing bibliography database errors found
@@ -68,6 +69,11 @@ Build result:
 - No missing BibTeX keys remain
 - `arxiv.bbl` generated: yes
 - PDF rebuilt: yes
+- Subtitle subsection removed: yes
+- Horizontal rules removed: yes
+- Automatic section numbering enabled: yes
+- ASCII architecture block removed: yes
+- Validation text confirmed as 24 of 24: yes
 - Formal architecture figure added: yes
 - Major tables now have captions and labels: yes
 - Remaining warnings are minor overfull `hbox` warnings in long verbatim/table lines
@@ -97,6 +103,11 @@ Final manuscript fixes completed:
 - Code availability points only to `https://github.com/SessionBound/sessionbound`.
 - `arxiv.bbl` regenerated.
 - Upload ZIP regenerated.
+- Subtitle subsection removed.
+- Horizontal rules removed.
+- Automatic section numbering enabled.
+- ASCII architecture block removed; TikZ architecture figure retained.
+- Validation text confirmed as 24 of 24.
 - Formal architecture figure added.
 - Major tables now have captions and labels.
 

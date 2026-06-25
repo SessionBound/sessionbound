@@ -38,6 +38,11 @@
 - [x] `arxiv.bbl` regenerated.
 - [x] PDF rebuilt.
 - [x] Upload ZIP regenerated.
+- [x] Subtitle subsection removed before abstract.
+- [x] Markdown horizontal-rule artifacts removed.
+- [x] Automatic section numbering enabled.
+- [x] Old ASCII architecture block removed; TikZ architecture figure retained.
+- [x] Validation text confirmed as 24 of 24.
 - [x] Formal architecture figure added.
 - [x] Major tables now have captions and labels.
 

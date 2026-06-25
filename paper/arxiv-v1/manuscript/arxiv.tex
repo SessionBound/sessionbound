@@ -36,7 +36,6 @@
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
 \IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
 \hypersetup{
-  pdftitle={SessionBound: Turning Enterprise Task Approval into Budgeted Database Sessions},
   pdfauthor={Minmin Wu},
   hidelinks,
   pdfcreator={LaTeX via pandoc}}
@@ -95,7 +94,7 @@
 \setlength{\emergencystretch}{3em} % prevent overfull lines
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
-\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\setcounter{secnumdepth}{3}
 \ifLuaTeX
   \usepackage{selnolig}  % disable illegal ligatures
 \fi
@@ -108,10 +107,6 @@ Independent Researcher}
 
 \begin{document}
 \maketitle
-
-\hypertarget{safe-views-budgets-and-receipts-for-open-ended-enterprise-analysis}{%
-\subsection{Safe Views, Budgets, and Receipts for Open-Ended Enterprise
-Analysis}\label{safe-views-budgets-and-receipts-for-open-ended-enterprise-analysis}}
 
 \begin{abstract}
 
@@ -155,7 +150,7 @@ source are available at
 \end{abstract}
 
 \hypertarget{introduction}{%
-\subsection{1. Introduction}\label{introduction}}
+\section{Introduction}\label{introduction}}
 
 AI agents change how enterprise users interact with data. A user no
 longer needs to know which report exists, which dashboard to open, or
@@ -254,7 +249,7 @@ The PostgreSQL prototype currently keeps the \texttt{taskbound} SQL
 schema name for compatibility with the existing demo implementation.
 
 \hypertarget{contributions}{%
-\subsubsection{Contributions}\label{contributions}}
+\subsection{Contributions}\label{contributions}}
 
 This paper makes five contributions.
 
@@ -294,11 +289,11 @@ This paper makes five contributions.
 
 
 \hypertarget{motivation-enterprise-tasks-are-approved-above-the-database}{%
-\subsection{2. Motivation: Enterprise Tasks Are Approved Above the
+\section{Motivation: Enterprise Tasks Are Approved Above the
 Database}\label{motivation-enterprise-tasks-are-approved-above-the-database}}
 
 \hypertarget{saas-is-strong-at-fixed-workflows-and-weak-at-temporary-analysis}{%
-\subsubsection{2.1 SaaS is strong at fixed workflows and weak at
+\subsection{SaaS is strong at fixed workflows and weak at
 temporary
 analysis}\label{saas-is-strong-at-fixed-workflows-and-weak-at-temporary-analysis}}
 
@@ -336,7 +331,7 @@ exact SQL cannot be known in advance.
 SessionBound targets this setting.
 
 \hypertarget{enterprise-approval-is-not-database-policy-authoring}{%
-\subsubsection{2.2 Enterprise approval is not database policy
+\subsection{Enterprise approval is not database policy
 authoring}\label{enterprise-approval-is-not-database-policy-authoring}}
 
 In a realistic enterprise, a manager or data owner should not be
@@ -369,7 +364,7 @@ Agents explore freely inside those boundaries.
 \end{verbatim}
 
 \hypertarget{running-example-travel-reimbursement-anomaly-review}{%
-\subsubsection{2.3 Running example: travel reimbursement anomaly
+\subsection{Running example: travel reimbursement anomaly
 review}\label{running-example-travel-reimbursement-anomaly-review}}
 
 We use travel reimbursement review as a running example. A finance
@@ -406,7 +401,7 @@ database session with safe views, scope, budgets, and receipts.
 
 
 \hypertarget{threat-model}{%
-\subsection{3. Threat Model}\label{threat-model}}
+\section{Threat Model}\label{threat-model}}
 
 SessionBound assumes the upper-layer agent is useful but not trusted.
 The agent may be confused, overconfident, prompt-injected, malicious, or
@@ -414,7 +409,7 @@ simply wrong. The database boundary must remain meaningful even when the
 agent tries the wrong thing.
 
 \hypertarget{trusted-components}{%
-\subsubsection{3.1 Trusted components}\label{trusted-components}}
+\subsection{Trusted components}\label{trusted-components}}
 
 For this prototype, we trust:
 
@@ -438,7 +433,7 @@ hardware-backed key service, or enterprise identity infrastructure. The
 prototype uses a simpler signing path for demonstration.
 
 \hypertarget{untrusted-or-partially-trusted-components}{%
-\subsubsection{3.2 Untrusted or partially trusted
+\subsection{Untrusted or partially trusted
 components}\label{untrusted-or-partially-trusted-components}}
 
 We do not trust:
@@ -468,7 +463,7 @@ not ask the database to understand the user's natural-language intent.
 The database consumes structured claims from a signed token.
 
 \hypertarget{in-scope-threats}{%
-\subsubsection{3.3 In-scope threats}\label{in-scope-threats}}
+\subsection{In-scope threats}\label{in-scope-threats}}
 
 SessionBoundDB is designed to mitigate:
 
@@ -499,7 +494,7 @@ SessionBoundDB is designed to mitigate:
 \end{itemize}
 
 \hypertarget{out-of-scope}{%
-\subsubsection{3.4 Out of scope}\label{out-of-scope}}
+\subsection{Out of scope}\label{out-of-scope}}
 
 The prototype does not solve:
 
@@ -530,7 +525,7 @@ does not claim to eliminate all inference.
 
 
 \hypertarget{sessionbound-model}{%
-\subsection{4. SessionBound Model}\label{sessionbound-model}}
+\section{SessionBound Model}\label{sessionbound-model}}
 
 SessionBound has two major layers: a task control plane and a database
 runtime. Figure~\ref{fig:sessionbound-architecture} shows the main
@@ -586,7 +581,7 @@ SessionBound control-plane and runtime boundary.
 \end{figure}
 
 \hypertarget{task-template}{%
-\subsubsection{4.1 Task template}\label{task-template}}
+\subsection{Task template}\label{task-template}}
 
 A task template is defined by a data platform or application team. It
 describes a class of work that can be safely delegated to agents once
@@ -624,7 +619,7 @@ The template is not generated by the agent. It is part of enterprise
 governance.
 
 \hypertarget{task-application}{%
-\subsubsection{4.2 Task application}\label{task-application}}
+\subsection{Task application}\label{task-application}}
 
 A task application is a concrete request to perform work under a
 template.
@@ -646,7 +641,7 @@ template.
 \end{Shaded}
 
 \hypertarget{task-approval}{%
-\subsubsection{4.3 Task approval}\label{task-approval}}
+\subsection{Task approval}\label{task-approval}}
 
 A task approval evaluates whether the requester may run this task with
 this scope and budget. Approval may be automatic, role-based, or manual.
@@ -657,7 +652,7 @@ The approval does not require the approver to write SQL policies. It
 decides whether this scoped task should exist.
 
 \hypertarget{task-token}{%
-\subsubsection{4.4 Task token}\label{task-token}}
+\subsection{Task token}\label{task-token}}
 
 A signed task token is the structured authorization object consumed by
 the database runtime.
@@ -701,7 +696,7 @@ the database runtime.
 \end{Shaded}
 
 \hypertarget{budgeted-database-session}{%
-\subsubsection{4.5 Budgeted database
+\subsection{Budgeted database
 session}\label{budgeted-database-session}}
 
 A budgeted database session is a database session bound to one active
@@ -715,7 +710,7 @@ denied. When the token expires or is revoked, further
 
 
 \hypertarget{control-plane-templates-applications-approvals-and-budgets}{%
-\subsection{5. Control Plane: Templates, Applications, Approvals, and
+\section{Control Plane: Templates, Applications, Approvals, and
 Budgets}\label{control-plane-templates-applications-approvals-and-budgets}}
 
 The control plane is the SaaS-like layer that makes SessionBound
@@ -723,7 +718,7 @@ realistic for enterprises. This is where SessionBound differs most
 clearly from database-only security systems.
 
 \hypertarget{business-users-approve-tasks-not-policies}{%
-\subsubsection{5.1 Business users approve tasks, not
+\subsection{Business users approve tasks, not
 policies}\label{business-users-approve-tasks-not-policies}}
 
 A data owner should see:
@@ -750,7 +745,7 @@ The control plane converts the business approval into a signed token
 that the runtime can enforce.
 
 \hypertarget{grants-and-eligibility}{%
-\subsubsection{5.2 Grants and
+\subsection{Grants and
 eligibility}\label{grants-and-eligibility}}
 
 Roles do not grant direct database access. They grant eligibility to
@@ -771,7 +766,7 @@ agent X may analyze June 2026 Sales reimbursements using views A, B, C under bud
 \end{verbatim}
 
 \hypertarget{budget-assignment}{%
-\subsubsection{5.3 Budget assignment}\label{budget-assignment}}
+\subsection{Budget assignment}\label{budget-assignment}}
 
 Budget assignment is a control-plane decision. A low-risk task might
 receive a larger aggregate budget; a sensitive task may receive a small
@@ -783,13 +778,13 @@ budget is appropriate.
 
 
 \hypertarget{sessionbounddb-runtime}{%
-\subsection{6. SessionBoundDB Runtime}\label{sessionbounddb-runtime}}
+\section{SessionBoundDB Runtime}\label{sessionbounddb-runtime}}
 
 SessionBoundDB is the PostgreSQL-based database runtime for
 SessionBound.
 
 \hypertarget{session-binding-and-credential-token-binding}{%
-\subsubsection{6.1 Session binding and credential-token
+\subsection{Session binding and credential-token
 binding}\label{session-binding-and-credential-token-binding}}
 
 The runtime begins with two objects:
@@ -841,7 +836,7 @@ explicit credential registry mapping rather than relying on
 \texttt{current\_user} alone.
 
 \hypertarget{safe-views-as-the-query-surface}{%
-\subsubsection{6.2 Safe views as the query
+\subsection{Safe views as the query
 surface}\label{safe-views-as-the-query-surface}}
 
 Agents do not query raw application tables. They query registered safe
@@ -880,7 +875,7 @@ Safe views are not a complete inference-control solution. They reduce
 the discoverable surface and make it governable.
 
 \hypertarget{operation-policy}{%
-\subsubsection{6.3 Operation policy}\label{operation-policy}}
+\subsection{Operation policy}\label{operation-policy}}
 
 \texttt{taskbound.run(sql)} is intended for read-only analytical SQL.
 High-value writes should use controlled commands or stored procedures.
@@ -888,7 +883,7 @@ The runtime rejects mutations, DDL, unsafe utility commands, raw schema
 access, denied fields, and blocked schemas.
 
 \hypertarget{query-decision-pipeline}{%
-\subsubsection{6.4 Query decision
+\subsection{Query decision
 pipeline}\label{query-decision-pipeline}}
 
 At runtime, every SQL attempt follows the deterministic decision
@@ -922,14 +917,14 @@ The runtime does not ask an LLM whether a query is safe.
 
 
 \hypertarget{anti-evasion-scope}{%
-\subsection{7. Anti-Evasion Scope}\label{anti-evasion-scope}}
+\section{Anti-Evasion Scope}\label{anti-evasion-scope}}
 
 SessionBound handles direct boundary violations, but it does not claim
 to eliminate all semantic inference attacks. This distinction is central
 to the design.
 
 \hypertarget{direct-boundary-violations}{%
-\subsubsection{7.1 Direct boundary
+\subsection{Direct boundary
 violations}\label{direct-boundary-violations}}
 
 SessionBoundDB can directly block:
@@ -953,7 +948,7 @@ SessionBoundDB can directly block:
 \end{itemize}
 
 \hypertarget{inference-and-side-channels}{%
-\subsubsection{7.2 Inference and side
+\subsection{Inference and side
 channels}\label{inference-and-side-channels}}
 
 SessionBound does not claim to solve arbitrary inference from allowed
@@ -972,7 +967,7 @@ it does not eliminate all inference.
 \end{verbatim}
 
 \hypertarget{adversarial-sql-patterns}{%
-\subsubsection{7.3 Adversarial SQL
+\subsection{Adversarial SQL
 patterns}\label{adversarial-sql-patterns}}
 
 Table~\ref{tab:anti-evasion} summarizes representative evasion
@@ -1043,7 +1038,7 @@ a task template explicitly allows them with a strict byte budget.
 
 
 \hypertarget{budget-semantics}{%
-\subsection{8. Budget Semantics}\label{budget-semantics}}
+\section{Budget Semantics}\label{budget-semantics}}
 
 The phrase \textbf{disclosure budget} can be misleading if interpreted
 as differential privacy. SessionBound uses disclosure budgets for a
@@ -1058,7 +1053,7 @@ during one approved analytical session. They are an authority-accounting
 mechanism, not a formal differential-privacy guarantee.
 
 \hypertarget{budget-vector}{%
-\subsubsection{8.1 Budget vector}\label{budget-vector}}
+\subsection{Budget vector}\label{budget-vector}}
 
 A production SessionBound deployment should use a budget vector rather
 than a single unique-row limit.
@@ -1099,7 +1094,7 @@ Example:
 \end{Shaded}
 
 \hypertarget{budget-dimensions}{%
-\subsubsection{8.2 Budget dimensions}\label{budget-dimensions}}
+\subsection{Budget dimensions}\label{budget-dimensions}}
 
 The runtime may account for:
 
@@ -1137,7 +1132,7 @@ research model is broader: a budget is a vector of exposure counters
 tied to task authority.
 
 \hypertarget{budget-limitations}{%
-\subsubsection{8.3 Budget limitations}\label{budget-limitations}}
+\subsection{Budget limitations}\label{budget-limitations}}
 
 Budget vectors are not formal mutual-information bounds. They do not
 prove that an agent cannot infer a sensitive fact from allowed answers.
@@ -1146,7 +1141,7 @@ governance lever for approved enterprise tasks.
 
 
 \hypertarget{schema-drift-and-safe-view-versioning}{%
-\subsection{9. Schema Drift and Safe View
+\section{Schema Drift and Safe View
 Versioning}\label{schema-drift-and-safe-view-versioning}}
 
 Task tokens should not silently survive changes to the data boundary
@@ -1154,7 +1149,7 @@ they approve. If a safe view changes after approval, the token may no
 longer represent the approved task.
 
 \hypertarget{binding-model}{%
-\subsubsection{9.1 Binding model}\label{binding-model}}
+\subsection{Binding model}\label{binding-model}}
 
 A task token should bind safe views by more than name. For each safe
 view, the token or registry state should include:
@@ -1177,7 +1172,7 @@ the definition. Therefore, SessionBound should compare view definition
 hashes and registry versions.
 
 \hypertarget{drift-behavior}{%
-\subsubsection{9.2 Drift behavior}\label{drift-behavior}}
+\subsection{Drift behavior}\label{drift-behavior}}
 
 Table~\ref{tab:schema-drift} summarizes drift events and required
 responses.
@@ -1216,7 +1211,7 @@ version or view definition hash no longer matches the approved boundary.
 
 
 \hypertarget{receipts}{%
-\subsection{10. Receipts}\label{receipts}}
+\section{Receipts}\label{receipts}}
 
 SessionBound receipts are structured audit records that bind task
 identity, query decision, and budget impact. They are not merely logs.
@@ -1260,11 +1255,11 @@ cryptographic accumulators, and external notarization.
 
 
 \hypertarget{prototype-implementation-and-production-hardening}{%
-\subsection{11. Prototype Implementation and Production
+\section{Prototype Implementation and Production
 Hardening}\label{prototype-implementation-and-production-hardening}}
 
 \hypertarget{prototype}{%
-\subsubsection{11.1 Prototype}\label{prototype}}
+\subsection{Prototype}\label{prototype}}
 
 The current prototype includes:
 
@@ -1304,7 +1299,7 @@ The prototype demonstrates the SessionBound architecture, not a
 production-grade SQL safety proof.
 
 \hypertarget{implementation-honesty}{%
-\subsubsection{11.2 Implementation
+\subsection{Implementation
 honesty}\label{implementation-honesty}}
 
 The current prototype uses conservative SQL checks plus PostgreSQL
@@ -1340,7 +1335,7 @@ A production implementation should move beyond string-level checks to:
 \end{itemize}
 
 \hypertarget{query-example}{%
-\subsubsection{11.3 Query example}\label{query-example}}
+\subsection{Query example}\label{query-example}}
 
 Allowed:
 
@@ -1386,7 +1381,7 @@ Denied:
 
 
 \hypertarget{evaluation}{%
-\subsection{12. Evaluation}\label{evaluation}}
+\section{Evaluation}\label{evaluation}}
 
 The first evaluation has two goals:
 
@@ -1403,7 +1398,7 @@ It does not prove production-grade SQL safety or eliminate all inference
 attacks.
 
 \hypertarget{functional-scenario-suite}{%
-\subsubsection{12.1 Functional scenario
+\subsection{Functional scenario
 suite}\label{functional-scenario-suite}}
 
 We evaluated the SessionBoundDB PostgreSQL prototype using Docker
@@ -1464,7 +1459,7 @@ ordinary aggregate analysis such as \texttt{count}, \texttt{sum},
 \texttt{avg}, \texttt{min}, and \texttt{max} remains allowed.
 
 \hypertarget{performance-microbenchmark}{%
-\subsubsection{12.2 Performance
+\subsection{Performance
 microbenchmark}\label{performance-microbenchmark}}
 
 A system paper must report overhead. The v5 evaluation should compare
@@ -1558,7 +1553,7 @@ microbenchmark results should not be generalized to larger datasets
 without additional experiments.
 
 \hypertarget{threat-to-defense-matrix}{%
-\subsubsection{12.3 Threat-to-defense
+\subsection{Threat-to-defense
 matrix}\label{threat-to-defense-matrix}}
 
 Table~\ref{tab:threat-defense} summarizes the threat-to-defense
@@ -1592,10 +1587,10 @@ Schema drift & safe view version and definition hash checks \\
 
 
 \hypertarget{discussion}{%
-\subsection{13. Discussion}\label{discussion}}
+\section{Discussion}\label{discussion}}
 
 \hypertarget{task-approval-is-not-a-database-policy}{%
-\subsubsection{13.1 Task approval is not a database
+\subsection{Task approval is not a database
 policy}\label{task-approval-is-not-a-database-policy}}
 
 SessionBound separates two activities that are often conflated.
@@ -1613,7 +1608,7 @@ TTL, a budget vector, and a signed task token. The database runtime
 consumes this structure and turns it into a bounded session.
 
 \hypertarget{the-runtime-should-not-be-an-llm-judge}{%
-\subsubsection{13.2 The runtime should not be an LLM
+\subsection{The runtime should not be an LLM
 judge}\label{the-runtime-should-not-be-an-llm-judge}}
 
 SessionBound deliberately avoids making the database an LLM-based judge
@@ -1630,7 +1625,7 @@ that boundary, but the database enforces safe views, denied fields, row
 scope, budgets, and receipts.
 
 \hypertarget{filtering-denial-and-sql-semantics}{%
-\subsubsection{13.3 Filtering, denial, and SQL
+\subsection{Filtering, denial, and SQL
 semantics}\label{filtering-denial-and-sql-semantics}}
 
 Not every boundary violation needs to look like an error. For scoped
@@ -1647,7 +1642,7 @@ support ordinary analytical SQL while still refusing attempts to escape
 the task session.
 
 \hypertarget{budgets-as-authority-accounting}{%
-\subsubsection{13.4 Budgets as authority
+\subsection{Budgets as authority
 accounting}\label{budgets-as-authority-accounting}}
 
 SessionBound disclosure budgets are not differential privacy guarantees.
@@ -1663,7 +1658,7 @@ entities, column weights, and aggregate/detail multipliers. Receipts then
 record how the approved authority was spent.
 
 \hypertarget{composition-with-existing-authorization-systems}{%
-\subsubsection{13.5 Composition with existing authorization
+\subsection{Composition with existing authorization
 systems}\label{composition-with-existing-authorization-systems}}
 
 SessionBound is intended to compose with, not replace, existing
@@ -1682,10 +1677,10 @@ boundary to enforce and audit.
 
 
 \hypertarget{related-work}{%
-\subsection{14. Related Work}\label{related-work}}
+\section{Related Work}\label{related-work}}
 
 \hypertarget{oauth-agent-identity-and-authenticated-delegation}{%
-\subsubsection{14.1 OAuth, agent identity, and authenticated
+\subsection{OAuth, agent identity, and authenticated
 delegation}\label{oauth-agent-identity-and-authenticated-delegation}}
 
 OAuth 2.0 and related standards support delegated API
@@ -1700,7 +1695,7 @@ establishes who may act for whom; SessionBound turns approved enterprise
 tasks into enforceable database sessions.
 
 \hypertarget{pauth-and-task-scoped-service-operations}{%
-\subsubsection{14.2 PAuth and task-scoped service
+\subsection{PAuth and task-scoped service
 operations}\label{pauth-and-task-scoped-service-operations}}
 
 PAuth provides precise task-scoped authorization for service or tool
@@ -1717,7 +1712,7 @@ SessionBound checks whether an agent's SQL exploration stays within a
 pre-approved, structured task boundary.
 
 \hypertarget{data-product-mcp-and-enterprise-data-product-governance}{%
-\subsubsection{14.3 Data Product MCP and enterprise data product
+\subsection{Data Product MCP and enterprise data product
 governance}\label{data-product-mcp-and-enterprise-data-product-governance}}
 
 Data Product MCP integrates data-product marketplaces and MCP so agents
@@ -1735,7 +1730,7 @@ approval. In short, Data Product MCP governs access to data products;
 SessionBound governs the execution session of an exploratory agent.
 
 \hypertarget{oracle-dds-and-database-enforced-access-control}{%
-\subsubsection{14.4 Oracle DDS and database-enforced access
+\subsection{Oracle DDS and database-enforced access
 control}\label{oracle-dds-and-database-enforced-access-control}}
 
 Oracle Deep Data Security and related systems show that
@@ -1754,7 +1749,7 @@ bounded, budgeted database session without requiring business users to
 write SQL predicates.
 
 \hypertarget{zanzibar-and-relationship-based-authorization}{%
-\subsubsection{14.5 Zanzibar and relationship-based
+\subsection{Zanzibar and relationship-based
 authorization}\label{zanzibar-and-relationship-based-authorization}}
 
 Zanzibar provides a consistent, global relationship-based authorization
@@ -1767,7 +1762,7 @@ database session be bounded, budgeted, and audited while it generates
 SQL?
 
 \hypertarget{differential-privacy-inference-control-query-auditing-and-dlp}{%
-\subsubsection{14.6 Differential privacy, inference control, query
+\subsection{Differential privacy, inference control, query
 auditing, and
 DLP}\label{differential-privacy-inference-control-query-auditing-and-dlp}}
 
@@ -1783,7 +1778,7 @@ produces receipts for governance and audit.
 
 
 \hypertarget{future-work}{%
-\subsection{15. Future Work}\label{future-work}}
+\section{Future Work}\label{future-work}}
 
 SessionBound opens several research and engineering directions beyond
 the first prototype.
@@ -1826,7 +1821,7 @@ agentic enterprise systems, not just database analysis.
 
 
 \hypertarget{limitations}{%
-\subsection{16. Limitations}\label{limitations}}
+\section{Limitations}\label{limitations}}
 
 SessionBound is a research prototype and reference architecture.
 
@@ -1871,7 +1866,7 @@ stated clearly and evaluated honestly.
 
 
 \hypertarget{conclusion}{%
-\subsection{17. Conclusion}\label{conclusion}}
+\section{Conclusion}\label{conclusion}}
 
 SessionBound turns enterprise task approval into budgeted database
 sessions for AI agents. It addresses a gap between business governance

@@ -34,5 +34,10 @@ Final manuscript packaging status:
 - `arxiv.bbl` regenerated.
 - PDF rebuilt.
 - Upload ZIP regenerated.
+- Subtitle subsection removed.
+- Horizontal rules removed.
+- Automatic section numbering enabled.
+- ASCII architecture block removed; TikZ architecture figure retained.
+- Validation text confirmed as 24 of 24.
 - Formal architecture figure added.
 - Major tables now have captions and labels.

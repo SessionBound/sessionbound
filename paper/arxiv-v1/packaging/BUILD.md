@@ -76,7 +76,7 @@ Result:
 
 ```text
 arxiv.bbl generated.
-Output written on arxiv.pdf (27 pages, 470228 bytes).
+Output written on arxiv.pdf (28 pages, 470259 bytes).
 ```
 
 Generated PDF:
@@ -117,6 +117,11 @@ Build log review:
 - No cited keys are missing from `references.bib`.
 - arxiv.bbl generated: yes.
 - PDF rebuilt: yes.
+- Subtitle subsection removed: yes.
+- Horizontal rules removed: yes.
+- Automatic section numbering enabled: yes.
+- ASCII architecture block removed: yes.
+- Validation text confirmed as 24 of 24: yes.
 - Discussion section added.
 - Paper manuscript no longer contains commit hashes or Git tag references.
 - Code availability points only to `https://github.com/SessionBound/sessionbound`.
