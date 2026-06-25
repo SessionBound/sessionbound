@@ -41,11 +41,7 @@ SessionBound separates three concerns.
 2. **Agent execution.** Lets an LLM-powered agent decide what SQL to try, which hypotheses to test, and how to construct a temporary workspace.
 3. **Database runtime.** Binds the signed task token to a database session and enforces safe views, scope, denied fields, operation limits, query budgets, disclosure budgets, and receipts.
 
-The central design rule is:
-
-```text
-The agent can try. The database decides.
-```
+The central design rule is that agents may explore only within a structured boundary that the database enforces deterministically.
 
 This makes SessionBound a contract layer between enterprise approval and agentic database execution. The control plane records what the organization approved; the runtime enforces how that approval may be spent through SQL. This contract is not a database policy written by a DBA, nor a natural-language instruction interpreted by an LLM. It is a structured, signed, and accountable representation of an approved business task that both the agent runtime and the database can interpret deterministically.
 
@@ -407,29 +403,7 @@ Safe views are not a complete inference-control solution. They reduce the discov
 
 ### 6.4 Query decision pipeline
 
-At runtime, every SQL attempt follows a deterministic decision pipeline:
-
-```text
-SQL Attempt
-  ↓
-Check active task binding
-  ↓
-Check task token validity
-  ↓
-Check allowed safe views
-  ↓
-Check denied fields
-  ↓
-Check row scope
-  ↓
-Check operation type
-  ↓
-Check query/disclosure budget
-  ↓
-Allow result + receipt
-or
-Deny + receipt
-```
+At runtime, every SQL attempt follows the deterministic procedure shown as an algorithm in the LaTeX manuscript. The runtime checks, in order: active task binding; task token validity; allowed safe views; denied fields; row scope; operation type; and query/disclosure budget. The terminal decision is either an allowed result with receipt or a denial receipt.
 
 The runtime does not ask an LLM whether a query is safe.
 

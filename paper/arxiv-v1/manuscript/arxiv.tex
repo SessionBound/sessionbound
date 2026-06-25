@@ -82,6 +82,7 @@
 \usepackage{longtable,booktabs,array}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\newcounter{algorithm}
 \usepackage{calc} % for calculating minipage widths
 % Correct order of tables after \paragraph or \subparagraph
 \usepackage{etoolbox}
@@ -229,11 +230,8 @@ SessionBound separates three concerns.
   limits, query budgets, disclosure budgets, and receipts.
 \end{enumerate}
 
-The central design rule is:
-
-\begin{verbatim}
-The agent can try. The database decides.
-\end{verbatim}
+The central design rule is that agents may explore only within a
+structured boundary that the database enforces deterministically.
 
 This makes SessionBound a contract layer between enterprise approval and
 agentic database execution. The control plane records what the
@@ -893,29 +891,32 @@ access, denied fields, and blocked schemas.
 \subsubsection{6.4 Query decision
 pipeline}\label{query-decision-pipeline}}
 
-At runtime, every SQL attempt follows a deterministic decision pipeline:
+At runtime, every SQL attempt follows the deterministic decision
+procedure in Algorithm~\ref{alg:sql-decision-pipeline}.
 
-\begin{verbatim}
-SQL Attempt
-  ↓
-Check active task binding
-  ↓
-Check task token validity
-  ↓
-Check allowed safe views
-  ↓
-Check denied fields
-  ↓
-Check row scope
-  ↓
-Check operation type
-  ↓
-Check query/disclosure budget
-  ↓
-Allow result + receipt
-or
-Deny + receipt
-\end{verbatim}
+\begin{center}
+\refstepcounter{algorithm}\label{alg:sql-decision-pipeline}
+\begin{minipage}{0.9\linewidth}
+\textbf{Algorithm \thealgorithm. SQL decision pipeline for SessionBoundDB}
+
+\textbf{Input:} SQL attempt and bound database session state.
+
+\textbf{Output:} Allowed result with receipt, or denial receipt.
+
+\begin{enumerate}
+\item Require an active task binding for the session.
+\item Validate the signed task token and its TTL.
+\item Resolve all referenced relations against registered safe views.
+\item Reject denied fields and blocked schemas.
+\item Enforce row scope predicates for the bound task.
+\item Reject disallowed operation types, including mutations, DDL, and
+unsafe utility commands.
+\item Check remaining query and disclosure budgets.
+\item If every check passes, execute the query and emit an allow receipt;
+otherwise reject the attempt and emit a denial receipt.
+\end{enumerate}
+\end{minipage}
+\end{center}
 
 The runtime does not ask an LLM whether a query is safe.
 
