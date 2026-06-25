@@ -112,8 +112,7 @@ Independent Researcher}
 \subsection{Safe Views, Budgets, and Receipts for Open-Ended Enterprise
 Analysis}\label{safe-views-budgets-and-receipts-for-open-ended-enterprise-analysis}}
 
-\hypertarget{abstract}{%
-\subsection{Abstract}\label{abstract}}
+\begin{abstract}
 
 Enterprise AI agents are increasingly useful for internal analysis,
 audit, compliance review, and operational investigation. They are good
@@ -152,8 +151,7 @@ sessions.
 evaluation dataset, validation reports, benchmark outputs, and arXiv
 source are available at
 \url{https://github.com/SessionBound/sessionbound}.
-
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+\end{abstract}
 
 \hypertarget{introduction}{%
 \subsection{1. Introduction}\label{introduction}}
@@ -296,7 +294,6 @@ This paper makes five contributions.
   prototype-to-production hardening requirements.
 \end{enumerate}
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{motivation-enterprise-tasks-are-approved-above-the-database}{%
 \subsection{2. Motivation: Enterprise Tasks Are Approved Above the
@@ -409,7 +406,6 @@ instruction such as ``do not access salary'' is not a security
 mechanism. SessionBound's answer is to approve a task and bind it to a
 database session with safe views, scope, budgets, and receipts.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{threat-model}{%
 \subsection{3. Threat Model}\label{threat-model}}
@@ -534,7 +530,6 @@ The prototype does not solve:
 SessionBound reduces and accounts for what an agent can discover. It
 does not claim to eliminate all inference.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{sessionbound-model}{%
 \subsection{4. SessionBound Model}\label{sessionbound-model}}
@@ -720,7 +715,6 @@ A connection may bind at most one active task token. Rebinding is
 denied. When the token expires or is revoked, further
 \texttt{taskbound.run} calls fail.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{control-plane-templates-applications-approvals-and-budgets}{%
 \subsection{5. Control Plane: Templates, Applications, Approvals, and
@@ -789,7 +783,6 @@ classification, task purpose, and approval route.
 The database runtime enforces the budget; the control plane decides what
 budget is appropriate.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{sessionbounddb-runtime}{%
 \subsection{6. SessionBoundDB Runtime}\label{sessionbounddb-runtime}}
@@ -926,7 +919,6 @@ Deny + receipt
 
 The runtime does not ask an LLM whether a query is safe.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{anti-evasion-scope}{%
 \subsection{7. Anti-Evasion Scope}\label{anti-evasion-scope}}
@@ -1048,7 +1040,6 @@ aggregation functions such as \texttt{json\_agg}, \texttt{array\_agg},
 \texttt{string\_agg}, \texttt{xmlagg}, and \texttt{row\_to\_json} unless
 a task template explicitly allows them with a strict byte budget.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{budget-semantics}{%
 \subsection{8. Budget Semantics}\label{budget-semantics}}
@@ -1152,7 +1143,6 @@ prove that an agent cannot infer a sensitive fact from allowed answers.
 They provide operational containment, auditability, and a practical
 governance lever for approved enterprise tasks.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{schema-drift-and-safe-view-versioning}{%
 \subsection{9. Schema Drift and Safe View
@@ -1223,7 +1213,6 @@ hash changes \\
 A task-bound session should fail closed if its safe view registry
 version or view definition hash no longer matches the approved boundary.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{receipts}{%
 \subsection{10. Receipts}\label{receipts}}
@@ -1268,7 +1257,6 @@ tampering with the receipt sequence detectable within the database audit
 trail. Future work can explore Merkle receipts, verifiable audit logs,
 cryptographic accumulators, and external notarization.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{prototype-implementation-and-production-hardening}{%
 \subsection{11. Prototype Implementation and Production
@@ -1395,7 +1383,6 @@ Denied:
 \end{Highlighting}
 \end{Shaded}
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{evaluation}{%
 \subsection{12. Evaluation}\label{evaluation}}
@@ -1537,20 +1524,22 @@ on database runtime overhead.
 
 Table~\ref{tab:performance} reports the microbenchmark results.
 
-\begin{longtable}[]{@{}lrrrr@{}}
+\begin{table}[t]
+\centering
 \caption{Performance microbenchmark comparing raw PostgreSQL and SessionBoundDB runtime execution. SB denotes SessionBound.}
-\label{tab:performance}\\
+\label{tab:performance}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
 Pattern & Raw p50 & SB p50 & Overhead & Rows \\
 \midrule
-\endhead
 SELECT & 0.063 ms & 1.434 ms & 2168.4\% & 3 \\
 JOIN & 0.060 ms & 1.503 ms & 2408.0\% & 3 \\
 GROUP BY & 0.066 ms & 1.450 ms & 2088.7\% & 3 \\
 CTE & 0.052 ms & 1.457 ms & 2702.8\% & 1 \\
 Window & 0.074 ms & 1.500 ms & 1937.5\% & 5 \\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 SB denotes SessionBound. The corresponding raw/SB p95 pairs were: SELECT
 0.142/1.760 ms; JOIN 0.135/1.752 ms; GROUP BY 0.139/1.709 ms; CTE
@@ -1600,7 +1589,6 @@ Schema drift & safe view version and definition hash checks \\
 \end{tabular}
 \end{table}
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{discussion}{%
 \subsection{13. Discussion}\label{discussion}}
@@ -1691,7 +1679,6 @@ short-lived, budgeted, auditable database session. This contract gives
 the agent room to explore while giving the enterprise a deterministic
 boundary to enforce and audit.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{related-work}{%
 \subsection{14. Related Work}\label{related-work}}
@@ -1793,7 +1780,6 @@ disclosure budget is operational accounting for delegated task
 authority. It limits cumulative exposure during a task session and
 produces receipts for governance and audit.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{future-work}{%
 \subsection{15. Future Work}\label{future-work}}
@@ -1837,7 +1823,6 @@ software represent work units for AI agents? Task templates, approvals,
 budgets, receipts, and handoffs may become common infrastructure for
 agentic enterprise systems, not just database analysis.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{limitations}{%
 \subsection{16. Limitations}\label{limitations}}
@@ -1883,7 +1868,6 @@ Current limitations include:
 These limitations are acceptable for a first research prototype if
 stated clearly and evaluated honestly.
 
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
 \hypertarget{conclusion}{%
 \subsection{17. Conclusion}\label{conclusion}}
