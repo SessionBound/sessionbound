@@ -38,6 +38,8 @@
 - [x] `arxiv.bbl` regenerated.
 - [x] PDF rebuilt.
 - [x] Upload ZIP regenerated.
+- [x] Formal architecture figure added.
+- [x] Major tables now have captions and labels.
 
 ## Current Recommendation
 

@@ -34,3 +34,5 @@ Final manuscript packaging status:
 - `arxiv.bbl` regenerated.
 - PDF rebuilt.
 - Upload ZIP regenerated.
+- Formal architecture figure added.
+- Major tables now have captions and labels.

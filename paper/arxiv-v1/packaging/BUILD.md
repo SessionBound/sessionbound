@@ -76,7 +76,7 @@ Result:
 
 ```text
 arxiv.bbl generated.
-Output written on arxiv.pdf (29 pages, 307723 bytes).
+Output written on arxiv.pdf (28 pages, 423711 bytes).
 ```
 
 Generated PDF:
@@ -121,6 +121,8 @@ Build log review:
 - Paper manuscript no longer contains commit hashes or Git tag references.
 - Code availability points only to `https://github.com/SessionBound/sessionbound`.
 - Upload ZIP regenerated.
+- Formal architecture figure added.
+- Major tables now have captions and labels.
 - The Section 7.3 payload-aggregation table, Section 8 budget-semantics paragraph, and performance table overflow issues were fixed.
 - Remaining warnings are minor overfull `hbox` warnings in long verbatim/table lines outside the fixed layout issues; they do not block human PDF review.
 

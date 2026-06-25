@@ -195,34 +195,7 @@ SessionBound reduces and accounts for what an agent can discover. It does not cl
 
 ## 4. SessionBound Model
 
-SessionBound has two major layers: a task control plane and a database runtime.
-
-```text
-Business User / Manager / Data Owner
-        |
-        | task apply / approve
-        v
-SessionBound Control Plane
-        |
-        |- task templates
-        |- task applications
-        |- grants and approval policy
-        |- TTL and budget decisions
-        `- signed task token
-                |
-                v
-Agent Runtime
-        |
-        | open-ended SQL
-        v
-SessionBoundDB Runtime
-        |
-        |- bind task token
-        |- expose safe views
-        |- enforce scope / denied fields
-        |- track budgets
-        `- emit receipts
-```
+SessionBound has two major layers: a task control plane and a database runtime. Figure 1 in the LaTeX manuscript shows the main SessionBound control-plane and runtime boundary: business users approve tasks, the control plane issues signed task tokens, agents generate SQL, and SessionBoundDB enforces safe views, denied fields, budgets, and receipts inside the database session.
 
 ### 4.1 Task template
 
@@ -493,6 +466,8 @@ it does not eliminate all inference.
 
 ### 7.3 Adversarial SQL patterns
 
+**Table 1. Adversarial SQL patterns and SessionBound defenses.**
+
 | Pattern | Example | Defense | Limitation |
 |---|---|---|---|
 | Raw table escape | `SELECT * FROM app_data.expenses` | no raw grants; safe views only | strong in prototype |
@@ -608,6 +583,8 @@ safe_column_list_hash
 PostgreSQL nuance: ordinary tables have physical storage files, but views do not behave like ordinary stored relations. Binding to `relfilenode` is not appropriate for views. `pg_class.oid` is useful but insufficient: `CREATE OR REPLACE VIEW` may preserve the OID while changing the definition. Therefore, SessionBound should compare view definition hashes and registry versions.
 
 ### 9.2 Drift behavior
+
+**Table 2. Safe view drift and required token invalidation behavior.**
 
 | Change | Risk | Required Response |
 |---|---|---|
@@ -745,7 +722,9 @@ It does not prove production-grade SQL safety or eliminate all inference attacks
 
 ### 12.1 Functional scenario suite
 
-We evaluated the SessionBoundDB PostgreSQL prototype using Docker Compose. The public repository contains the evaluation scripts, validation reports, benchmark outputs, and source code needed to reproduce the results. The detailed validation run passed 18 of 18 tested scenarios. The core allowed query patterns worked, and direct sensitive-field, raw-schema, mutation, DDL, query-budget, unique-row disclosure-budget, and payload-aggregation violations were denied.
+We evaluated the SessionBoundDB PostgreSQL prototype using Docker Compose. The public repository contains the evaluation scripts, validation reports, benchmark outputs, and source code needed to reproduce the results. The canonical validation suite passed 24 of 24 scenarios. Table 3 reports representative scenarios covering allowed analysis, denied boundary violations, transparent scope filtering, and payload aggregation blocking.
+
+**Table 3. Representative functional validation scenarios. The full canonical validation suite passed 24 of 24 scenarios.**
 
 | Scenario | SQL Feature / Attack | Expected | Observed |
 |---|---|---|---|
@@ -797,6 +776,10 @@ Metrics:
 
 We ran a microbenchmark with 10 warmup iterations and 100 measured iterations per query pattern. The baseline is an admin/test role executing equivalent SQL over raw `app_data` tables with tenant and month predicates matching the task scope. The SessionBound path binds a signed task token and executes `taskbound.run(sql)` in PostgreSQL. The benchmark intentionally excludes HTTP latency and dynamic credential creation so that it focuses on database runtime overhead.
 
+Table 4 reports the microbenchmark results.
+
+**Table 4. Performance microbenchmark comparing raw PostgreSQL and SessionBoundDB runtime execution. SB denotes SessionBound.**
+
 | Pattern | Raw p50 | SB p50 | Overhead | Rows |
 |---|---:|---:|---:|---:|
 | SELECT | 0.063 ms | 1.434 ms | 2168.4% | 3 |
@@ -810,6 +793,10 @@ SB denotes SessionBound. The corresponding raw/SB p95 pairs were: SELECT 0.142/1
 The prototype adds overhead compared with raw PostgreSQL, but absolute p50 latency remains around the low-millisecond range for the benchmarked query patterns. The absolute SessionBound p50 latency is approximately 1.4--1.5 ms on these small synthetic queries. Relative overhead is high because the raw PostgreSQL baseline is extremely small. The likely sources are PL/pgSQL runtime dispatch, SQL text checks, task-session lookup, safe-view evaluation, query-budget updates, unique-row exposure accounting, payload-aggregation checks, and receipt insertion. These microbenchmark results should not be generalized to larger datasets without additional experiments.
 
 ### 12.3 Threat-to-defense matrix
+
+Table 5 summarizes the threat-to-defense mapping.
+
+**Table 5. Threat-to-defense mapping for the SessionBound prototype.**
 
 | Threat | SessionBound Defense |
 |---|---|

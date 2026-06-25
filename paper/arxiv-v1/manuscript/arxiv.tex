@@ -80,6 +80,8 @@
 \newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
 \newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
 \usepackage{longtable,booktabs,array}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 \usepackage{calc} % for calculating minipage widths
 % Correct order of tables after \paragraph or \subparagraph
 \usepackage{etoolbox}
@@ -543,34 +545,57 @@ does not claim to eliminate all inference.
 \subsection{4. SessionBound Model}\label{sessionbound-model}}
 
 SessionBound has two major layers: a task control plane and a database
-runtime.
+runtime. Figure~\ref{fig:sessionbound-architecture} shows the main
+SessionBound control-plane and runtime boundary.
 
-\begin{verbatim}
-Business User / Manager / Data Owner
-        |
-        | task apply / approve
-        v
-SessionBound Control Plane
-        |
-        |- task templates
-        |- task applications
-        |- grants and approval policy
-        |- TTL and budget decisions
-        `- signed task token
-                |
-                v
-Agent Runtime
-        |
-        | open-ended SQL
-        v
-SessionBoundDB Runtime
-        |
-        |- bind task token
-        |- expose safe views
-        |- enforce scope / denied fields
-        |- track budgets
-        `- emit receipts
-\end{verbatim}
+\begin{figure}[t]
+\centering
+\resizebox{0.98\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=9mm and 14mm,
+  box/.style={
+    draw,
+    rounded corners,
+    align=center,
+    minimum width=32mm,
+    minimum height=9mm,
+    font=\small
+  },
+  smallbox/.style={
+    draw,
+    rounded corners,
+    align=center,
+    minimum width=31mm,
+    minimum height=8mm,
+    font=\scriptsize
+  },
+  arrow/.style={-{Latex[length=2mm]}, thick},
+  edgelabel/.style={font=\tiny, fill=white, inner sep=1pt}
+]
+\node[box] (business) {Business User\\Manager / Data Owner};
+\node[box, right=of business] (control) {SessionBound\\Control Plane};
+\node[box, right=of control] (token) {Signed\\Task Token};
+
+\node[smallbox, above=of control] (template) {Task Templates\\Applications\\Approvals\\Budgets};
+
+\node[box, below=18mm of control] (runtime) {SessionBoundDB\\Runtime};
+\node[box, left=of runtime] (data) {Enterprise\\Data};
+\node[box, right=of runtime] (agent) {AI Agent\\Generates SQL};
+
+\node[smallbox, below=of runtime] (enforce) {Safe Views\\Denied Fields\\Budgets\\Receipts};
+
+\draw[arrow] (business) -- node[above, edgelabel]{applies / approves} (control);
+\draw[arrow] (control) -- node[above, edgelabel]{issues} (token);
+\draw[arrow] (token) -- node[right, edgelabel]{binds session} (agent);
+\draw[arrow] (agent) -- node[above, edgelabel]{SQL attempts} (runtime);
+\draw[arrow] (runtime) -- node[above, edgelabel]{bounded access} (data);
+\draw[arrow] (template) -- (control);
+\draw[arrow] (runtime) -- (enforce);
+\end{tikzpicture}
+}
+\caption{SessionBound architecture. The control plane turns enterprise task approval into a signed task token; the agent may generate SQL freely, but SessionBoundDB enforces safe views, denied fields, budgets, and receipts inside the database session.}
+\label{fig:sessionbound-architecture}
+\end{figure}
 
 \hypertarget{task-template}{%
 \subsubsection{4.1 Task template}\label{task-template}}
@@ -962,15 +987,22 @@ it does not eliminate all inference.
 \subsubsection{7.3 Adversarial SQL
 patterns}\label{adversarial-sql-patterns}}
 
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}@{}}
+Table~\ref{tab:anti-evasion} summarizes representative evasion
+patterns, defenses, and limitations.
+
+\begin{table}[p]
+\centering
+\scriptsize
+\caption{Adversarial SQL patterns and SessionBound defenses.}
+\label{tab:anti-evasion}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.22\columnwidth}
+  >{\raggedright\arraybackslash}p{0.24\columnwidth}
+  >{\raggedright\arraybackslash}p{0.25\columnwidth}
+  >{\raggedright\arraybackslash}p{0.21\columnwidth}@{}}
 \toprule
 Pattern & Example & Defense & Limitation \\
 \midrule
-\endhead
 Raw table escape & \texttt{SELECT\ *\ FROM\ app\_data.expenses} & no raw
 grants; safe views only & strong in prototype \\
 Sensitive column & \texttt{SELECT\ salary\ FROM\ employees} & denied
@@ -995,7 +1027,8 @@ group size and aggregate policy & future work \\
 Timing side channel & expensive predicates & statement timeout and
 resource budget & partial \\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 This table is not a proof of complete SQL security. It defines the
 prototype's anti-evasion scope and the path toward production hardening.
@@ -1160,10 +1193,15 @@ hashes and registry versions.
 \hypertarget{drift-behavior}{%
 \subsubsection{9.2 Drift behavior}\label{drift-behavior}}
 
+Table~\ref{tab:schema-drift} summarizes drift events and required
+responses.
+
 \begin{longtable}[]{@{}
   >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.33}}
   >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.33}}
   >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.33}}@{}}
+\caption{Safe view drift and required token invalidation behavior.}
+\label{tab:schema-drift}\\
 \toprule
 Change & Risk & Required Response \\
 \midrule
@@ -1385,20 +1423,24 @@ suite}\label{functional-scenario-suite}}
 We evaluated the SessionBoundDB PostgreSQL prototype using Docker
 Compose. The public repository contains the evaluation scripts,
 validation reports, benchmark outputs, and source code needed to
-reproduce the results. The detailed validation run passed 18 of 18
-tested scenarios. The core allowed query patterns worked, and direct
-sensitive-field, raw-schema, mutation, DDL, query-budget, unique-row
-disclosure-budget, and payload-aggregation violations were denied.
+reproduce the results. The canonical validation suite passed 24 of 24
+scenarios. Table~\ref{tab:validation-scenarios} reports representative
+scenarios covering allowed analysis, denied boundary violations,
+transparent scope filtering, and payload aggregation blocking.
 
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
-  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}@{}}
+\begin{table}[p]
+\centering
+\scriptsize
+\caption{Representative functional validation scenarios. The full canonical validation suite passed 24 of 24 scenarios.}
+\label{tab:validation-scenarios}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.23\columnwidth}
+  >{\raggedright\arraybackslash}p{0.25\columnwidth}
+  >{\raggedright\arraybackslash}p{0.22\columnwidth}
+  >{\raggedright\arraybackslash}p{0.22\columnwidth}@{}}
 \toprule
 Scenario & SQL Feature / Attack & Expected & Observed \\
 \midrule
-\endhead
 Safe view SELECT & \texttt{SELECT} & Allowed & Allowed \\
 Join safe views & \texttt{JOIN} & Allowed & Allowed \\
 Department totals & \texttt{GROUP\ BY} & Allowed & Allowed \\
@@ -1423,7 +1465,8 @@ payload & aggregation payload & Denied & Denied \\
 \texttt{row\_to\_json(e)} payload & aggregation payload & Denied &
 Denied \\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 Scope violations over safe views are enforced by filtering rather than
 explicit denial. A query for another approved-view but out-of-scope
@@ -1494,7 +1537,11 @@ task scope. The SessionBound path binds a signed task token and executes
 excludes HTTP latency and dynamic credential creation so that it focuses
 on database runtime overhead.
 
+Table~\ref{tab:performance} reports the microbenchmark results.
+
 \begin{longtable}[]{@{}lrrrr@{}}
+\caption{Performance microbenchmark comparing raw PostgreSQL and SessionBoundDB runtime execution. SB denotes SessionBound.}
+\label{tab:performance}\\
 \toprule
 Pattern & Raw p50 & SB p50 & Overhead & Rows \\
 \midrule
@@ -1526,11 +1573,18 @@ without additional experiments.
 \subsubsection{12.3 Threat-to-defense
 matrix}\label{threat-to-defense-matrix}}
 
-\begin{longtable}[]{@{}ll@{}}
+Table~\ref{tab:threat-defense} summarizes the threat-to-defense
+mapping.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Threat-to-defense mapping for the SessionBound prototype.}
+\label{tab:threat-defense}
+\begin{tabular}{@{}ll@{}}
 \toprule
 Threat & SessionBound Defense \\
 \midrule
-\endhead
 Agent ignores task & database enforces signed task token \\
 Prompt injection & safe views, denied fields, budgets \\
 Raw table access & no raw schema grants \\
@@ -1545,7 +1599,8 @@ binding \\
 Audit gap & task receipts \\
 Schema drift & safe view version and definition hash checks \\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
