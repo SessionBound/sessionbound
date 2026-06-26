@@ -1755,22 +1755,18 @@ The agent can try. The database decides.
 \end{verbatim}
 
 \clearpage
-\bibliographystyle{unsrt}
-\bibliography{references}
 
-\clearpage
-
-\begin{table}[p]
+\begin{table*}[p]
 \centering
-\tiny
-\setlength{\tabcolsep}{2pt}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
 \caption{Adversarial SQL patterns and SessionBound defenses.}
 \label{tab:anti-evasion}
 \begin{tabular}{@{}
-  >{\raggedright\arraybackslash}p{0.21\columnwidth}
-  >{\raggedright\arraybackslash}p{0.22\columnwidth}
-  >{\raggedright\arraybackslash}p{0.24\columnwidth}
-  >{\raggedright\arraybackslash}p{0.19\columnwidth}@{}}
+  >{\raggedright\arraybackslash}p{0.21\textwidth}
+  >{\raggedright\arraybackslash}p{0.23\textwidth}
+  >{\raggedright\arraybackslash}p{0.24\textwidth}
+  >{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
 \toprule
 Pattern & Example & Defense & Limitation \\
 \midrule
@@ -1799,18 +1795,18 @@ Timing side channel & expensive predicates & statement timeout and
 resource budget & partial \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-\begin{table}[p]
+\begin{table*}[p]
 \centering
-\scriptsize
+\small
 \setlength{\tabcolsep}{3pt}
 \caption{Safe view drift and required token invalidation behavior.}
 \label{tab:schema-drift}
 \begin{tabular}{@{}
-  >{\raggedright\arraybackslash}p{0.29\columnwidth}
-  >{\raggedright\arraybackslash}p{0.29\columnwidth}
-  >{\raggedright\arraybackslash}p{0.30\columnwidth}@{}}
+  >{\raggedright\arraybackslash}p{0.29\textwidth}
+  >{\raggedright\arraybackslash}p{0.29\textwidth}
+  >{\raggedright\arraybackslash}p{0.31\textwidth}@{}}
 \toprule
 Change & Risk & Required Response \\
 \midrule
@@ -1829,19 +1825,19 @@ Column type change & interpretation drift & invalidate if exposed column
 hash changes \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-\begin{table}[p]
+\begin{table*}[p]
 \centering
-\tiny
-\setlength{\tabcolsep}{2pt}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
 \caption{Representative functional validation scenarios. The full canonical validation suite passed 24 of 24 scenarios.}
 \label{tab:validation-scenarios}
 \begin{tabular}{@{}
-  >{\raggedright\arraybackslash}p{0.20\columnwidth}
-  >{\raggedright\arraybackslash}p{0.26\columnwidth}
-  >{\raggedright\arraybackslash}p{0.17\columnwidth}
-  >{\raggedright\arraybackslash}p{0.17\columnwidth}@{}}
+  >{\raggedright\arraybackslash}p{0.22\textwidth}
+  >{\raggedright\arraybackslash}p{0.24\textwidth}
+  >{\raggedright\arraybackslash}p{0.21\textwidth}
+  >{\raggedright\arraybackslash}p{0.21\textwidth}@{}}
 \toprule
 Scenario & SQL Feature / Attack & Expected & Observed \\
 \midrule
@@ -1853,7 +1849,8 @@ Ranked claims & window function & Allowed & Allowed \\
 Salary access & denied column & Denied & Denied \\
 Bank account access & denied column & Denied & Denied \\
 Raw table access & schema escape & Denied & Denied \\
-Other month & scope escape & \shortstack[l]{Transparent\\scope\\filtering} & \shortstack[l]{Transparent\\scope\\filtering} \\
+Other month & scope escape & Transparent scope filtering & Transparent
+scope filtering \\
 Mutation SQL & \texttt{DELETE} & Denied & Denied \\
 DDL & \texttt{DROP} & Denied & Denied \\
 Query budget overflow & excessive queries & Denied & Denied \\
@@ -1861,17 +1858,17 @@ Disclosure budget overflow & too many unique expense rows & Denied &
 Denied \\
 \texttt{pg\_catalog} access & catalog escape & Denied & Denied \\
 \texttt{json\_agg(e)} payload & aggregation payload & Denied & Denied \\
-\shortstack[l]{\texttt{array\_}\\\texttt{agg(e.}\\\texttt{expense\_id)}\\payload} & aggregation payload &
+\texttt{array\_agg(e.expense\_id)} payload & aggregation payload &
 Denied & Denied \\
-\shortstack[l]{\texttt{string\_agg(}\\\texttt{employee\_name,}\\
-\texttt{\textquotesingle{},\textquotesingle{})} payload} & aggregation payload & Denied & Denied \\
+\texttt{string\_agg(employee\_name,\ \textquotesingle{},\textquotesingle{})}
+payload & aggregation payload & Denied & Denied \\
 \texttt{row\_to\_json(e)} payload & aggregation payload & Denied &
 Denied \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-\begin{table}[p]
+\begin{table*}[p]
 \centering
 \small
 \caption{Performance microbenchmark comparing raw PostgreSQL and SessionBoundDB runtime execution. SB denotes SessionBound.}
@@ -1887,17 +1884,17 @@ CTE & 0.052 ms & 1.457 ms & 2702.8\% & 1 \\
 Window & 0.074 ms & 1.500 ms & 1937.5\% & 5 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-\begin{table}[p]
+\begin{table*}[p]
 \centering
 \small
 \setlength{\tabcolsep}{3pt}
 \caption{Threat-to-defense mapping for the SessionBound prototype.}
 \label{tab:threat-defense}
 \begin{tabular}{@{}
-  >{\raggedright\arraybackslash}p{0.30\columnwidth}
-  >{\raggedright\arraybackslash}p{0.58\columnwidth}@{}}
+  >{\raggedright\arraybackslash}p{0.28\textwidth}
+  >{\raggedright\arraybackslash}p{0.62\textwidth}@{}}
 \toprule
 Threat & SessionBound Defense \\
 \midrule
@@ -1916,8 +1913,12 @@ Audit gap & task receipts \\
 Schema drift & safe view version and definition hash checks \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \clearpage
+
+\onecolumn
+\bibliographystyle{unsrt}
+\bibliography{references}
 
 \end{document}
