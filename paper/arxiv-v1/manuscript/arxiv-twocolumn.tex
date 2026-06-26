@@ -32,12 +32,17 @@
   \KOMAoptions{parskip=half}}
 \makeatother
 \usepackage{xcolor}
+\usepackage{caption}
+\captionsetup[table]{labelsep=space}
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
 \IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
 \hypersetup{
   pdfauthor={Minmin Wu},
   hidelinks,
   pdfcreator={LaTeX via pandoc}}
+\makeatletter
+\renewcommand{\@cite}[2]{\unskip\raisebox{0.75ex}{\scriptsize[#1\if@tempswa , #2\fi]}}
+\makeatother
 \urlstyle{same} % disable monospaced font for URLs
 \usepackage{color}
 \usepackage{fancyvrb}
