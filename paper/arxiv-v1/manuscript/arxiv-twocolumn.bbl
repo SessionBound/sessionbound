@@ -1,0 +1,60 @@
+\begin{thebibliography}{10}
+
+\bibitem{rfc6749}
+D.~Hardt.
+\newblock {The OAuth 2.0 Authorization Framework}.
+\newblock RFC 6749, 2012.
+
+\bibitem{south2025authenticateddelegation}
+Tobin South, Samuele Marro, Thomas Hardjono, Robert Mahari, Cedric~Deslandes
+  Whitney, Dazza Greenwood, Alan Chan, and Alex Pentland.
+\newblock {Authenticated Delegation and Authorized AI Agents}, 2025.
+
+\bibitem{sharma2026pauth}
+Reshabh~K. Sharma, Linxi Jiang, Zhiqiang Lin, and Shuo Chen.
+\newblock {PAuth - Precise Task-Scoped Authorization For Agents}, 2026.
+
+\bibitem{tonnarelli2026dataproductmcp}
+Marco Tonnarelli, Filippo Scaramuzza, Simon Harrer, and Linus~W. Dietz.
+\newblock {Data Product MCP: Chat with your Enterprise Data}, 2026.
+
+\bibitem{mcp2025specification}
+{Model Context Protocol}.
+\newblock {\em {Model Context Protocol Specification}}, 2025.
+
+\bibitem{oracle2026deepdatasecuritydocs}
+{Oracle}.
+\newblock {\em {What Is Oracle Deep Data Security}}.
+\newblock Oracle, 2026.
+
+\bibitem{oracle2026deepdatasecuritybrief}
+{Oracle}.
+\newblock {\em {Oracle Deep Data Security Technical Brief}}.
+\newblock Oracle, 2026.
+
+\bibitem{pang2019zanzibar}
+Ruoming Pang, Ramon Caceres, Mike Burrows, Zhifeng Chen, Pratik Dave, Nathan
+  Germer, Alexander Golynski, Kevin Graney, Nina Kang, Lea Kissner, Jeffrey~L.
+  Korn, Abhishek Parmar, Christina~D. Richards, and Mengzhi Wang.
+\newblock {Zanzibar: Google's Consistent, Global Authorization System}.
+\newblock In {\em 2019 USENIX Annual Technical Conference (USENIX ATC 19)},
+  pages 33--46. USENIX Association, 2019.
+
+\bibitem{postgresql2026rowsecurity}
+{PostgreSQL Global Development Group}.
+\newblock {\em {Row Security Policies}}.
+\newblock PostgreSQL, 2026.
+
+\bibitem{adam1989securitycontrol}
+N.~R. Adam and J.~C. Wortmann.
+\newblock {Security-Control Methods for Statistical Databases: A Comparative
+  Study}.
+\newblock {\em ACM Computing Surveys}, 21(4):515--556, 1989.
+
+\bibitem{dwork2014algorithmic}
+Cynthia Dwork and Aaron Roth.
+\newblock {\em {The Algorithmic Foundations of Differential Privacy}}, volume~9
+  of {\em Foundations and Trends in Theoretical Computer Science}.
+\newblock Now Publishers, 2014.
+
+\end{thebibliography}
