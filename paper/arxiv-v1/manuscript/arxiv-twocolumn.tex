@@ -704,7 +704,7 @@ the database runtime.
   \FunctionTok{\},}
   \DataTypeTok{"safe\_view\_registry\_version"}\FunctionTok{:} \StringTok{"travel{-}demo{-}v1"}\FunctionTok{,}
   \DataTypeTok{"policy\_version"}\FunctionTok{:} \StringTok{"expense{-}review{-}v1"}\FunctionTok{,}
-  \DataTypeTok{"audience"}\FunctionTok{:} \StringTok{"taskbounddb"}\FunctionTok{,}
+  \DataTypeTok{"audience"}\FunctionTok{:} \StringTok{"sessionbounddb"}\FunctionTok{,}
   \DataTypeTok{"expires\_at"}\FunctionTok{:} \StringTok{"2026{-}06{-}24T10:30:00Z"}\FunctionTok{,}
   \DataTypeTok{"nonce"}\FunctionTok{:} \StringTok{"..."}
 \FunctionTok{\}}
@@ -834,7 +834,7 @@ At \texttt{bind\_task}, the runtime checks:
 \item
   the session login role matches the broker-issued database user;
 \item
-  the token audience is \texttt{taskbounddb};
+  the token audience is \texttt{sessionbounddb};
 \item
   no other active task is already bound to this database
   backend/session.
@@ -1369,7 +1369,7 @@ ordinary aggregate analysis such as \texttt{count}, \texttt{sum},
 \subsection{Performance
 microbenchmark}\label{performance-microbenchmark}}
 
-A system paper must report overhead. The v5 evaluation should compare
+A system paper must report overhead. The evaluation should compare
 raw PostgreSQL execution against \texttt{taskbound.run(sql)} for core
 query patterns.
 
