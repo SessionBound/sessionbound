@@ -989,46 +989,6 @@ patterns}\label{adversarial-sql-patterns}}
 Table~\ref{tab:anti-evasion} summarizes representative evasion
 patterns, defenses, and limitations.
 
-\begin{table*}[t]
-\centering
-\scriptsize
-\caption{Adversarial SQL patterns and SessionBound defenses.}
-\label{tab:anti-evasion}
-\begin{tabular}{@{}
-  >{\raggedright\arraybackslash}p{0.21\textwidth}
-  >{\raggedright\arraybackslash}p{0.23\textwidth}
-  >{\raggedright\arraybackslash}p{0.24\textwidth}
-  >{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
-\toprule
-Pattern & Example & Defense & Limitation \\
-\midrule
-Raw table escape & \texttt{SELECT\ *\ FROM\ app\_data.expenses} & no raw
-grants; safe views only & strong in prototype \\
-Sensitive column & \texttt{SELECT\ salary\ FROM\ employees} & denied
-fields; safe view exclusion & direct leakage only \\
-Scope escape & query another month or department & safe-view predicates
-from task claims & strong if views are correct \\
-Mutation & \texttt{DELETE}, \texttt{UPDATE}, \texttt{INSERT} & operation
-policy; read-only \texttt{run} path & writes require controlled
-commands \\
-DDL & \texttt{DROP}, \texttt{ALTER}, \texttt{CREATE} & blocked
-operations & production should use AST validation \\
-Catalog escape & \texttt{pg\_catalog}, \texttt{information\_schema} &
-blocked schemas and no grants & production needs parser/hooks \\
-Pagination scraping & repeated \texttt{LIMIT/OFFSET} & query budget and
-disclosure budget & budget model matters \\
-JSON / array payload aggregation & payload aggregation functions &
-result-byte budget, per-query payload cap, optional aggregate allowlist
-/ AST policy & production should detect high-risk aggregation
-functions \\
-Aggregate inference & small-group \texttt{GROUP\ BY} & optional minimum
-group size and aggregate policy & future work \\
-Timing side channel & expensive predicates & statement timeout and
-resource budget & partial \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
 This table is not a proof of complete SQL security. It defines the
 prototype's anti-evasion scope and the path toward production hardening.
 
@@ -1192,35 +1152,6 @@ hashes and registry versions.
 
 Table~\ref{tab:schema-drift} summarizes drift events and required
 responses.
-
-\begin{table*}[t]
-\centering
-\small
-\caption{Safe view drift and required token invalidation behavior.}
-\label{tab:schema-drift}
-\begin{tabular}{@{}
-  >{\raggedright\arraybackslash}p{0.29\textwidth}
-  >{\raggedright\arraybackslash}p{0.29\textwidth}
-  >{\raggedright\arraybackslash}p{0.31\textwidth}@{}}
-\toprule
-Change & Risk & Required Response \\
-\midrule
-Add column to raw table & hidden exposure if safe view uses
-\texttt{SELECT\ *} & safe views must not use \texttt{SELECT\ *};
-registry hash unchanged if not exposed \\
-Add column to safe view & new exposure & invalidate existing task
-tokens \\
-\texttt{CREATE\ OR\ REPLACE\ VIEW} & semantics drift & compare view
-definition hash; invalidate if changed \\
-\texttt{DROP/CREATE\ VIEW} & object replacement & OID mismatch;
-invalidate \\
-Policy version update & approval drift & invalidate or require explicit
-compatibility flag \\
-Column type change & interpretation drift & invalidate if exposed column
-hash changes \\
-\bottomrule
-\end{tabular}
-\end{table*}
 
 A task-bound session should fail closed if its safe view registry
 version or view definition hash no longer matches the approved boundary.
@@ -1425,46 +1356,6 @@ scenarios. Table~\ref{tab:validation-scenarios} reports representative
 scenarios covering allowed analysis, denied boundary violations,
 transparent scope filtering, and payload aggregation blocking.
 
-\begin{table*}[t]
-\centering
-\scriptsize
-\caption{Representative functional validation scenarios. The full canonical validation suite passed 24 of 24 scenarios.}
-\label{tab:validation-scenarios}
-\begin{tabular}{@{}
-  >{\raggedright\arraybackslash}p{0.22\textwidth}
-  >{\raggedright\arraybackslash}p{0.24\textwidth}
-  >{\raggedright\arraybackslash}p{0.21\textwidth}
-  >{\raggedright\arraybackslash}p{0.21\textwidth}@{}}
-\toprule
-Scenario & SQL Feature / Attack & Expected & Observed \\
-\midrule
-Safe view SELECT & \texttt{SELECT} & Allowed & Allowed \\
-Join safe views & \texttt{JOIN} & Allowed & Allowed \\
-Department totals & \texttt{GROUP\ BY} & Allowed & Allowed \\
-CTE & common table expression & Allowed & Allowed \\
-Ranked claims & window function & Allowed & Allowed \\
-Salary access & denied column & Denied & Denied \\
-Bank account access & denied column & Denied & Denied \\
-Raw table access & schema escape & Denied & Denied \\
-Other month & scope escape & Transparent scope filtering & Transparent
-scope filtering \\
-Mutation SQL & \texttt{DELETE} & Denied & Denied \\
-DDL & \texttt{DROP} & Denied & Denied \\
-Query budget overflow & excessive queries & Denied & Denied \\
-Disclosure budget overflow & too many unique expense rows & Denied &
-Denied \\
-\texttt{pg\_catalog} access & catalog escape & Denied & Denied \\
-\texttt{json\_agg(e)} payload & aggregation payload & Denied & Denied \\
-\texttt{array\_agg(e.expense\_id)} payload & aggregation payload &
-Denied & Denied \\
-\texttt{string\_agg(employee\_name,\ \textquotesingle{},\textquotesingle{})}
-payload & aggregation payload & Denied & Denied \\
-\texttt{row\_to\_json(e)} payload & aggregation payload & Denied &
-Denied \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
 Scope violations over safe views are enforced by filtering rather than
 explicit denial. A query for another approved-view but out-of-scope
 month returns zero rows because the safe view predicate binds the
@@ -1536,23 +1427,6 @@ on database runtime overhead.
 
 Table~\ref{tab:performance} reports the microbenchmark results.
 
-\begin{table*}[t]
-\centering
-\caption{Performance microbenchmark comparing raw PostgreSQL and SessionBoundDB runtime execution. SB denotes SessionBound.}
-\label{tab:performance}
-\begin{tabular}{@{}lrrrr@{}}
-\toprule
-Pattern & Raw p50 & SB p50 & Overhead & Rows \\
-\midrule
-SELECT & 0.063 ms & 1.434 ms & 2168.4\% & 3 \\
-JOIN & 0.060 ms & 1.503 ms & 2408.0\% & 3 \\
-GROUP BY & 0.066 ms & 1.450 ms & 2088.7\% & 3 \\
-CTE & 0.052 ms & 1.457 ms & 2702.8\% & 1 \\
-Window & 0.074 ms & 1.500 ms & 1937.5\% & 5 \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
 SB denotes SessionBound. The corresponding raw/SB p95 pairs were: SELECT
 0.142/1.760 ms; JOIN 0.135/1.752 ms; GROUP BY 0.139/1.709 ms; CTE
 0.102/1.694 ms; and Window 0.157/1.814 ms.
@@ -1574,34 +1448,6 @@ matrix}\label{threat-to-defense-matrix}}
 
 Table~\ref{tab:threat-defense} summarizes the threat-to-defense
 mapping.
-
-\begin{table*}[t]
-\centering
-\small
-\caption{Threat-to-defense mapping for the SessionBound prototype.}
-\label{tab:threat-defense}
-\begin{tabular}{@{}
-  >{\raggedright\arraybackslash}p{0.28\textwidth}
-  >{\raggedright\arraybackslash}p{0.62\textwidth}@{}}
-\toprule
-Threat & SessionBound Defense \\
-\midrule
-Agent ignores task & database enforces signed task token \\
-Prompt injection & safe views, denied fields, budgets \\
-Raw table access & no raw schema grants \\
-Sensitive field access & denied columns and safe view exclusion \\
-Scope escape & row scope in safe views \\
-Unauthorized writes & read SQL blocked; writes via controlled
-commands \\
-Query flood & query budget \\
-Cumulative detail exposure & disclosure budget vector \\
-Credential leakage & short-lived DB credential plus task-token
-binding \\
-Audit gap & task receipts \\
-Schema drift & safe view version and definition hash checks \\
-\bottomrule
-\end{tabular}
-\end{table*}
 
 
 \hypertarget{discussion}{%
@@ -1908,7 +1754,170 @@ database execution:
 The agent can try. The database decides.
 \end{verbatim}
 
+\clearpage
 \bibliographystyle{unsrt}
 \bibliography{references}
+
+\clearpage
+
+\begin{table}[p]
+\centering
+\tiny
+\setlength{\tabcolsep}{2pt}
+\caption{Adversarial SQL patterns and SessionBound defenses.}
+\label{tab:anti-evasion}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.21\columnwidth}
+  >{\raggedright\arraybackslash}p{0.22\columnwidth}
+  >{\raggedright\arraybackslash}p{0.24\columnwidth}
+  >{\raggedright\arraybackslash}p{0.19\columnwidth}@{}}
+\toprule
+Pattern & Example & Defense & Limitation \\
+\midrule
+Raw table escape & \texttt{SELECT\ *\ FROM\ app\_data.expenses} & no raw
+grants; safe views only & strong in prototype \\
+Sensitive column & \texttt{SELECT\ salary\ FROM\ employees} & denied
+fields; safe view exclusion & direct leakage only \\
+Scope escape & query another month or department & safe-view predicates
+from task claims & strong if views are correct \\
+Mutation & \texttt{DELETE}, \texttt{UPDATE}, \texttt{INSERT} & operation
+policy; read-only \texttt{run} path & writes require controlled
+commands \\
+DDL & \texttt{DROP}, \texttt{ALTER}, \texttt{CREATE} & blocked
+operations & production should use AST validation \\
+Catalog escape & \texttt{pg\_catalog}, \texttt{information\_schema} &
+blocked schemas and no grants & production needs parser/hooks \\
+Pagination scraping & repeated \texttt{LIMIT/OFFSET} & query budget and
+disclosure budget & budget model matters \\
+JSON / array payload aggregation & payload aggregation functions &
+result-byte budget, per-query payload cap, optional aggregate allowlist
+/ AST policy & production should detect high-risk aggregation
+functions \\
+Aggregate inference & small-group \texttt{GROUP\ BY} & optional minimum
+group size and aggregate policy & future work \\
+Timing side channel & expensive predicates & statement timeout and
+resource budget & partial \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[p]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Safe view drift and required token invalidation behavior.}
+\label{tab:schema-drift}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.29\columnwidth}
+  >{\raggedright\arraybackslash}p{0.29\columnwidth}
+  >{\raggedright\arraybackslash}p{0.30\columnwidth}@{}}
+\toprule
+Change & Risk & Required Response \\
+\midrule
+Add column to raw table & hidden exposure if safe view uses
+\texttt{SELECT\ *} & safe views must not use \texttt{SELECT\ *};
+registry hash unchanged if not exposed \\
+Add column to safe view & new exposure & invalidate existing task
+tokens \\
+\texttt{CREATE\ OR\ REPLACE\ VIEW} & semantics drift & compare view
+definition hash; invalidate if changed \\
+\texttt{DROP/CREATE\ VIEW} & object replacement & OID mismatch;
+invalidate \\
+Policy version update & approval drift & invalidate or require explicit
+compatibility flag \\
+Column type change & interpretation drift & invalidate if exposed column
+hash changes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[p]
+\centering
+\tiny
+\setlength{\tabcolsep}{2pt}
+\caption{Representative functional validation scenarios. The full canonical validation suite passed 24 of 24 scenarios.}
+\label{tab:validation-scenarios}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.20\columnwidth}
+  >{\raggedright\arraybackslash}p{0.26\columnwidth}
+  >{\raggedright\arraybackslash}p{0.17\columnwidth}
+  >{\raggedright\arraybackslash}p{0.17\columnwidth}@{}}
+\toprule
+Scenario & SQL Feature / Attack & Expected & Observed \\
+\midrule
+Safe view SELECT & \texttt{SELECT} & Allowed & Allowed \\
+Join safe views & \texttt{JOIN} & Allowed & Allowed \\
+Department totals & \texttt{GROUP\ BY} & Allowed & Allowed \\
+CTE & common table expression & Allowed & Allowed \\
+Ranked claims & window function & Allowed & Allowed \\
+Salary access & denied column & Denied & Denied \\
+Bank account access & denied column & Denied & Denied \\
+Raw table access & schema escape & Denied & Denied \\
+Other month & scope escape & \shortstack[l]{Transparent\\scope\\filtering} & \shortstack[l]{Transparent\\scope\\filtering} \\
+Mutation SQL & \texttt{DELETE} & Denied & Denied \\
+DDL & \texttt{DROP} & Denied & Denied \\
+Query budget overflow & excessive queries & Denied & Denied \\
+Disclosure budget overflow & too many unique expense rows & Denied &
+Denied \\
+\texttt{pg\_catalog} access & catalog escape & Denied & Denied \\
+\texttt{json\_agg(e)} payload & aggregation payload & Denied & Denied \\
+\shortstack[l]{\texttt{array\_}\\\texttt{agg(e.}\\\texttt{expense\_id)}\\payload} & aggregation payload &
+Denied & Denied \\
+\shortstack[l]{\texttt{string\_agg(}\\\texttt{employee\_name,}\\
+\texttt{\textquotesingle{},\textquotesingle{})} payload} & aggregation payload & Denied & Denied \\
+\texttt{row\_to\_json(e)} payload & aggregation payload & Denied &
+Denied \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[p]
+\centering
+\small
+\caption{Performance microbenchmark comparing raw PostgreSQL and SessionBoundDB runtime execution. SB denotes SessionBound.}
+\label{tab:performance}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Pattern & Raw p50 & SB p50 & Overhead & Rows \\
+\midrule
+SELECT & 0.063 ms & 1.434 ms & 2168.4\% & 3 \\
+JOIN & 0.060 ms & 1.503 ms & 2408.0\% & 3 \\
+GROUP BY & 0.066 ms & 1.450 ms & 2088.7\% & 3 \\
+CTE & 0.052 ms & 1.457 ms & 2702.8\% & 1 \\
+Window & 0.074 ms & 1.500 ms & 1937.5\% & 5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[p]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\caption{Threat-to-defense mapping for the SessionBound prototype.}
+\label{tab:threat-defense}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.30\columnwidth}
+  >{\raggedright\arraybackslash}p{0.58\columnwidth}@{}}
+\toprule
+Threat & SessionBound Defense \\
+\midrule
+Agent ignores task & database enforces signed task token \\
+Prompt injection & safe views, denied fields, budgets \\
+Raw table access & no raw schema grants \\
+Sensitive field access & denied columns and safe view exclusion \\
+Scope escape & row scope in safe views \\
+Unauthorized writes & read SQL blocked; writes via controlled
+commands \\
+Query flood & query budget \\
+Cumulative detail exposure & disclosure budget vector \\
+Credential leakage & short-lived DB credential plus task-token
+binding \\
+Audit gap & task receipts \\
+Schema drift & safe view version and definition hash checks \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\clearpage
 
 \end{document}
