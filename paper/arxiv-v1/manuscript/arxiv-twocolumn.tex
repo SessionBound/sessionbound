@@ -102,6 +102,20 @@
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \setcounter{secnumdepth}{3}
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+  {-3.5ex \@plus -1ex \@minus -.2ex}%
+  {2.3ex \@plus .2ex}%
+  {\normalfont\Large\bfseries\raggedright}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+  {-3.25ex\@plus -1ex \@minus -.2ex}%
+  {1.5ex \@plus .2ex}%
+  {\normalfont\large\bfseries\raggedright}}
+\renewcommand\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+  {-3.25ex\@plus -1ex \@minus -.2ex}%
+  {1.5ex \@plus .2ex}%
+  {\normalfont\normalsize\bfseries\raggedright}}
+\makeatother
 \ifLuaTeX
   \usepackage{selnolig}  % disable illegal ligatures
 \fi
@@ -259,8 +273,8 @@ a signed task token, exposes only registered safe views, rejects raw
 table access and denied fields, tracks query and disclosure budgets, and
 records receipts for allowed and denied attempts.
 
-The PostgreSQL prototype currently keeps the \texttt{taskbound} SQL
-schema name for compatibility with the existing demo implementation.
+For compatibility with the existing demo implementation, the PostgreSQL
+prototype currently keeps the SQL schema name \texttt{taskbound}.
 
 \hypertarget{contributions}{%
 \subsection{Contributions}\label{contributions}}
@@ -417,11 +431,12 @@ or another tenant. It should not run DDL or arbitrary updates. It should
 not paginate through all employees and reconstruct an unrestricted
 dataset. Its access should expire quickly and leave an audit trail.
 
-A fixed API such as \texttt{get\_expense\_summary(department,\ month)}
-is too narrow. A broad database account is too dangerous. A prompt
-instruction such as ``do not access salary'' is not a security
-mechanism. SessionBound's answer is to approve a task and bind it to a
-database session with safe views, scope, budgets, and receipts.
+A fixed endpoint such as \texttt{get\_expense\_summary}, parameterized
+by department and month, is too narrow. A broad database account is too
+dangerous. A prompt instruction such as ``do not access salary'' is not
+a security mechanism. SessionBound's answer is to approve a task and
+bind it to a database session with safe views, scope, budgets, and
+receipts.
 
 
 \hypertarget{threat-model}{%
@@ -503,8 +518,7 @@ SessionBoundDB is designed to mitigate:
   Scope escape: attempts to read other tenants, months,
   departments, projects, or users.
 \item
-  Unauthorized mutations: attempts to run \texttt{INSERT},
-  \texttt{UPDATE}, \texttt{DELETE}, DDL, or high-impact operations
+  Unauthorized mutations: write, DDL, or other high-impact operations
   outside controlled commands.
 \item
   Prompt injection effects: data or user text instructs the
@@ -1377,8 +1391,8 @@ ordinary aggregate analysis such as \texttt{count}, \texttt{sum},
 \subsection{Performance
 microbenchmark}\label{performance-microbenchmark}}
 
-We compare raw PostgreSQL execution against
-\texttt{taskbound.run(sql)} for core query patterns.
+We compare raw PostgreSQL execution against the SessionBound runtime
+path for core query patterns.
 
 Benchmark patterns:
 
