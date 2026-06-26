@@ -54,26 +54,26 @@
 }
 % Add ',fontsize=\small' for more characters per line
 \newenvironment{Shaded}{}{}
-\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
-\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{#1}}
 \newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
 \newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
 \newcommand{\BuiltInTok}[1]{#1}
 \newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
-\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
-\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{#1}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{#1}}
 \newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
-\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
 \newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
 \newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
-\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
-\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{#1}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{#1}}
 \newcommand{\ExtensionTok}[1]{#1}
 \newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
 \newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
 \newcommand{\ImportTok}[1]{#1}
-\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
-\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{#1}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
 \newcommand{\NormalTok}[1]{#1}
 \newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
 \newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
@@ -84,7 +84,7 @@
 \newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
 \newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
 \newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
-\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{#1}}
 \usepackage{longtable,booktabs,array}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
@@ -109,6 +109,9 @@
 \title{SessionBound: Turning Enterprise Task Approval into Budgeted
 Database Sessions}
 \author{Minmin Wu\\
+Independent Researcher
+\and
+Zhongzhao Dou\\
 Independent Researcher}
 \date{}
 
@@ -131,12 +134,12 @@ translated into a database execution context that is bounded, budgeted,
 and auditable. SessionBound bridges this trust gap by turning a business
 approval into a short-lived, budgeted, and auditable database session.
 
-We present \textbf{SessionBound}, a control-plane and database-runtime
-architecture that turns approved enterprise tasks into \textbf{budgeted
-database sessions} for AI agents. A SessionBound control plane defines
+We present SessionBound, a control-plane and database-runtime
+architecture that turns approved enterprise tasks into budgeted
+database sessions for AI agents. A SessionBound control plane defines
 task templates, accepts task applications, applies grants and approvals,
 assigns TTLs and budgets, and issues signed task tokens. A database
-runtime, \textbf{SessionBoundDB}, binds an approved task token to a
+runtime, SessionBoundDB, binds an approved task token to a
 short-lived agent session and enforces safe views, row scope, denied
 fields, operation limits, query budgets, disclosure budgets, and query
 receipts at SQL execution time.
@@ -153,7 +156,7 @@ screens are too rigid, direct database access is too broad, and approved
 tasks should become temporary, budgeted, receipt-bearing database
 sessions.
 
-\textbf{Code availability.} The prototype source code, synthetic
+Code availability. The prototype source code, synthetic
 evaluation dataset, validation reports, benchmark outputs, and arXiv
 source are available at
 \url{https://github.com/SessionBound/sessionbound}.
@@ -223,15 +226,15 @@ SessionBound separates three concerns.
 \def\labelenumi{\arabic{enumi}.}
 \tightlist
 \item
-  \textbf{Task control plane.} Defines task templates, accepts task
+  Task control plane. Defines task templates, accepts task
   applications, evaluates grants and approvals, assigns budgets and
   TTLs, and signs task tokens.
 \item
-  \textbf{Agent execution.} Lets an LLM-powered agent decide what SQL to
+  Agent execution. Lets an LLM-powered agent decide what SQL to
   try, which hypotheses to test, and how to construct a temporary
   workspace.
 \item
-  \textbf{Database runtime.} Binds the signed task token to a database
+  Database runtime. Binds the signed task token to a database
   session and enforces safe views, scope, denied fields, operation
   limits, query budgets, disclosure budgets, and receipts.
 \end{enumerate}
@@ -267,30 +270,30 @@ This paper makes five contributions.
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
 \item
-  \textbf{Enterprise task approval as the missing layer.} We identify a
+  Enterprise task approval as the missing layer. We identify a
   gap between agent delegation and database enforcement: real
   enterprises approve tasks, scopes, and budgets above the database, but
   need those approvals translated into database-enforceable execution
   boundaries.
 \item
-  \textbf{SessionBound control plane.} We propose a task control plane
+  SessionBound control plane. We propose a task control plane
   with task templates, task applications, task approvals, grants, TTLs,
   budgets, and signed task tokens. This control plane lets business and
   data-governance workflows define what work is authorized without
   requiring managers to write database policies.
 \item
-  \textbf{Budgeted database sessions.} We define a database session
+  Budgeted database sessions. We define a database session
   model in which an approved task token binds an agent to safe views,
   row scope, denied fields, allowed operations, TTL, query budget,
   disclosure budget, and audit receipt policy.
 \item
-  \textbf{LLM-independent enforcement for open-ended SQL.}
+  LLM-independent enforcement for open-ended SQL.
   SessionBoundDB allows agents to generate SQL freely inside a boundary,
   but the database enforces that boundary deterministically. The
   database does not parse the natural-language task and does not rely on
   an LLM to judge safety at query time.
 \item
-  \textbf{PostgreSQL prototype and hardening analysis.} We implement
+  PostgreSQL prototype and hardening analysis. We implement
   SessionBoundDB as a PostgreSQL-based runtime for SessionBound and
   demonstrate it on enterprise travel reimbursement analysis. We also
   analyze anti-evasion scope, budget semantics, schema drift,
@@ -491,26 +494,26 @@ SessionBoundDB is designed to mitigate:
 \begin{itemize}
 \tightlist
 \item
-  \textbf{Sensitive field access}: attempts to read salary, bank
+  Sensitive field access: attempts to read salary, bank
   account, phone, identity number, credentials, or private notes.
 \item
-  \textbf{Raw table access}: attempts to bypass safe views and query
+  Raw table access: attempts to bypass safe views and query
   application schemas directly.
 \item
-  \textbf{Scope escape}: attempts to read other tenants, months,
+  Scope escape: attempts to read other tenants, months,
   departments, projects, or users.
 \item
-  \textbf{Unauthorized mutations}: attempts to run \texttt{INSERT},
+  Unauthorized mutations: attempts to run \texttt{INSERT},
   \texttt{UPDATE}, \texttt{DELETE}, DDL, or high-impact operations
   outside controlled commands.
 \item
-  \textbf{Prompt injection effects}: data or user text instructs the
+  Prompt injection effects: data or user text instructs the
   agent to ignore policy or reveal secrets.
 \item
-  \textbf{Budget evasion}: repeated queries, pagination, or alternate
+  Budget evasion: repeated queries, pagination, or alternate
   SQL forms attempt to disclose more detail rows than the task allows.
 \item
-  \textbf{Credential-token mismatch}: attempts to combine one runtime
+  Credential-token mismatch: attempts to combine one runtime
   credential with another task token.
 \end{itemize}
 
@@ -912,11 +915,11 @@ procedure in Algorithm~\ref{alg:sql-decision-pipeline}.
 \begin{center}
 \refstepcounter{algorithm}\label{alg:sql-decision-pipeline}
 \begin{minipage}{0.9\linewidth}
-\textbf{Algorithm \thealgorithm. SQL decision pipeline for SessionBoundDB}
+Algorithm \thealgorithm. SQL decision pipeline for SessionBoundDB
 
-\textbf{Input:} SQL attempt and bound database session state.
+Input: SQL attempt and bound database session state.
 
-\textbf{Output:} Allowed result with receipt, or denial receipt.
+Output: Allowed result with receipt, or denial receipt.
 
 \begin{enumerate}
 \item Require an active task binding for the session.
@@ -1021,7 +1024,7 @@ a task template explicitly allows them with a strict byte budget.
 \hypertarget{budget-semantics}{%
 \section{Budget Semantics}\label{budget-semantics}}
 
-The phrase \textbf{disclosure budget} can be misleading if interpreted
+The phrase disclosure budget can be misleading if interpreted
 as differential privacy. SessionBound uses disclosure budgets for a
 different purpose.
 
@@ -1082,29 +1085,29 @@ The runtime may account for:
 \begin{itemize}
 \tightlist
 \item
-  \textbf{query count}: limits repeated attempts;
+  query count: limits repeated attempts;
 \item
-  \textbf{result rows}: limits raw output volume;
+  result rows: limits raw output volume;
 \item
-  \textbf{result bytes}: limits bulk export;
+  result bytes: limits bulk export;
 \item
-  \textbf{per-query payload bytes}: prevents one-row JSON, array, XML,
+  per-query payload bytes: prevents one-row JSON, array, XML,
   or string payloads from smuggling a large relation as a single tuple;
 \item
-  \textbf{aggregate payload shape}: optionally blocks or heavily charges
+  aggregate payload shape: optionally blocks or heavily charges
   high-risk aggregation functions such as \texttt{json\_agg},
   \texttt{array\_agg}, \texttt{string\_agg}, and \texttt{xmlagg};
 \item
-  \textbf{unique business entities}: tracks exposure of objects such as
+  unique business entities: tracks exposure of objects such as
   expenses, employees, tickets, or customers;
 \item
-  \textbf{column weights}: charges more for more sensitive exposed
+  column weights: charges more for more sensitive exposed
   attributes;
 \item
-  \textbf{detail versus aggregate multipliers}: charges detail rows more
+  detail versus aggregate multipliers: charges detail rows more
   than coarse aggregates;
 \item
-  \textbf{small-group penalties}: charges more when aggregates describe
+  small-group penalties: charges more when aggregates describe
   very small groups.
 \end{itemize}
 
@@ -1651,32 +1654,32 @@ produces receipts for governance and audit.
 SessionBound opens several research and engineering directions beyond
 the first prototype.
 
-First, \textbf{cross-database and lakehouse federation} would extend
+First, cross-database and lakehouse federation would extend
 task-bound sessions beyond a single PostgreSQL runtime. A production
 deployment may need to bind one approved task to Snowflake, BigQuery,
 PostgreSQL, vector stores, and lakehouse tables while preserving one
 budget, one approval record, and one receipt chain.
 
-Second, \textbf{production-grade SQL enforcement} should move from
+Second, production-grade SQL enforcement should move from
 conservative checks and database permissions toward parser-, planner-,
 or executor-level enforcement. This includes AST validation, PostgreSQL
 hooks, aggregate-function policies, catalog-access controls, and robust
 handling of generated SQL equivalence.
 
-Third, \textbf{stronger disclosure accounting} is needed. The current
+Third, stronger disclosure accounting is needed. The current
 budget-vector model is operational rather than formal. Future work
 should explore sensitivity-aware budgets, aggregate leakage models,
 minimum group-size policies, reconstruction-risk detection, and possible
 integration with differential-privacy mechanisms where statistical
 guarantees are required.
 
-Fourth, \textbf{verifiable receipts} can strengthen the audit layer. The
+Fourth, verifiable receipts can strengthen the audit layer. The
 prototype can use structured or hash-chained receipts; future versions
 could use Merkle trees, append-only transparency logs, cryptographic
 accumulators, or external notarization to make query receipts
 tamper-evident across organizational boundaries.
 
-Fifth, \textbf{safe-view authoring and verification} should become a
+Fifth, safe-view authoring and verification should become a
 first-class developer workflow. Data platform teams need tools to lint
 safe views, detect accidental \texttt{SELECT\ *}, compare
 view-definition hashes, test adversarial SQL patterns, and verify that
