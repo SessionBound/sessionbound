@@ -37,7 +37,7 @@
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
 \IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
 \hypersetup{
-  pdfauthor={Minmin Wu},
+  pdfauthor={Minmin Wu and Zhongzhao Dou},
   hidelinks,
   pdfcreator={LaTeX via pandoc}}
 \makeatletter
@@ -123,10 +123,12 @@
 \title{SessionBound: Turning Enterprise Task Approval into Budgeted
 Database Sessions}
 \author{Minmin Wu\\
-Independent Researcher
+China Telecom Global Limited\\
+\texttt{wuminmin@futurenetech.com}
 \and
 Zhongzhao Dou\\
-Independent Researcher}
+China Telecom Global Limited\\
+\texttt{douzz@futurenetech.com}}
 \date{}
 
 \begin{document}
@@ -1374,9 +1376,9 @@ We evaluated the SessionBoundDB PostgreSQL prototype using Docker
 Compose. The public repository contains the evaluation scripts,
 validation reports, benchmark outputs, and source code needed to
 reproduce the results. The canonical validation suite passed 24 of 24
-scenarios. Table~\ref{tab:validation-scenarios} reports representative
-scenarios covering allowed analysis, denied boundary violations,
-transparent scope filtering, and payload aggregation blocking.
+scenarios. Table~\ref{tab:validation-scenarios} lists the full canonical
+suite and includes the corresponding scenario identifiers used by
+\texttt{scripts/sessionbound\_agent\_eval.py}.
 
 Scope violations over safe views are enforced by filtering rather than
 explicit denial. A query for another approved-view but out-of-scope
@@ -1848,39 +1850,42 @@ hash changes \\
 \centering
 \scriptsize
 \setlength{\tabcolsep}{3pt}
-\caption{Representative functional validation scenarios. The full canonical validation suite passed 24 of 24 scenarios.}
+\caption{Canonical functional validation scenarios. The full validation suite passed 24 of 24 scenarios.}
 \label{tab:validation-scenarios}
 \begin{tabular}{@{}
-  >{\raggedright\arraybackslash}p{0.22\textwidth}
-  >{\raggedright\arraybackslash}p{0.24\textwidth}
+  >{\raggedright\arraybackslash}p{0.04\textwidth}
+  >{\raggedright\arraybackslash}p{0.17\textwidth}
   >{\raggedright\arraybackslash}p{0.21\textwidth}
-  >{\raggedright\arraybackslash}p{0.21\textwidth}@{}}
+  >{\raggedright\arraybackslash}p{0.20\textwidth}
+  >{\raggedright\arraybackslash}p{0.13\textwidth}
+  >{\raggedright\arraybackslash}p{0.13\textwidth}@{}}
 \toprule
-Scenario & SQL Feature / Attack & Expected & Observed \\
+ID & Paper scenario & Script scenario & SQL Feature / Attack & Expected & Observed \\
 \midrule
-Safe view SELECT & \texttt{SELECT} & Allowed & Allowed \\
-Join safe views & \texttt{JOIN} & Allowed & Allowed \\
-Department totals & \texttt{GROUP\ BY} & Allowed & Allowed \\
-CTE & common table expression & Allowed & Allowed \\
-Ranked claims & window function & Allowed & Allowed \\
-Salary access & denied column & Denied & Denied \\
-Bank account access & denied column & Denied & Denied \\
-Raw table access & schema escape & Denied & Denied \\
-Other month & scope escape & Transparent scope filtering & Transparent
-scope filtering \\
-Mutation SQL & \texttt{DELETE} & Denied & Denied \\
-DDL & \texttt{DROP} & Denied & Denied \\
-Query budget overflow & excessive queries & Denied & Denied \\
-Disclosure budget overflow & too many unique expense rows & Denied &
-Denied \\
-\texttt{pg\_catalog} access & catalog escape & Denied & Denied \\
-\texttt{json\_agg(e)} payload & aggregation payload & Denied & Denied \\
-\texttt{array\_agg(e.expense\_id)} payload & aggregation payload &
-Denied & Denied \\
-\texttt{string\_agg(employee\_name,\ \textquotesingle{},\textquotesingle{})}
-payload & aggregation payload & Denied & Denied \\
-\texttt{row\_to\_json(e)} payload & aggregation payload & Denied &
-Denied \\
+V01 & Safe view SELECT & \texttt{safe\_view\_select} & \texttt{SELECT} & Allowed & Allowed \\
+V02 & Join safe views & \texttt{join\_safe\_views} & \texttt{JOIN} & Allowed & Allowed \\
+V03 & CTE & \texttt{cte} & common table expression & Allowed & Allowed \\
+V04 & Department totals & \texttt{group\_by} & \texttt{GROUP\ BY} & Allowed & Allowed \\
+V05 & Ranked expenses & \texttt{window\_function} & window function & Allowed & Allowed \\
+V06 & Scoped drill-down & \texttt{scoped\_drill\_down} & scoped predicate over safe view & Allowed & Allowed \\
+V07 & Salary access & \texttt{salary\_access} & denied column & Denied & Denied \\
+V08 & Bank account access & \texttt{bank\_account\_access} & denied column & Denied & Denied \\
+V09 & Raw table access & \texttt{raw\_table\_access} & schema escape & Denied & Denied \\
+V10 & Mutation SQL & \texttt{mutation\_sql} & \texttt{DELETE} & Denied & Denied \\
+V11 & DDL & \texttt{ddl} & \texttt{DROP} & Denied & Denied \\
+V12 & \texttt{pg\_catalog} access & \texttt{pg\_catalog\_access} & catalog escape & Denied & Denied \\
+V13 & \texttt{json\_agg(e)} payload & \texttt{json\_agg\_payload} & aggregation payload & Denied & Denied \\
+V14 & \texttt{jsonb\_agg(e)} payload & \texttt{jsonb\_agg\_payload} & aggregation payload & Denied & Denied \\
+V15 & \texttt{array\_agg(...)} payload & \texttt{array\_agg\_payload} & aggregation payload & Denied & Denied \\
+V16 & \texttt{string\_agg(...)} payload & \texttt{string\_agg\_payload} & aggregation payload & Denied & Denied \\
+V17 & \texttt{xmlagg(...)} payload & \texttt{xmlagg\_payload} & aggregation payload & Denied & Denied \\
+V18 & \texttt{row\_to\_json(e)} payload & \texttt{row\_to\_json\_payload} & aggregation payload & Denied & Denied \\
+V19 & \texttt{json\_build(...)} payload & \texttt{json\_build\_object\_payload} & aggregation payload & Denied & Denied \\
+V20 & \texttt{jsonb\_build(...)} payload & \texttt{jsonb\_build\_object\_payload} & aggregation payload & Denied & Denied \\
+V21 & Other month & \texttt{out\_of\_scope\_month} & scope escape & Transparent scope filtering & Transparent scope filtering \\
+V22 & Other department & \texttt{out\_of\_scope\_department} & scope escape & Transparent scope filtering & Transparent scope filtering \\
+V23 & Query budget overflow & \texttt{query\_budget\_overflow} & excessive queries & Denied & Denied \\
+V24 & Disclosure budget overflow & \texttt{disclosure\_budget\_overflow} & too many unique expense rows & Denied & Denied \\
 \bottomrule
 \end{tabular}
 \end{table*}

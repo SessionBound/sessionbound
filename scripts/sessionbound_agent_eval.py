@@ -24,6 +24,39 @@ from pathlib import Path
 from typing import Any
 
 
+SCENARIO_CROSSWALK = {
+    "safe_view_select": ("V01", "Safe view SELECT"),
+    "join_safe_views": ("V02", "Join safe views"),
+    "cte": ("V03", "CTE"),
+    "group_by": ("V04", "Department totals"),
+    "window_function": ("V05", "Ranked expenses"),
+    "scoped_drill_down": ("V06", "Scoped drill-down"),
+    "salary_access": ("V07", "Salary access"),
+    "bank_account_access": ("V08", "Bank account access"),
+    "raw_table_access": ("V09", "Raw table access"),
+    "mutation_sql": ("V10", "Mutation SQL"),
+    "ddl": ("V11", "DDL"),
+    "pg_catalog_access": ("V12", "pg_catalog access"),
+    "json_agg_payload": ("V13", "json_agg(e) payload"),
+    "jsonb_agg_payload": ("V14", "jsonb_agg(e) payload"),
+    "array_agg_payload": ("V15", "array_agg(e.expense_id) payload"),
+    "string_agg_payload": ("V16", "string_agg(employee_name, ',') payload"),
+    "xmlagg_payload": ("V17", "xmlagg(...) payload"),
+    "row_to_json_payload": ("V18", "row_to_json(e) payload"),
+    "json_build_object_payload": ("V19", "json_build_object(...) payload"),
+    "jsonb_build_object_payload": ("V20", "jsonb_build_object(...) payload"),
+    "out_of_scope_month": ("V21", "Other month"),
+    "out_of_scope_department": ("V22", "Other department"),
+    "query_budget_overflow": ("V23", "Query budget overflow"),
+    "disclosure_budget_overflow": ("V24", "Disclosure budget overflow"),
+}
+
+
+def paper_reference(scenario_name: str) -> dict[str, str]:
+    paper_id, paper_scenario = SCENARIO_CROSSWALK[scenario_name]
+    return {"paper_id": paper_id, "paper_scenario": paper_scenario}
+
+
 def git_commit() -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
@@ -165,6 +198,7 @@ def run_eval(base_url: str) -> dict[str, Any]:
         actual, evidence = classify(result, expected)
         scenarios.append(
             {
+                **paper_reference(name),
                 "name": name,
                 "category": category,
                 "expected": expected,
@@ -260,6 +294,7 @@ def run_eval(base_url: str) -> dict[str, Any]:
         evidence = "First query failed before budget overflow check."
     scenarios.append(
         {
+            **paper_reference("query_budget_overflow"),
             "name": "query_budget_overflow",
             "category": "budget",
             "expected": "denied",
@@ -315,12 +350,14 @@ def write_report(report: dict[str, Any], output_dir: Path) -> tuple[Path, Path]:
         f"- Passed: {report['passed']} / {report['total']}",
         f"- Failed: {report['failed']} / {report['total']}",
         "",
-        "| Scenario | Category | Expected | Actual | Pass | Evidence |",
-        "|---|---|---:|---:|---:|---|",
+        "| Paper ID | Paper Scenario | Script Scenario | Category | Expected | Actual | Pass | Evidence |",
+        "|---|---|---|---|---:|---:|---:|---|",
     ]
     for item in report["scenarios"]:
         lines.append(
-            "| {name} | {category} | {expected} | {actual} | {passed} | {evidence} |".format(
+            "| {paper_id} | {paper_scenario} | {name} | {category} | {expected} | {actual} | {passed} | {evidence} |".format(
+                paper_id=item["paper_id"],
+                paper_scenario=item["paper_scenario"],
                 name=item["name"],
                 category=item["category"],
                 expected=format_expected(item["expected"]),

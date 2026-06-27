@@ -44,14 +44,19 @@ pandoc paper/arxiv-v1/manuscript/taskbound-arxiv-v1.md \
   -o paper/arxiv-v1/manuscript/arxiv.tex \
   --bibliography=paper/arxiv-v1/manuscript/references.bib \
   --metadata title='SessionBound: Turning Enterprise Task Approval into Budgeted Database Sessions' \
-  --metadata author='Minmin Wu'
+  --metadata author='Minmin Wu; Zhongzhao Dou'
 ```
 
 The generated LaTeX author block was set to:
 
 ```latex
 \author{Minmin Wu\\
-Independent Researcher}
+China Telecom Global Limited\\
+\texttt{wuminmin@futurenetech.com}
+\and
+Zhongzhao Dou\\
+China Telecom Global Limited\\
+\texttt{douzz@futurenetech.com}}
 ```
 
 LaTeX tooling installed:

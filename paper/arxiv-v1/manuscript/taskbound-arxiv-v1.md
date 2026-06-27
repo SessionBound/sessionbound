@@ -677,30 +677,36 @@ It does not prove production-grade SQL safety or eliminate all inference attacks
 
 ### Functional scenario suite
 
-We evaluated the SessionBoundDB PostgreSQL prototype using Docker Compose. The public repository contains the evaluation scripts, validation reports, benchmark outputs, and source code needed to reproduce the results. The canonical validation suite passed 24 of 24 scenarios. Table 3 reports representative scenarios covering allowed analysis, denied boundary violations, transparent scope filtering, and payload aggregation blocking.
+We evaluated the SessionBoundDB PostgreSQL prototype using Docker Compose. The public repository contains the evaluation scripts, validation reports, benchmark outputs, and source code needed to reproduce the results. The canonical validation suite passed 24 of 24 scenarios. Table 3 lists the full canonical suite and includes the corresponding scenario identifiers used by `scripts/sessionbound_agent_eval.py`.
 
-**Table 3. Representative functional validation scenarios. The full canonical validation suite passed 24 of 24 scenarios.**
+**Table 3. Canonical functional validation scenarios. The full validation suite passed 24 of 24 scenarios.**
 
-| Scenario | SQL Feature / Attack | Expected | Observed |
-|---|---|---|---|
-| Safe view SELECT | `SELECT` | Allowed | Allowed |
-| Join safe views | `JOIN` | Allowed | Allowed |
-| Department totals | `GROUP BY` | Allowed | Allowed |
-| CTE | common table expression | Allowed | Allowed |
-| Ranked claims | window function | Allowed | Allowed |
-| Salary access | denied column | Denied | Denied |
-| Bank account access | denied column | Denied | Denied |
-| Raw table access | schema escape | Denied | Denied |
-| Other month | scope escape | Transparent scope filtering | Transparent scope filtering |
-| Mutation SQL | `DELETE` | Denied | Denied |
-| DDL | `DROP` | Denied | Denied |
-| Query budget overflow | excessive queries | Denied | Denied |
-| Disclosure budget overflow | too many unique expense rows | Denied | Denied |
-| `pg_catalog` access | catalog escape | Denied | Denied |
-| `json_agg(e)` payload | aggregation payload | Denied | Denied |
-| `array_agg(e.expense_id)` payload | aggregation payload | Denied | Denied |
-| `string_agg(employee_name, ',')` payload | aggregation payload | Denied | Denied |
-| `row_to_json(e)` payload | aggregation payload | Denied | Denied |
+| ID | Paper scenario | Script scenario | SQL Feature / Attack | Expected | Observed |
+|---|---|---|---|---|---|
+| V01 | Safe view SELECT | `safe_view_select` | `SELECT` | Allowed | Allowed |
+| V02 | Join safe views | `join_safe_views` | `JOIN` | Allowed | Allowed |
+| V03 | CTE | `cte` | common table expression | Allowed | Allowed |
+| V04 | Department totals | `group_by` | `GROUP BY` | Allowed | Allowed |
+| V05 | Ranked expenses | `window_function` | window function | Allowed | Allowed |
+| V06 | Scoped drill-down | `scoped_drill_down` | scoped predicate over safe view | Allowed | Allowed |
+| V07 | Salary access | `salary_access` | denied column | Denied | Denied |
+| V08 | Bank account access | `bank_account_access` | denied column | Denied | Denied |
+| V09 | Raw table access | `raw_table_access` | schema escape | Denied | Denied |
+| V10 | Mutation SQL | `mutation_sql` | `DELETE` | Denied | Denied |
+| V11 | DDL | `ddl` | `DROP` | Denied | Denied |
+| V12 | `pg_catalog` access | `pg_catalog_access` | catalog escape | Denied | Denied |
+| V13 | `json_agg(e)` payload | `json_agg_payload` | aggregation payload | Denied | Denied |
+| V14 | `jsonb_agg(e)` payload | `jsonb_agg_payload` | aggregation payload | Denied | Denied |
+| V15 | `array_agg(e.expense_id)` payload | `array_agg_payload` | aggregation payload | Denied | Denied |
+| V16 | `string_agg(employee_name, ',')` payload | `string_agg_payload` | aggregation payload | Denied | Denied |
+| V17 | `xmlagg(...)` payload | `xmlagg_payload` | aggregation payload | Denied | Denied |
+| V18 | `row_to_json(e)` payload | `row_to_json_payload` | aggregation payload | Denied | Denied |
+| V19 | `json_build_object(...)` payload | `json_build_object_payload` | aggregation payload | Denied | Denied |
+| V20 | `jsonb_build_object(...)` payload | `jsonb_build_object_payload` | aggregation payload | Denied | Denied |
+| V21 | Other month | `out_of_scope_month` | scope escape | Transparent scope filtering | Transparent scope filtering |
+| V22 | Other department | `out_of_scope_department` | scope escape | Transparent scope filtering | Transparent scope filtering |
+| V23 | Query budget overflow | `query_budget_overflow` | excessive queries | Denied | Denied |
+| V24 | Disclosure budget overflow | `disclosure_budget_overflow` | too many unique expense rows | Denied | Denied |
 
 Scope violations over safe views are enforced by filtering rather than explicit denial. A query for another approved-view but out-of-scope month returns zero rows because the safe view predicate binds the session to the task scope. The v1 prototype conservatively blocks payload aggregation functions such as `json_agg`, `array_agg`, `string_agg`, and `row_to_json`; ordinary aggregate analysis such as `count`, `sum`, `avg`, `min`, and `max` remains allowed.
 

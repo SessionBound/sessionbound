@@ -7,7 +7,7 @@
 - Public framework name: `SessionBound`
 - Runtime prototype name: `SessionBoundDB`
 - Paper title: `SessionBound: Turning Enterprise Task Approval into Budgeted Database Sessions`
-- Author: `Minmin Wu`, `Independent Researcher`
+- Authors: `Minmin Wu`, `China Telecom Global Limited`, `wuminmin@futurenetech.com`; `Zhongzhao Dou`, `China Telecom Global Limited`, `douzz@futurenetech.com`
 
 The PostgreSQL prototype intentionally keeps the lowercase `taskbound` SQL schema and functions, including `taskbound.run(...)` and `taskbound.bind_task(...)`, for compatibility with the demo implementation.
 
