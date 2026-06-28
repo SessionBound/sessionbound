@@ -53,6 +53,8 @@ Microbenchmarks show p50 SessionBound execution around 1.4--1.5 ms
 versus raw PostgreSQL p50 around 0.052--0.074 ms on small synthetic
 queries: high relative overhead, but low absolute latency.
 \end{abstract}
+\noindent\textbf{Code availability.} Code and evaluation artifacts are
+available at \url{https://github.com/SessionBound/sessionbound}.
 \vspace{0.5em}
 \end{@twocolumnfalse}
 ]
@@ -86,13 +88,14 @@ policy version. The database runtime consumes that token and creates a
 budgeted database session. The agent remains free to generate useful
 SQL, but every query attempt is checked deterministically.
 
-This paper presents a shortened version of the SessionBound design. It
-makes three contributions. First, it identifies enterprise task approval
-as the missing layer between agent delegation and database enforcement.
-Second, it proposes a control-plane and runtime architecture for
-turning approvals into budgeted database sessions. Third, it reports a
-PostgreSQL prototype that validates core enforcement behavior and
-measures small-query overhead.
+This paper presents SessionBound, a control-plane and database-runtime
+architecture for turning approved enterprise tasks into budgeted
+database sessions. It makes three contributions. First, it identifies
+enterprise task approval as the missing layer between agent delegation
+and database enforcement. Second, it proposes a control-plane and
+runtime architecture for turning approvals into budgeted database
+sessions. Third, it reports a PostgreSQL prototype that validates core
+enforcement behavior and measures small-query overhead.
 
 \section{Motivation and Threat Model}
 
@@ -422,7 +425,7 @@ signed token; the database runtime turns that token into a short-lived,
 budgeted, receipt-bearing session. This lets enterprises preserve the
 flexibility of agent-generated analysis while moving the security
 decision from prompts and application conventions into deterministic
-database enforcement.
+database enforcement. The agent can try. The database decides.
 
 \bibliographystyle{unsrt}
 \bibliography{references}
