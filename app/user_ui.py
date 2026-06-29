@@ -356,8 +356,8 @@ USER_HTML = r"""
             <span class="eyebrow">Runtime</span>
           </div>
           <div id="sessionCard" class="mini-card">
-            <strong>No approved database session yet</strong>
-            <p>Submit or approve a task application to issue a short-lived, budgeted database session. The agent can analyze data only after SessionBoundDB binds the approved task token.</p>
+            <strong>No database session requested</strong>
+            <p>Submit a task application, then approve it to issue a short-lived, budgeted database session.</p>
           </div>
         </section>
       </div>
@@ -459,6 +459,37 @@ LIMIT 5;`,
 FROM expenses;`
     };
 
+    function resetUsageCounters() {
+      state.queryRuns = 0;
+      state.rowsReturned = 0;
+      state.latestResult = null;
+    }
+    function resetAnalysisOutput() {
+      document.getElementById("decisionBadge").textContent = "Locked until session issued";
+      document.getElementById("resultPanel").innerHTML = `<strong>Database-enforced boundary</strong><p>The agent may generate SQL freely, but SessionBoundDB decides whether the query is inside the approved task.</p>`;
+      document.getElementById("receiptPanel").innerHTML = `<pre>{
+  "status": "no query receipt yet"
+}</pre>`;
+    }
+    function sessionBudget() {
+      const budgets = state.task?.payload?.budgets || {};
+      return {
+        maxQueries: Number(budgets.max_queries ?? state.maxQueries) || state.maxQueries,
+        maxRows: Number(budgets.max_unique_expense_rows ?? state.maxRows) || state.maxRows
+      };
+    }
+    function runtimeTaskState(result = state.latestResult) {
+      const rows = result?.state || [];
+      const taskId = state.task?.payload?.task_id;
+      return rows.find(row => !taskId || row.task_id === taskId) || null;
+    }
+    function syncUsageFromRuntime(result) {
+      const taskState = runtimeTaskState(result);
+      if (!taskState) return false;
+      state.queryRuns = Number(taskState.query_count || 0);
+      state.rowsReturned = Number(taskState.unique_expense_rows || 0);
+      return true;
+    }
     function html(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     }
@@ -467,7 +498,7 @@ FROM expenses;`
       return Number(value).toLocaleString("en-US", {style: "currency", currency: "USD", maximumFractionDigits: 0});
     }
     function currentStepIndex() {
-      return {apply: 0, approve: 1, issued: 2, analyze: 3, receipt: 4, expired: 4}[state.phase] ?? 0;
+      return {apply: 0, approve: 1, issuing: 2, issued: 2, analyze: 3, receipt: 4, expired: 4}[state.phase] ?? 0;
     }
     function setStatus(text, cls = "locked") {
       const el = document.getElementById("sessionStatus");
@@ -483,17 +514,18 @@ FROM expenses;`
       }).join("");
     }
     function renderBudgetPanel() {
-      const queryPct = Math.min(100, (state.queryRuns / state.maxQueries) * 100);
-      const rowPct = Math.min(100, (state.rowsReturned / state.maxRows) * 100);
+      const budget = sessionBudget();
+      const queryPct = Math.min(100, (state.queryRuns / budget.maxQueries) * 100);
+      const rowPct = Math.min(100, (state.rowsReturned / budget.maxRows) * 100);
       document.getElementById("budgetPanel").innerHTML = `
         <div class="mini-card">
           <strong>Query budget</strong>
-          <span class="eyebrow">${state.queryRuns} / ${state.maxQueries} used</span>
+          <span class="eyebrow">${state.queryRuns} / ${budget.maxQueries} used</span>
           <div class="meter"><span style="width:${queryPct}%"></span></div>
         </div>
         <div class="mini-card">
-          <strong>Result-row budget</strong>
-          <span class="eyebrow">${state.rowsReturned} / ${state.maxRows} observed in this UI</span>
+          <strong>Unique expense row budget</strong>
+          <span class="eyebrow">${state.rowsReturned} / ${budget.maxRows} seen by runtime</span>
           <div class="meter"><span style="width:${rowPct}%"></span></div>
         </div>
         <div class="mini-card">
@@ -511,7 +543,7 @@ FROM expenses;`
       }
       const app = state.application;
       const approveButton = state.phase === "approve"
-        ? `<button onclick="approveSession()">Approve Session</button><button class="danger" onclick="denyApplication()">Deny</button>`
+        ? `<button onclick="approveSession()">Approve & Issue Session</button><button class="danger" onclick="denyApplication()">Deny</button>`
         : "";
       el.innerHTML = `
         <div class="chips"><span class="pill warn">${html(app.status)}</span><span class="pill">Control Plane</span></div>
@@ -531,9 +563,29 @@ FROM expenses;`
     function renderSession() {
       const el = document.getElementById("sessionCard");
       if (!state.task || !state.credential) {
+        if (state.phase === "issuing") {
+          el.innerHTML = `
+            <div class="chips"><span class="pill warn">Issuing session</span><span class="pill">Credential request in flight</span></div>
+            <strong>Minting the approved database session</strong>
+            <p>SessionBoundDB is receiving the approved task token and short-lived credential. Analysis unlocks as soon as both are issued.</p>
+          `;
+          return;
+        }
+        if (state.phase === "approve" && state.application) {
+          el.innerHTML = `
+            <div class="chips"><span class="pill warn">Approval required</span><span class="pill">No session issued</span></div>
+            <strong>Task application pending approval</strong>
+            <p>The request has been submitted. Approve it to mint the short-lived credential and signed task token before the agent can analyze data.</p>
+            <div class="buttons" style="margin-top:12px;">
+              <button onclick="approveSession()">Approve & Issue Session</button>
+              <button class="danger" onclick="denyApplication()">Deny</button>
+            </div>
+          `;
+          return;
+        }
         el.innerHTML = `
-          <strong>No approved database session yet</strong>
-          <p>Submit or approve a task application to issue a short-lived, budgeted database session. The agent can analyze data only after SessionBoundDB binds the approved task token.</p>
+          <strong>No active database session</strong>
+          <p>Submit a task application and approve it to issue a short-lived, budgeted database session.</p>
         `;
         return;
       }
@@ -567,6 +619,7 @@ FROM expenses;`
       enableAnalysis(Boolean(state.task && state.credential) && state.phase !== "expired");
       if (state.phase === "apply") setStatus("No approved session", "locked");
       if (state.phase === "approve") setStatus("Task application pending", "warn");
+      if (state.phase === "issuing") setStatus("Issuing budgeted session", "warn");
       if (state.phase === "issued" || state.phase === "analyze" || state.phase === "receipt") setStatus("Budgeted session active", "ok");
       if (state.phase === "expired") setStatus("Session expired", "warn");
     }
@@ -578,6 +631,11 @@ FROM expenses;`
     function submitApplication() {
       state.maxQueries = Number(document.getElementById("maxQueries").value || 20);
       state.maxRows = Number(document.getElementById("maxRows").value || 5000);
+      resetUsageCounters();
+      state.credential = null;
+      state.task = null;
+      state.issuedAt = null;
+      resetAnalysisOutput();
       const dept = document.getElementById("department").value;
       const deptLabel = document.getElementById("department").selectedOptions[0].textContent;
       state.application = {
@@ -600,10 +658,10 @@ FROM expenses;`
     }
     async function approveSession() {
       if (!state.application) return;
-      const approveButtons = document.querySelectorAll("#applicationCard button");
+      const approveButtons = document.querySelectorAll("#applicationCard button, #sessionCard button");
       approveButtons.forEach(btn => btn.disabled = true);
       state.application.status = "Approved";
-      state.phase = "issued";
+      state.phase = "issuing";
       renderAll();
       try {
         const credential = await fetch("/credentials", {
@@ -628,6 +686,14 @@ FROM expenses;`
         state.credential = credential;
         state.task = task;
         state.issuedAt = new Date();
+        state.maxQueries = Number(task.payload?.budgets?.max_queries ?? state.maxQueries);
+        state.maxRows = Number(task.payload?.budgets?.max_unique_expense_rows ?? state.maxRows);
+        resetUsageCounters();
+        document.getElementById("decisionBadge").textContent = "Ready to run";
+        document.getElementById("resultPanel").innerHTML = `<strong>Budgeted session issued</strong><p>Run the generated SQL to spend the approved query budget.</p>`;
+        document.getElementById("receiptPanel").innerHTML = `<pre>{
+  "status": "no query receipt yet"
+}</pre>`;
         state.application.status = "Session Issued";
         state.phase = "analyze";
         loadSql("variance");
@@ -679,8 +745,11 @@ FROM expenses;`
           })
         }).then(r => r.json());
         state.latestResult = result;
-        state.queryRuns += 1;
-        if (result.ok) state.rowsReturned += (result.rows || []).length;
+        const runtimeSynced = syncUsageFromRuntime(result);
+        if (!runtimeSynced && result.ok) {
+          state.queryRuns += 1;
+          state.rowsReturned += (result.rows || []).length;
+        }
         state.phase = "receipt";
         document.getElementById("decisionBadge").innerHTML = result.ok
           ? '<span class="status-ok">allowed</span>'
@@ -696,7 +765,7 @@ FROM expenses;`
           rows_returned: result.ok ? (result.rows || []).length : 0,
           database_receipt: receipt || "No persisted receipt for denied statements that rolled back",
           remaining_budget: {
-            queries_observed_by_ui: Math.max(0, state.maxQueries - state.queryRuns),
+            queries_from_runtime: Math.max(0, sessionBudget().maxQueries - state.queryRuns),
             unique_expense_rows_from_runtime: receipt?.remaining_unique_row_budget ?? "see runtime state"
           }
         }, null, 2))}</pre>`;
@@ -713,15 +782,9 @@ FROM expenses;`
       state.credential = null;
       state.task = null;
       state.issuedAt = null;
-      state.queryRuns = 0;
-      state.rowsReturned = 0;
-      state.latestResult = null;
+      resetUsageCounters();
       document.getElementById("sqlInput").value = "";
-      document.getElementById("decisionBadge").textContent = "Locked until session issued";
-      document.getElementById("resultPanel").innerHTML = `<strong>Database-enforced boundary</strong><p>The agent may generate SQL freely, but SessionBoundDB decides whether the query is inside the approved task.</p>`;
-      document.getElementById("receiptPanel").innerHTML = `<pre>{
-  "status": "no query receipt yet"
-}</pre>`;
+      resetAnalysisOutput();
       renderAll();
     }
     renderAll();
