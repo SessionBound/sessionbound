@@ -72,6 +72,13 @@ class AgentQueryRequest(QueryRequest):
     credential: AgentCredential
 
 
+class AgentQuestionRequest(BaseModel):
+    credential: AgentCredential
+    payload_text: str
+    signature: str
+    question: str = Field(min_length=1, max_length=1200)
+
+
 class AgentCommandRequest(BaseModel):
     credential: AgentCredential
     payload_text: str
@@ -238,6 +245,311 @@ def fetch_receipts(cur) -> list[dict[str, Any]]:
         """
     )
     return rows_as_dicts(cur)
+
+
+def fallback_sql_for_question(question: str) -> tuple[str, str]:
+    text = question.lower()
+    if any(word in text for word in ["bank_account", "bank account", "银行卡", "银行账号", "salary", "工资", "phone", "手机号", "identity_number", "身份证"]):
+        requested = "bank_account"
+        if any(word in text for word in ["salary", "工资"]):
+            requested = "salary"
+        elif any(word in text for word in ["phone", "手机号"]):
+            requested = "phone"
+        elif any(word in text for word in ["identity_number", "身份证"]):
+            requested = "identity_number"
+        return (
+            f"""SELECT employee_name,
+       {requested}
+FROM employees;""",
+            "rule: denied-field boundary probe",
+        )
+    if any(word in text for word in ["merchant", "供应商", "商户", "repeated", "重复"]):
+        return (
+            """SELECT merchant,
+       category,
+       count(*) AS expense_count,
+       sum(amount) AS total_amount,
+       avg(amount) AS average_amount
+FROM expenses
+GROUP BY merchant, category
+HAVING count(*) >= 2
+ORDER BY total_amount DESC
+LIMIT 20;""",
+            "rule: repeated merchant analysis",
+        )
+    if any(word in text for word in ["risk", "风险", "high", "高额", "unusual", "异常", "top", "最大"]):
+        return (
+            """SELECT expense_id,
+       department_name,
+       employee_name,
+       category,
+       merchant,
+       amount,
+       monthly_employee_total,
+       yearly_employee_total,
+       approval_reason,
+       status
+FROM expenses
+WHERE amount >= 3000
+   OR monthly_employee_total >= 8000
+   OR requires_c_level_approval
+ORDER BY amount DESC
+LIMIT 25;""",
+            "rule: high-value and anomaly review",
+        )
+    if any(word in text for word in ["status", "workflow", "approval", "审批", "状态", "流程"]):
+        return (
+            """SELECT status,
+       next_required_role,
+       count(*) AS expense_count,
+       sum(amount) AS total_amount
+FROM expenses
+GROUP BY status, next_required_role
+ORDER BY total_amount DESC;""",
+            "rule: workflow status summary",
+        )
+    if any(word in text for word in ["list", "detail", "明细", "记录", "全部", "all"]):
+        return (
+            """SELECT expense_id,
+       department_name,
+       employee_name,
+       category,
+       merchant,
+       city,
+       amount,
+       status,
+       submitted_at
+FROM expenses
+ORDER BY submitted_at DESC
+LIMIT 50;""",
+            "rule: scoped detail listing",
+        )
+    return (
+        """SELECT department_name,
+       count(*) AS expense_count,
+       sum(amount) AS total_amount,
+       avg(amount) AS average_amount
+FROM expenses
+GROUP BY department_name
+ORDER BY total_amount DESC;""",
+        "rule: department spending summary",
+    )
+
+
+def is_safe_schema_question(question: str) -> bool:
+    text = question.lower()
+    return any(
+        phrase in text
+        for phrase in [
+            "list all views",
+            "show all views",
+            "what views",
+            "which views",
+            "available views",
+            "safe views",
+            "allowed views",
+            "list views",
+            "有哪些视图",
+            "列出视图",
+            "可用视图",
+            "安全视图",
+            "有哪些表",
+            "哪些表",
+            "什么表",
+            "可以看哪些表",
+            "可以看什么表",
+            "能看哪些表",
+            "能看什么表",
+            "可用表",
+            "数据表",
+            "表可以看",
+            "表能看",
+        ]
+    )
+
+
+def safe_schema_answer(payload: dict[str, Any]) -> dict[str, Any]:
+    task_schema = schema_for_payload(payload)
+    rows = []
+    for name, view in (task_schema.get("allowed_views") or {}).items():
+        rows.append(
+            {
+                "view_name": name,
+                "business_object": view.get("description", ""),
+                "safe_columns": ", ".join(view.get("safe_columns", [])),
+                "not_exposed_columns": ", ".join(view.get("not_exposed_columns", [])),
+            }
+        )
+    return {
+        "ok": True,
+        "question": "",
+        "generated_sql": "-- No SQL executed. Listed allowed safe views from the signed task token.",
+        "generation": {
+            "mode": "safe_schema_answer",
+            "reason": "Answered from the signed task token's allowed_views, without querying database metadata.",
+        },
+        "rows": rows,
+        "state": [],
+        "receipts": [],
+    }
+
+
+def plan_question_with_agent(question: str, task_schema: dict[str, Any]) -> dict[str, Any]:
+    if not DEEPSEEK_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="DeepSeek model is not configured. Set DEEPSEEK_API_KEY before asking the agent.",
+        )
+
+    system_prompt = (
+        "You are the agent inside an approved SessionBound task. Return only valid JSON. "
+        "Decide whether the user is asking about the approved task boundary/schema, a field/business term, or a data analysis query. "
+        "If the user asks what tables/views/data are available, what they can see, or what capabilities this task has, "
+        "return action='answer_schema'. Do not generate SQL for metadata questions. "
+        "If the user asks what a field or business term means, return action='answer_text' with a concise user-facing answer. "
+        "For example, merchant means the vendor or supplier paid by the reimbursement claim. "
+        "If the user asks to analyze data, return action='run_sql' and one SQL query. "
+        "The agent may freely generate useful SELECT/WITH SQL over the approved safe views, but must not use raw tables, "
+        "database metadata schemas, mutation SQL, credentials, task tokens, or denied columns. "
+        "The database runtime will enforce the final boundary. "
+        "JSON shape: {\"action\":\"answer_schema|answer_text|run_sql\",\"answer\":\"...\",\"sql\":\"...\",\"reason\":\"...\"}."
+    )
+    user_prompt = {
+        "question": question,
+        "approved_task_schema": {
+            "row_scope": task_schema.get("row_scope"),
+            "budgets": task_schema.get("budgets"),
+            "allowed_views": {
+                name: {
+                    "description": view.get("description"),
+                    "safe_columns": view.get("safe_columns", []),
+                    "not_exposed_columns": view.get("not_exposed_columns", []),
+                }
+                for name, view in (task_schema.get("allowed_views") or {}).items()
+            },
+            "allowed_commands": task_schema.get("allowed_commands", []),
+            "sql_rules": task_schema.get("sql_rules", []),
+        },
+    }
+    try:
+        response = httpx.post(
+            f"{DEEPSEEK_BASE_URL}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": DEEPSEEK_MODEL,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": json.dumps(user_prompt, ensure_ascii=False)},
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0,
+                "max_tokens": 1000,
+            },
+            timeout=45,
+        )
+        if response.status_code >= 400:
+            raise ValueError(response.text)
+        content = ((response.json().get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+        parsed = json.loads(content)
+        action = parsed.get("action")
+        if action == "answer_schema":
+            return {
+                "action": "answer_schema",
+                "mode": f"model:{DEEPSEEK_MODEL}",
+                "reason": str(parsed.get("reason") or "agent chose to answer from approved task schema"),
+            }
+        if action == "answer_text" and str(parsed.get("answer") or "").strip():
+            return {
+                "action": "answer_text",
+                "answer": str(parsed["answer"]).strip(),
+                "mode": f"model:{DEEPSEEK_MODEL}",
+                "reason": str(parsed.get("reason") or "agent answered a task/schema concept question"),
+            }
+        if action == "run_sql" and str(parsed.get("sql") or "").strip():
+            return {
+                "action": "run_sql",
+                "sql": str(parsed["sql"]).strip(),
+                "mode": f"model:{DEEPSEEK_MODEL}",
+                "reason": str(parsed.get("reason") or "agent generated SQL"),
+            }
+        raise ValueError(f"invalid agent plan: {parsed}")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"DeepSeek model is unavailable or returned an invalid plan: {exc}",
+        ) from exc
+
+
+def generate_sql_for_question(question: str, task_schema: dict[str, Any]) -> dict[str, str]:
+    fallback_sql, fallback_reason = fallback_sql_for_question(question)
+    if not DEEPSEEK_API_KEY:
+        return {
+            "sql": fallback_sql,
+            "mode": "deterministic_fallback",
+            "reason": fallback_reason,
+        }
+
+    system_prompt = (
+        "You translate an approved enterprise analysis question into one safe SQL query. "
+        "Return only valid JSON with keys sql and reason. "
+        "Use SELECT or WITH only. Use only these safe view names: expenses, departments, employees, approval_events, ledger_entries. "
+        "Never use app_data, pg_catalog, information_schema, mutation SQL, denied columns, credentials, or task token data. "
+        "Prefer compact result sets with LIMIT for detail queries. "
+        "The database already enforces tenant, month, and department scope from the signed task token."
+    )
+    user_prompt = {
+        "question": question,
+        "task_schema": {
+            "row_scope": task_schema.get("row_scope"),
+            "budgets": task_schema.get("budgets"),
+            "allowed_views": list((task_schema.get("allowed_views") or {}).keys()),
+            "denied_columns": task_schema.get("denied_columns", []),
+        },
+        "fallback_examples": [
+            fallback_sql,
+            "SELECT department_name, count(*) AS expense_count, sum(amount) AS total_amount FROM expenses GROUP BY department_name ORDER BY total_amount DESC",
+        ],
+    }
+    try:
+        response = httpx.post(
+            f"{DEEPSEEK_BASE_URL}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": DEEPSEEK_MODEL,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": json.dumps(user_prompt, ensure_ascii=False)},
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0,
+                "max_tokens": 900,
+            },
+            timeout=45,
+        )
+        if response.status_code >= 400:
+            raise ValueError(response.text)
+        content = ((response.json().get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+        parsed = json.loads(content)
+        sql_text = str(parsed.get("sql") or "").strip()
+        if not sql_text:
+            raise ValueError("empty sql")
+        return {
+            "sql": sql_text,
+            "mode": f"model:{DEEPSEEK_MODEL}",
+            "reason": str(parsed.get("reason") or "model-generated SQL"),
+        }
+    except Exception as exc:
+        return {
+            "sql": fallback_sql,
+            "mode": "deterministic_fallback_after_model_error",
+            "reason": f"{fallback_reason}; model fallback reason: {exc}",
+        }
 
 
 def schema_for_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -870,6 +1182,89 @@ def agent_query(req: AgentQueryRequest):
                     receipts = []
                 return {
                     "ok": False,
+                    "used_dynamic_credential": req.credential.db_user,
+                    "error": str(exc),
+                    "state": state,
+                    "receipts": receipts,
+                }
+
+
+@app.post("/agent-question")
+def agent_question(req: AgentQuestionRequest):
+    try:
+        payload = json.loads(req.payload_text)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="invalid task payload") from exc
+    task_schema = schema_for_payload(payload)
+    plan = plan_question_with_agent(req.question, task_schema)
+    if plan.get("action") == "answer_schema":
+        answer = safe_schema_answer(payload)
+        answer["question"] = req.question
+        answer["generation"] = {
+            "mode": plan.get("mode"),
+            "reason": plan.get("reason"),
+            "action": "answer_schema",
+        }
+        return answer
+    if plan.get("action") == "answer_text":
+        return {
+            "ok": True,
+            "question": req.question,
+            "answer": plan.get("answer", ""),
+            "generated_sql": "-- No SQL executed. The agent answered a task/schema concept question.",
+            "generation": {
+                "mode": plan.get("mode"),
+                "reason": plan.get("reason"),
+                "action": "answer_text",
+            },
+            "rows": [],
+            "state": [],
+            "receipts": [],
+        }
+    generation = {
+        "sql": plan.get("sql", ""),
+        "mode": plan.get("mode", "unknown"),
+        "reason": plan.get("reason", ""),
+        "action": "run_sql",
+    }
+    sql_text = generation["sql"]
+
+    try:
+        conn = connect_with_credential(req.credential)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail=f"could not connect with dynamic credential: {exc}") from exc
+
+    with conn:
+        with conn.cursor() as cur:
+            try:
+                bound = bind(cur, req.payload_text, req.signature)
+                cur.execute("SELECT * FROM taskbound.run(%s)", (sql_text,))
+                rows = [row[0] for row in cur.fetchall()]
+                state = fetch_state(cur)
+                receipts = fetch_receipts(cur)
+                return {
+                    "ok": True,
+                    "question": req.question,
+                    "generated_sql": sql_text,
+                    "generation": generation,
+                    "used_dynamic_credential": req.credential.db_user,
+                    "bound": bound,
+                    "rows": rows,
+                    "state": state,
+                    "receipts": receipts,
+                }
+            except Exception as exc:
+                try:
+                    state = fetch_state(cur)
+                    receipts = fetch_receipts(cur)
+                except Exception:
+                    state = []
+                    receipts = []
+                return {
+                    "ok": False,
+                    "question": req.question,
+                    "generated_sql": sql_text,
+                    "generation": generation,
                     "used_dynamic_credential": req.credential.db_user,
                     "error": str(exc),
                     "state": state,

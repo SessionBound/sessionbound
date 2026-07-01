@@ -28,5 +28,6 @@ Author block:
 
 ```text
 Minmin Wu
-Independent Researcher
+China Telecom Global Limited
+wuminmin@chinatelecomglobal.com
 ```

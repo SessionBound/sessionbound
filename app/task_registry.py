@@ -296,21 +296,13 @@ def sign(payload_text: str) -> str:
 TASK_TEMPLATES: dict[str, dict[str, Any]] = {
     "monthly_travel_expense_review": {
         "task_type": "monthly_travel_expense_review",
-        "description": "Review monthly travel reimbursement anomalies.",
+        "description": "Read-only monthly reimbursement analysis for trends, outliers, and department totals.",
         "purpose": "monthly_travel_expense_anomaly_review",
         "actor": "agent:travel-expense-analyst",
         "tenant_id": "company_a",
         "operations": ["SELECT"],
-        "allowed_views": ["expenses", "departments", "employees", "approval_events", "ledger_entries"],
-        "allowed_commands": [
-            "submit_expense",
-            "finance_approve",
-            "department_approve",
-            "c_level_approve",
-            "return_expense_for_more_info",
-            "resubmit_expense",
-            "pay_expense",
-        ],
+        "allowed_views": ["expenses", "departments", "employees"],
+        "allowed_commands": [],
         "denied_columns": [
             "employees.bank_account",
             "employees.phone",
@@ -331,7 +323,72 @@ TASK_TEMPLATES: dict[str, dict[str, Any]] = {
         },
         "ttl_minutes": 30,
         "policy_version": "travel-demo-v1",
-    }
+    },
+    "finance_compliance_review": {
+        "task_type": "finance_compliance_review",
+        "description": "Finance reviewer task for submitted reimbursements, policy checks, and first-pass approval or return.",
+        "purpose": "finance_reimbursement_compliance_review",
+        "actor": "agent:finance-compliance-analyst",
+        "tenant_id": "company_a",
+        "operations": ["SELECT", "CONTROLLED_COMMAND"],
+        "allowed_views": ["expenses", "departments", "employees", "approval_events"],
+        "allowed_commands": [
+            "finance_approve",
+            "return_expense_for_more_info",
+        ],
+        "denied_columns": [
+            "employees.bank_account",
+            "employees.phone",
+            "employees.salary",
+        ],
+        "required_scope": ["expense_month"],
+        "optional_scope": ["department_id"],
+        "default_scope": {
+            "expense_month": "2026-06",
+        },
+        "default_budgets": {
+            "max_queries": 12,
+            "max_unique_expense_rows": 500,
+        },
+        "max_budgets": {
+            "max_queries": 50,
+            "max_unique_expense_rows": 2000,
+        },
+        "ttl_minutes": 20,
+        "policy_version": "finance-review-v1",
+    },
+    "payment_readiness_audit": {
+        "task_type": "payment_readiness_audit",
+        "description": "Finance payment task for approved reimbursements, ledger checks, and controlled payment execution.",
+        "purpose": "reimbursement_payment_readiness_audit",
+        "actor": "agent:payment-control-analyst",
+        "tenant_id": "company_a",
+        "operations": ["SELECT", "CONTROLLED_COMMAND"],
+        "allowed_views": ["expenses", "departments", "approval_events", "ledger_entries"],
+        "allowed_commands": [
+            "pay_expense",
+        ],
+        "denied_columns": [
+            "employees.bank_account",
+            "employees.phone",
+            "employees.salary",
+        ],
+        "required_scope": ["expense_month"],
+        "optional_scope": ["department_id"],
+        "default_scope": {
+            "expense_month": "2026-06",
+        },
+        "default_budgets": {
+            "max_queries": 10,
+            "max_unique_expense_rows": 300,
+        },
+        "max_budgets": {
+            "max_queries": 40,
+            "max_unique_expense_rows": 1000,
+        },
+        "ttl_minutes": 15,
+        "policy_version": "payment-readiness-v1",
+    },
 }
 
 
@@ -362,6 +419,34 @@ TASK_GRANTS: list[dict[str, Any]] = [
         "budget_overrides": {
             "max_queries": 30,
             "max_unique_expense_rows": 5000,
+        },
+    },
+    {
+        "grant_id": "grant_fiona_finance_compliance",
+        "delegator": "user:fiona",
+        "task_type": "finance_compliance_review",
+        "allowed_scope": {
+            "tenant_id": "company_a",
+            "expense_month": "2026-06",
+            "department_ids": ["dep_fin", "dep_sales", "dep_eng"],
+        },
+        "budget_overrides": {
+            "max_queries": 30,
+            "max_unique_expense_rows": 2000,
+        },
+    },
+    {
+        "grant_id": "grant_fiona_payment_readiness",
+        "delegator": "user:fiona",
+        "task_type": "payment_readiness_audit",
+        "allowed_scope": {
+            "tenant_id": "company_a",
+            "expense_month": "2026-06",
+            "department_ids": ["dep_fin", "dep_sales", "dep_eng"],
+        },
+        "budget_overrides": {
+            "max_queries": 25,
+            "max_unique_expense_rows": 1000,
         },
     },
     {
