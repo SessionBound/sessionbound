@@ -15,6 +15,8 @@ to safe views, query/disclosure budgets, and receipts.
 Code availability: the prototype source code and synthetic evaluation dataset
 are available at https://github.com/SessionBound/sessionbound.
 
+Hosted demo: https://www.sessionbound.org/
+
 ## Why SessionBound
 
 Enterprise analysis often sits between two bad choices:
@@ -94,6 +96,12 @@ Open:
 
 ```text
 http://localhost:8000
+```
+
+Public demo:
+
+```text
+https://www.sessionbound.org/
 ```
 
 Useful pages:
