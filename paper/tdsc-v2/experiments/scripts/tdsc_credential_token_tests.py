@@ -68,6 +68,15 @@ def issue_task(task_id: str) -> dict[str, Any]:
     )
 
 
+def task_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    payload_text = canonical(payload)
+    return {
+        "payload": payload,
+        "payload_text": payload_text,
+        "signature": sign(payload_text),
+    }
+
+
 def query(credential: dict[str, Any], task: dict[str, Any], sql: str = "SELECT count(*) AS n FROM expenses") -> dict[str, Any]:
     return post_json(
         "/agent-query",
@@ -129,6 +138,28 @@ def main() -> None:
         "expected_security_property": "Denied.",
         "observed": "Allowed" if expired.get("ok") else "Denied",
         "result": expired,
+    })
+
+    wrong_audience_payload = dict(task_a["payload"])
+    wrong_audience_payload["task_id"] = f"tdsc_wrong_audience_{run_id}"
+    wrong_audience_payload["audience"] = "not-sessionbounddb"
+    wrong_audience = query(cred_a, task_from_payload(wrong_audience_payload))
+    tests.append({
+        "name": "wrong_audience",
+        "expected_security_property": "Denied if token audience is validated by the runtime.",
+        "observed": "Allowed" if wrong_audience.get("ok") else "Denied",
+        "result": wrong_audience,
+    })
+
+    wrong_actor_payload = dict(task_a["payload"])
+    wrong_actor_payload["task_id"] = f"tdsc_wrong_actor_{run_id}"
+    wrong_actor_payload["actor"] = "agent:wrong-actor"
+    wrong_actor = query(cred_a, task_from_payload(wrong_actor_payload))
+    tests.append({
+        "name": "wrong_actor",
+        "expected_security_property": "Denied if token actor is bound to the credential actor/runtime principal.",
+        "observed": "Allowed" if wrong_actor.get("ok") else "Denied",
+        "result": wrong_actor,
     })
 
     revoke_task(task_a["payload"]["task_id"])

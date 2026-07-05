@@ -839,9 +839,10 @@ At \texttt{bind\_task}, the runtime checks:
   backend/session.
 \end{itemize}
 
-A stolen credential without a matching token is insufficient. A stolen
-token without the matching credential is insufficient. Credential-token
-binding reduces cross-task credential misuse.
+A production implementation should make a stolen credential without a
+matching token insufficient, and a stolen token without the matching
+credential insufficient. Credential-token binding is intended to reduce
+cross-task credential misuse.
 
 PostgreSQL nuance: inside \texttt{SECURITY\ DEFINER} functions,
 \texttt{current\_user} may refer to the function owner. Therefore, a
@@ -849,7 +850,8 @@ production implementation should use \texttt{session\_user} and/or an
 explicit credential registry mapping rather than relying on
 \texttt{current\_user} alone. The measured prototype validates token
 signatures, token expiration, and revoked task state, but strict
-credential-id-to-token matching and same-session rebind rejection remain
+credential-id-to-token matching, actor matching, audience validation,
+token replay rejection, and same-session rebind rejection remain
 implementation gaps; Section~\ref{evaluation} reports those tests
 explicitly.
 
@@ -1474,9 +1476,9 @@ separate access-surface reduction from task-bound session enforcement:
 Table~\ref{tab:security-baselines} summarizes the observed security
 properties. The ``Partial'' credential-token result for SessionBound
 means that token expiration and revoked task state are enforced, but
-strict credential-id matching, token replay rejection across a second
-credential, and same-session rebind rejection were not enforced in the
-measured prototype.
+strict credential-id matching, actor matching, audience validation, token
+replay rejection across a second credential, and same-session rebind
+rejection were not enforced in the measured prototype.
 
 \hypertarget{performance-microbenchmark}{%
 \subsection{Performance
@@ -1560,13 +1562,14 @@ generalized to larger datasets without additional experiments.
 concurrency}\label{credential-token-edge-cases}}
 
 We separately tested credential-token edge cases. Expired tokens and
-revoked task state were denied. Three intended production properties
-were not enforced by the measured prototype: using credential A with
-token B was allowed, replaying a token with a second credential was
-allowed, and binding a second active task in the same session was
-allowed. These results make strict credential-id binding and rebind
-rejection implementation requirements rather than demonstrated
-properties of the prototype.
+revoked task state were denied. Five intended production properties were
+not enforced by the measured prototype: using credential A with token B
+was allowed, replaying a token with a second credential was allowed,
+binding a second active task in the same session was allowed, a wrong
+token audience was allowed, and a wrong token actor was allowed. These
+results make strict credential-id binding, actor/audience validation,
+token replay rejection, and rebind rejection implementation requirements
+rather than demonstrated properties of the prototype.
 
 The default seed contains 430 expenses, 240 employees, and 124
 departments. A concurrency smoke test over the API completed 1, 5, and
@@ -1629,7 +1632,7 @@ V24 & Disclosure budget overflow & \texttt{disclosure\_budget\_overflow} & too m
 \centering
 \scriptsize
 \setlength{\tabcolsep}{2.5pt}
-\caption{Security-property comparison across measured baselines. Partial credential-token binding means that expiration and revocation are enforced, but strict credential-id matching, token replay rejection, and same-session rebind rejection are not yet implemented.}
+\caption{Security-property comparison across measured baselines. Partial credential-token binding means that expiration and revocation are enforced, but strict credential-id matching, actor matching, audience validation, token replay rejection, and same-session rebind rejection are not yet implemented.}
 \label{tab:security-baselines}
 \begin{tabular}{@{}lccccc@{}}
 \toprule
@@ -1687,7 +1690,7 @@ Scope escape & row scope in safe views \\
 Unauthorized writes & read SQL blocked; writes via controlled commands \\
 Query flood & query budget \\
 Cumulative detail exposure & disclosure budget vector \\
-Credential leakage & short-lived DB credential plus required task-token binding; strict credential-id binding remains a prototype gap \\
+Credential leakage & short-lived DB credential plus required task-token binding; strict credential-id, actor, audience, replay, and rebind checks remain prototype gaps \\
 Audit gap & task receipts \\
 Schema drift & safe view version and definition hash checks are required but not implemented in the measured prototype \\
 \bottomrule
@@ -1960,9 +1963,9 @@ Current limitations include:
   view drift invalidation is a design requirement and is not implemented
   in the measured prototype;
 \item
-  strict credential-id binding, token replay rejection across a second
-  credential, and same-session rebind rejection are not implemented in
-  the measured prototype;
+  strict credential-id binding, actor matching, audience validation,
+  token replay rejection across a second credential, and same-session
+  rebind rejection are not implemented in the measured prototype;
 \item
   current performance results are microbenchmarks over small synthetic
   data and should not be generalized to production workloads;

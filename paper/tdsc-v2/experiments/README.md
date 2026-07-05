@@ -23,11 +23,12 @@ reports in this directory cite those files.
 - Functional validation: `raw_results/eval_runs/sessionbound_agent_eval_1783221284.json`
 - Security baselines: `raw_results/security_baseline_1783221673.json`
 - Performance baselines: `raw_results/performance_1783221625.json`
-- Credential-token tests: `raw_results/credential_token_1783221767.json`
+- Credential-token tests: `raw_results/credential_token_1783222420.json`
 - Concurrency smoke test: `raw_results/concurrency_1783221968.json`
 
-Older intermediate security/performance JSON files are kept only as run
-history. The reports use the corrected result files listed above.
+Older intermediate security, performance, and credential-token JSON files
+are kept only as run history. The reports use the corrected result files
+listed above.
 
 ## Reproduction Commands
 

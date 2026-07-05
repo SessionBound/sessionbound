@@ -17,8 +17,9 @@ Raw file: `raw_results/security_baseline_1783221673.json`.
 
 `Partial` means the runtime validates signed tokens, expiration, and
 revoked task state, but the separate credential-token tests show that it
-does not yet enforce strict credential-id matching, token replay blocking
-with a second credential, or same-session rebind blocking.
+does not yet enforce strict credential-id matching, actor matching,
+audience validation, token replay blocking with a second credential, or
+same-session rebind blocking.
 
 ## Summary
 
@@ -29,4 +30,4 @@ semantics. RLS-only enforces row scope and write blocking, but leaves raw
 table structure and denied fields visible. Full SessionBound adds
 database-enforced budgets, safe-view access, payload aggregation blocking,
 and receipts; its measured prototype gap is strict credential-token
-binding.
+binding, including actor/audience validation and replay/rebind rejection.

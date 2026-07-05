@@ -21,8 +21,8 @@ payload aggregation blocking, and receipts.
 
 The measured prototype has an important credential-token binding gap.
 Expired tokens and revoked tasks are denied, but credential-token
-mismatch, replay with a second credential, and second active task binding
-in one session were allowed.
+mismatch, replay with a second credential, wrong audience, wrong actor,
+and second active task binding in one session were allowed.
 
 Performance baselines show sub-millisecond p50 for raw, role-only,
 safe-view-only, and RLS-only configurations on the small seed dataset.
@@ -37,6 +37,8 @@ p95 was 110.356 ms.
 ## Gaps Before TDSC Submission
 
 - Implement and re-test strict credential-id-to-token binding.
+- Validate token audience and actor against the runtime credential or
+  principal.
 - Reject token replay with a second credential/runtime principal.
 - Reject same-session binding to a second active task.
 - Implement safe-view version/hash invalidation for schema drift.
