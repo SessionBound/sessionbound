@@ -1,0 +1,292 @@
+{
+  "run_id": "1783221554",
+  "warmup": 10,
+  "measured": 100,
+  "baselines": {
+    "Raw PostgreSQL": {
+      "SELECT": {
+        "p50_ms": 0.18344950512982905,
+        "p95_ms": 0.24280999787151814,
+        "mean_ms": 0.18743034976068884,
+        "stddev_ms": 0.0397771047913682,
+        "rows": 3,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 0.0
+      },
+      "JOIN": {
+        "p50_ms": 0.24978000146802515,
+        "p95_ms": 0.3986310039181262,
+        "mean_ms": 0.26102526069735177,
+        "stddev_ms": 0.07404887459213674,
+        "rows": 3,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 0.0
+      },
+      "GROUP BY": {
+        "p50_ms": 0.1703870002529584,
+        "p95_ms": 0.2199809969170019,
+        "mean_ms": 0.169908209645655,
+        "stddev_ms": 0.038189534433115194,
+        "rows": 1,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 0.0
+      },
+      "CTE": {
+        "p50_ms": 0.1461435022065416,
+        "p95_ms": 0.19123499805573374,
+        "mean_ms": 0.14344803013955243,
+        "stddev_ms": 0.035126342905881576,
+        "rows": 1,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 0.0
+      },
+      "Window": {
+        "p50_ms": 0.1421804990968667,
+        "p95_ms": 0.23710499226581305,
+        "mean_ms": 0.16255589071079157,
+        "stddev_ms": 0.034015899624945424,
+        "rows": 5,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 0.0
+      }
+    },
+    "Role-only": {
+      "SELECT": {
+        "p50_ms": 0.07057299808366224,
+        "p95_ms": 0.1416790037183091,
+        "mean_ms": 0.0831782998284325,
+        "stddev_ms": 0.026477278941886458,
+        "rows": 0,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": -61.530014467078
+      },
+      "JOIN": {
+        "p50_ms": 0.07677749817958102,
+        "p95_ms": 0.15620399790350348,
+        "mean_ms": 0.09643754980061203,
+        "stddev_ms": 0.0393674678717927,
+        "rows": 0,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": -69.2619514259193
+      },
+      "GROUP BY": {
+        "p50_ms": 0.07416849985020235,
+        "p95_ms": 0.1535079936729744,
+        "mean_ms": 0.09610377019271255,
+        "stddev_ms": 0.047755181614956586,
+        "rows": 0,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": -56.47056422139541
+      },
+      "CTE": {
+        "p50_ms": 0.07849999383324757,
+        "p95_ms": 0.16854300338309258,
+        "mean_ms": 0.0963614895590581,
+        "stddev_ms": 0.0343887206230719,
+        "rows": 1,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": -46.28567630580992
+      },
+      "Window": {
+        "p50_ms": 0.0864890098455362,
+        "p95_ms": 0.1602789998287335,
+        "mean_ms": 0.09933295019436628,
+        "stddev_ms": 0.030742785968975287,
+        "rows": 0,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": -39.1695693889696
+      }
+    },
+    "Safe-view-only": {
+      "SELECT": {
+        "p50_ms": 0.15606400120304897,
+        "p95_ms": 0.2410300076007843,
+        "mean_ms": 0.1728592206200119,
+        "stddev_ms": 0.03890969112907218,
+        "rows": 3,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": -14.928088199201781
+      },
+      "JOIN": {
+        "p50_ms": 0.1853239955380559,
+        "p95_ms": 0.2525169984437525,
+        "mean_ms": 0.18429159084917046,
+        "stddev_ms": 0.04436590975514728,
+        "rows": 3,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": -25.805110717889235
+      },
+      "GROUP BY": {
+        "p50_ms": 0.13579399092122912,
+        "p95_ms": 0.2541089925216511,
+        "mean_ms": 0.16368146985769272,
+        "stddev_ms": 0.048806782569856065,
+        "rows": 1,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": -20.302610692348658
+      },
+      "CTE": {
+        "p50_ms": 0.2137729970854707,
+        "p95_ms": 0.2633480035001412,
+        "mean_ms": 0.21453132052556612,
+        "stddev_ms": 0.03042059876747957,
+        "rows": 1,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 46.27608744680947
+      },
+      "Window": {
+        "p50_ms": 0.24116149870678782,
+        "p95_ms": 0.3143780049867928,
+        "mean_ms": 0.2454212801239919,
+        "stddev_ms": 0.04812310080346981,
+        "rows": 5,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 69.6164384276679
+      }
+    },
+    "RLS-only": {
+      "SELECT": {
+        "p50_ms": 0.14254949928727,
+        "p95_ms": 0.20908599253743887,
+        "mean_ms": 0.14645284041762352,
+        "stddev_ms": 0.03685141819922625,
+        "rows": 3,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": -22.294966570563215
+      },
+      "JOIN": {
+        "p50_ms": 0.14900950191076845,
+        "p95_ms": 0.20307500381022692,
+        "mean_ms": 0.1486411501537077,
+        "stddev_ms": 0.03186078177975623,
+        "rows": 3,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": -40.34370204379895
+      },
+      "GROUP BY": {
+        "p50_ms": 0.15848849579924718,
+        "p95_ms": 0.23467199935112149,
+        "mean_ms": 0.162540389719652,
+        "stddev_ms": 0.04231300496169004,
+        "rows": 1,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": -6.983223154375957
+      },
+      "CTE": {
+        "p50_ms": 0.10488949919817969,
+        "p95_ms": 0.18855099915526807,
+        "mean_ms": 0.12305066979024559,
+        "stddev_ms": 0.04691062339645082,
+        "rows": 1,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": -28.22842095987167
+      },
+      "Window": {
+        "p50_ms": 0.18999299209099263,
+        "p95_ms": 0.2730819978751242,
+        "mean_ms": 0.20116561921895482,
+        "stddev_ms": 0.044527802260064406,
+        "rows": 5,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 33.62802444627204
+      }
+    },
+    "Full SessionBound": {
+      "SELECT": {
+        "p50_ms": 21.011783508583903,
+        "p95_ms": 25.52483300678432,
+        "mean_ms": 21.533233250083867,
+        "stddev_ms": 1.9242281573176145,
+        "rows": 3,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 11353.715012048495
+      },
+      "JOIN": {
+        "p50_ms": 22.30774550116621,
+        "p95_ms": 26.088308994076215,
+        "mean_ms": 22.80072336026933,
+        "stddev_ms": 2.113303478713607,
+        "rows": 3,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 8830.957390526668
+      },
+      "GROUP BY": {
+        "p50_ms": 21.52723200561013,
+        "p95_ms": 26.111282990314066,
+        "mean_ms": 22.155289310467197,
+        "stddev_ms": 2.1894910211073633,
+        "rows": 1,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 12534.315982821794
+      },
+      "CTE": {
+        "p50_ms": 20.577210998453666,
+        "p95_ms": 22.71378500154242,
+        "mean_ms": 20.743168119952315,
+        "stddev_ms": 1.1206262448182391,
+        "rows": 1,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 13980.140880551991
+      },
+      "Window": {
+        "p50_ms": 21.045287998276763,
+        "p95_ms": 24.158168002031744,
+        "mean_ms": 21.386735500273062,
+        "stddev_ms": 1.8733184914782401,
+        "rows": 5,
+        "errors": 0,
+        "error_samples": [],
+        "measurements": 100,
+        "overhead_vs_raw_pct": 14701.810467649813
+      }
+    }
+  }
+}

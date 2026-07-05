@@ -2,7 +2,7 @@
 \PassOptionsToPackage{unicode}{hyperref}
 \PassOptionsToPackage{hyphens}{url}
 %
-% TDSC v2 draft derived from paper/tdsc-v1.
+% TDSC v2 draft.
 \documentclass[journal]{IEEEtran}
 \usepackage{amsmath,amssymb}
 \usepackage{lmodern}
@@ -847,7 +847,11 @@ PostgreSQL nuance: inside \texttt{SECURITY\ DEFINER} functions,
 \texttt{current\_user} may refer to the function owner. Therefore, a
 production implementation should use \texttt{session\_user} and/or an
 explicit credential registry mapping rather than relying on
-\texttt{current\_user} alone.
+\texttt{current\_user} alone. The measured prototype validates token
+signatures, token expiration, and revoked task state, but strict
+credential-id-to-token matching and same-session rebind rejection remain
+implementation gaps; Section~\ref{evaluation} reports those tests
+explicitly.
 
 \hypertarget{safe-views-as-the-query-surface}{%
 \subsection{Safe views as the query
@@ -1412,10 +1416,10 @@ The prototype evaluation has two goals:
 \end{enumerate}
 
 It does not prove production-grade SQL safety or eliminate all inference
-attacks. The evaluation focuses on functional boundary validation and
-database-runtime overhead. It does not yet include role-only,
-row-level-security-only, safe-view-only, or no-receipt baselines; those
-comparisons remain future evaluation targets.
+attacks. The evaluation focuses on functional boundary validation,
+security-property comparisons against narrower database controls,
+database-runtime overhead, and concurrency behavior on the default
+synthetic dataset.
 
 \hypertarget{functional-scenario-suite}{%
 \subsection{Functional scenario
@@ -1432,7 +1436,7 @@ suite and includes the corresponding scenario identifiers used by
 Scope violations over safe views are enforced by filtering rather than
 explicit denial. A query for another approved-view but out-of-scope
 month returns zero rows because the safe view predicate binds the
-session to the task scope. The v1 prototype conservatively blocks
+session to the task scope. The measured prototype conservatively blocks
 payload aggregation functions such as \texttt{json\_agg},
 \texttt{array\_agg}, \texttt{string\_agg}, and \texttt{row\_to\_json};
 ordinary aggregate analysis such as \texttt{count}, \texttt{sum},
@@ -1441,10 +1445,8 @@ ordinary aggregate analysis such as \texttt{count}, \texttt{sum},
 \hypertarget{baseline-scope}{%
 \subsection{Baseline scope}\label{baseline-scope}}
 
-The prototype reports a raw PostgreSQL versus SessionBound
-microbenchmark. A broader baseline study would separate access-surface
-reduction from task-bound session enforcement across at least five
-configurations:
+We compare SessionBound against four narrower database configurations to
+separate access-surface reduction from task-bound session enforcement:
 
 \begin{itemize}
 \tightlist
@@ -1469,17 +1471,20 @@ configurations:
   disclosure budget, anti-payload aggregation checks, and receipts.
 \end{itemize}
 
-The current implementation includes the raw PostgreSQL and full
-SessionBound measurements. Role-only, RLS-only, and safe-view-only
-measurements remain future work and should use the same task templates,
-synthetic datasets, SQL scenario suite, and benchmark environment.
+Table~\ref{tab:security-baselines} summarizes the observed security
+properties. The ``Partial'' credential-token result for SessionBound
+means that token expiration and revoked task state are enforced, but
+strict credential-id matching, token replay rejection across a second
+credential, and same-session rebind rejection were not enforced in the
+measured prototype.
 
 \hypertarget{performance-microbenchmark}{%
 \subsection{Performance
 microbenchmark}\label{performance-microbenchmark}}
 
-We compare raw PostgreSQL execution against the SessionBound runtime
-path for core query patterns.
+We compare raw PostgreSQL execution, role-only grants, safe-view-only
+access, RLS-only policies, and the full SessionBound runtime path for
+core query patterns.
 
 Benchmark patterns:
 
@@ -1525,30 +1530,49 @@ Metrics:
 \end{itemize}
 
 We ran a microbenchmark with 10 warmup iterations and 100 measured
-iterations per query pattern. The baseline is an admin/test role
-executing equivalent SQL over raw
-\texttt{app\_data} tables with tenant and month predicates matching the
-task scope. The SessionBound path binds a signed task token and executes
-\texttt{taskbound.run(sql)} in PostgreSQL. The benchmark intentionally
-excludes HTTP latency and dynamic credential creation so that it focuses
-on database runtime overhead.
+iterations per query pattern. The raw baseline is an admin/test role
+executing equivalent SQL over \texttt{app\_data} tables with tenant and
+month predicates matching the task scope. Role-only, safe-view-only, and
+RLS-only baselines use equivalent query patterns under their respective
+database controls. The SessionBound path binds a signed task token and
+executes \texttt{taskbound.run(sql)} in PostgreSQL. The benchmark
+intentionally excludes HTTP latency and dynamic credential creation so
+that it focuses on database runtime overhead.
 
 Table~\ref{tab:performance} reports the microbenchmark results.
 
 SB denotes SessionBound. The corresponding raw/SB p95 pairs were: SELECT
-0.142/1.760 ms; JOIN 0.135/1.752 ms; GROUP BY 0.139/1.709 ms; CTE
-0.102/1.694 ms; and Window 0.157/1.814 ms.
+0.228/24.535 ms; JOIN 0.223/25.084 ms; GROUP BY 0.249/28.539 ms; CTE
+0.215/23.247 ms; and Window 0.269/26.652 ms.
 
-The prototype adds overhead compared with raw PostgreSQL, but absolute
-p50 latency remains around the low-millisecond range for the benchmarked
-query patterns. The absolute SessionBound p50 latency is approximately
-1.4--1.5 ms on these small synthetic queries. Relative overhead is high
-because the raw PostgreSQL baseline is extremely small. The likely
-sources are PL/pgSQL runtime dispatch, SQL text checks, task-session
-lookup, safe-view evaluation, query-budget updates, unique-row exposure
-accounting, payload-aggregation checks, and receipt insertion. These
-microbenchmark results should not be generalized to larger datasets
-without additional experiments.
+Raw PostgreSQL, role-only, safe-view-only, and RLS-only baselines remain
+sub-millisecond at p50 on this small dataset. Full SessionBound adds
+larger absolute overhead: 20.9--22.2 ms p50 across the five measured
+patterns. Relative overhead is high because the raw PostgreSQL baseline
+is extremely small. The likely sources are PL/pgSQL runtime dispatch,
+SQL text checks, task-session lookup, safe-view evaluation, query-budget
+updates, unique-row exposure accounting, payload-aggregation checks, and
+receipt insertion. These microbenchmark results should not be
+generalized to larger datasets without additional experiments.
+
+\hypertarget{credential-token-edge-cases}{%
+\subsection{Credential-token edge cases and
+concurrency}\label{credential-token-edge-cases}}
+
+We separately tested credential-token edge cases. Expired tokens and
+revoked task state were denied. Three intended production properties
+were not enforced by the measured prototype: using credential A with
+token B was allowed, replaying a token with a second credential was
+allowed, and binding a second active task in the same session was
+allowed. These results make strict credential-id binding and rebind
+rejection implementation requirements rather than demonstrated
+properties of the prototype.
+
+The default seed contains 430 expenses, 240 employees, and 124
+departments. A concurrency smoke test over the API completed 1, 5, and
+20 concurrent sessions with zero failed sessions. At 20 concurrent
+sessions, query p50 was 82.896 ms and query p95 was 110.356 ms. This is
+not a large-scale throughput claim.
 
 \hypertarget{threat-to-defense-matrix}{%
 \subsection{Threat-to-defense
@@ -1601,23 +1625,47 @@ V24 & Disclosure budget overflow & \texttt{disclosure\_budget\_overflow} & too m
 \end{tabular}
 \end{table*}
 
-\begin{table}[!t]
+\begin{table*}[!t]
 \centering
-\small
-\caption{Performance microbenchmark comparing raw PostgreSQL and SessionBoundDB runtime execution. SB denotes SessionBound.}
-\label{tab:performance}
-\begin{tabular}{@{}lrrrr@{}}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\caption{Security-property comparison across measured baselines. Partial credential-token binding means that expiration and revocation are enforced, but strict credential-id matching, token replay rejection, and same-session rebind rejection are not yet implemented.}
+\label{tab:security-baselines}
+\begin{tabular}{@{}lccccc@{}}
 \toprule
-Pattern & Raw p50 & SB p50 & Overhead & Rows \\
+Property & Raw & Role-only & Safe-view-only & RLS-only & SessionBound \\
 \midrule
-SELECT & 0.063 ms & 1.434 ms & 2168.4\% & 3 \\
-JOIN & 0.060 ms & 1.503 ms & 2408.0\% & 3 \\
-GROUP BY & 0.066 ms & 1.450 ms & 2088.7\% & 3 \\
-CTE & 0.052 ms & 1.457 ms & 2702.8\% & 1 \\
-Window & 0.074 ms & 1.500 ms & 1937.5\% & 5 \\
+Blocks writes & No & Yes & Yes & Yes & Yes \\
+Blocks raw table access & No & No & Yes & No & Yes \\
+Blocks denied fields & No & No & Yes & No & Yes \\
+Enforces row scope & No & No & Yes & Yes & Yes \\
+Query budget & No & No & No & No & Yes \\
+Disclosure budget & No & No & No & No & Yes \\
+Payload aggregation blocking & No & No & No & No & Yes \\
+Credential-token binding & No & No & No & No & Partial \\
+Receipts & No & No & No & No & Yes \\
+Schema drift token invalidation & Not tested & Not tested & Not tested & Not tested & Not implemented \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
+
+\begin{table*}[!t]
+\centering
+\scriptsize
+\caption{Performance microbenchmark p50 latency in milliseconds. SB denotes SessionBound. Percentages report SB overhead relative to raw PostgreSQL for the same query pattern.}
+\label{tab:performance}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+Pattern & Raw & Role & Safe view & RLS & SB & SB overhead \\
+\midrule
+SELECT & 0.103 & 0.105 & 0.203 & 0.155 & 21.356 & 20700.5\% \\
+JOIN & 0.103 & 0.096 & 0.190 & 0.164 & 22.176 & 21344.7\% \\
+GROUP BY & 0.108 & 0.118 & 0.201 & 0.187 & 21.152 & 19450.3\% \\
+CTE & 0.102 & 0.095 & 0.181 & 0.146 & 20.857 & 20423.8\% \\
+Window & 0.148 & 0.194 & 0.253 & 0.217 & 21.271 & 14296.0\% \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
 \begin{table}[!t]
 \centering
@@ -1639,9 +1687,9 @@ Scope escape & row scope in safe views \\
 Unauthorized writes & read SQL blocked; writes via controlled commands \\
 Query flood & query budget \\
 Cumulative detail exposure & disclosure budget vector \\
-Credential leakage & short-lived DB credential plus task-token binding \\
+Credential leakage & short-lived DB credential plus required task-token binding; strict credential-id binding remains a prototype gap \\
 Audit gap & task receipts \\
-Schema drift & safe view version and definition hash checks \\
+Schema drift & safe view version and definition hash checks are required but not implemented in the measured prototype \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1905,12 +1953,16 @@ Current limitations include:
   transparent scope filtering rather than producing an explicit denial;
 \item
   payload aggregation functions are conservatively blocked rather than
-  governed by a per-template allowlist in the v1 prototype;
+  governed by a per-template allowlist in the measured prototype;
 \item
   safe views require careful review and versioning;
 \item
-  view drift invalidation is a design requirement but may not be fully
-  implemented in the prototype;
+  view drift invalidation is a design requirement and is not implemented
+  in the measured prototype;
+\item
+  strict credential-id binding, token replay rejection across a second
+  credential, and same-session rebind rejection are not implemented in
+  the measured prototype;
 \item
   current performance results are microbenchmarks over small synthetic
   data and should not be generalized to production workloads;

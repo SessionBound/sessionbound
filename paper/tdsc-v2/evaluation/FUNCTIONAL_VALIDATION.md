@@ -55,7 +55,7 @@ JSON: paper/arxiv-v1/evaluation/eval_runs/sessionbound_agent_eval_1782327881.jso
 Markdown: paper/arxiv-v1/evaluation/eval_runs/sessionbound_agent_eval_1782327881.md
 ```
 
-Legacy mismatch resolved: `scripts/sessionbound_agent_eval.py` now reflects current SessionBound arXiv v1 semantics and no longer returns outdated 8 / 11 results.
+Legacy mismatch resolved: `scripts/sessionbound_agent_eval.py` now reflects current SessionBound semantics and no longer returns outdated 8 / 11 results.
 
 ## Detailed Scenario Evidence
 
@@ -105,4 +105,4 @@ paper/arxiv-v1/evaluation/eval_runs/sessionbound_agent_eval_1782327881.json
 
 - The database enforces denied fields, raw schema blocking, DML/DDL blocking, query budgets, unique expense-row disclosure budgets, and conservative payload-aggregation blocking.
 - Scope violations over safe views are enforced by filtering rather than explicit denial. A query for another approved-view but out-of-scope month returns zero rows because the safe view predicate binds the session to the task scope.
-- Payload aggregation functions tested here are denied unconditionally in the v1 prototype.
+- Payload aggregation functions tested here are denied unconditionally in the measured prototype.

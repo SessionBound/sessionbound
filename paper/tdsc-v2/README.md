@@ -1,9 +1,8 @@
 # SessionBound TDSC v2 Draft
 
 This directory contains the second TDSC-oriented manuscript draft.
-Compared with `paper/tdsc-v1/`, this version removes internal planning
-language from the manuscript body and uses an IEEE journal-style LaTeX
-entrypoint.
+It uses an IEEE journal-style LaTeX entrypoint and keeps the measured
+experiment artifacts under this directory.
 
 ## Main Files
 
@@ -13,6 +12,7 @@ entrypoint.
   the current machine does not provide it globally.
 - `IEEEtran.bst`: local IEEEtran BibTeX style from CTAN.
 - `SUBMISSION_STATUS.md`: remaining checks before any formal submission.
+- `experiments/`: v2 experiment scripts, raw results, and reports.
 
 ## Build
 
@@ -21,4 +21,3 @@ make
 ```
 
 The output PDF is `sessionbound-tdsc.pdf`.
-
