@@ -851,11 +851,12 @@ PostgreSQL nuance: inside \texttt{SECURITY\ DEFINER} functions,
 production implementation should use \texttt{session\_user} and/or an
 explicit credential registry mapping rather than relying on
 \texttt{current\_user} alone. The measured prototype validates token
-signatures, token expiration, and revoked task state, but strict
-credential-id-to-token matching, actor matching, audience validation,
-token replay rejection, and same-session rebind rejection remain
-implementation gaps; Section~\ref{evaluation} reports those tests
-explicitly.
+signatures, token expiration, revoked task state, credential-id-to-token
+matching, actor matching, audience validation, cross-credential token
+replay rejection, and same-session rebind rejection in the tested
+prototype path; Section~\ref{evaluation} reports those tests explicitly.
+Production deployments still require hardened credential brokerage, key
+management, and audit-retention integration outside this demo.
 
 \hypertarget{safe-views-as-the-query-surface}{%
 \subsection{Safe views as the query
