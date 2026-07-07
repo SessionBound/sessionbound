@@ -55,18 +55,25 @@ M.~Tonnarelli, F.~Scaramuzza, S.~Harrer, and L.~W. Dietz, ``{Data Product MCP:
   \url{https://modelcontextprotocol.io/specification/2025-06-18}
 \BIBentrySTDinterwordspacing
 
-\bibitem{oracle2026deepdatasecuritydocs}
+\bibitem{postgresql2026rowsecurity}
 \BIBentryALTinterwordspacing
-{Oracle}, \emph{{What Is Oracle Deep Data Security}}, Oracle, 2026. [Online].
-  Available:
-  \url{https://docs.oracle.com/en/database/oracle/oracle-database/26/ddscg/what-is-oracle-deep-data-security.html}
+{PostgreSQL Global Development Group}, \emph{{Row Security Policies}},
+  PostgreSQL, 2026. [Online]. Available:
+  \url{https://www.postgresql.org/docs/current/ddl-rowsecurity.html}
 \BIBentrySTDinterwordspacing
 
-\bibitem{oracle2026deepdatasecuritybrief}
+\bibitem{oracle2026vpd}
 \BIBentryALTinterwordspacing
-------, \emph{{Oracle Deep Data Security Technical Brief}}, Oracle, 2026.
-  [Online]. Available:
-  \url{https://www.oracle.com/a/ocom/docs/security/deep-data-security-technical-brief.pdf}
+{Oracle}, \emph{{Using Oracle Virtual Private Database to Control Data
+  Access}}, Oracle, 2026. [Online]. Available:
+  \url{https://docs.oracle.com/en/database/oracle/oracle-database/19/dbseg/using-oracle-vpd-to-control-data-access.html}
+\BIBentrySTDinterwordspacing
+
+\bibitem{oracle2026deepdatasecuritydocs}
+\BIBentryALTinterwordspacing
+------, \emph{{What Is Oracle Deep Data Security}}, Oracle, 2026. [Online].
+  Available:
+  \url{https://docs.oracle.com/en/database/oracle/oracle-database/26/ddscg/what-is-oracle-deep-data-security.html}
 \BIBentrySTDinterwordspacing
 
 \bibitem{pang2019zanzibar}
@@ -77,13 +84,6 @@ R.~Pang, R.~Caceres, M.~Burrows, Z.~Chen, P.~Dave, N.~Germer, A.~Golynski,
   \emph{2019 USENIX Annual Technical Conference (USENIX ATC 19)}.\hskip 1em
   plus 0.5em minus 0.4em\relax USENIX Association, 2019, pp. 33--46. [Online].
   Available: \url{https://www.usenix.org/conference/atc19/presentation/pang}
-\BIBentrySTDinterwordspacing
-
-\bibitem{postgresql2026rowsecurity}
-\BIBentryALTinterwordspacing
-{PostgreSQL Global Development Group}, \emph{{Row Security Policies}},
-  PostgreSQL, 2026. [Online]. Available:
-  \url{https://www.postgresql.org/docs/current/ddl-rowsecurity.html}
 \BIBentrySTDinterwordspacing
 
 \bibitem{adam1989securitycontrol}
@@ -189,11 +189,11 @@ M.~Costa, B.~K{\"o}pf, A.~Kolluri, A.~Paverd, M.~Russinovich, A.~Salem,
   \url{https://arxiv.org/abs/2505.23643}
 \BIBentrySTDinterwordspacing
 
-\bibitem{oracle2026vpd}
+\bibitem{oracle2026deepdatasecuritybrief}
 \BIBentryALTinterwordspacing
-{Oracle}, \emph{{Using Oracle Virtual Private Database to Control Data
-  Access}}, Oracle, 2026. [Online]. Available:
-  \url{https://docs.oracle.com/en/database/oracle/oracle-database/19/dbseg/using-oracle-vpd-to-control-data-access.html}
+{Oracle}, \emph{{Oracle Deep Data Security Technical Brief}}, Oracle, 2026.
+  [Online]. Available:
+  \url{https://www.oracle.com/a/ocom/docs/security/deep-data-security-technical-brief.pdf}
 \BIBentrySTDinterwordspacing
 
 \bibitem{boyd2004sqlrand}
