@@ -2135,6 +2135,75 @@ boundary to enforce and audit.
 \hypertarget{related-work}{%
 \section{Related Work}\label{related-work}}
 
+Table~\ref{tab:why-not-existing} summarizes the main distinction from
+existing mechanisms. The short answer to ``why not just RLS plus
+short-lived credentials plus audit logs?'' is that those mechanisms can
+implement important pieces of SessionBound, but they do not by
+themselves define the approved task as the unit of database execution.
+SessionBound's claim is the composition: a business approval is compiled
+into a short-lived session whose safe views, denied fields, row scope,
+SQL surface, budget vector, drift checks, and receipts are bound
+together.
+
+\begin{table*}[!t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Why SessionBound is not just an existing access-control or auditing mechanism. The mechanisms listed here are complementary implementation building blocks; SessionBound adds the task-bound database-session contract around them.}
+\label{tab:why-not-existing}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.19\textwidth}
+  >{\raggedright\arraybackslash}p{0.22\textwidth}
+  >{\raggedright\arraybackslash}p{0.29\textwidth}
+  >{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
+\toprule
+Mechanism & What it provides & Why it is insufficient alone & SessionBound role \\
+\midrule
+PostgreSQL RLS / Oracle VPD & Row predicates enforced near data &
+Excellent for standing row policies, but does not make a business task
+the runtime object; does not by itself bind approval, TTL, safe-view
+versioning, denied fields, SQL-shape policy, cumulative budgets, and
+receipts to one exploratory session & Uses database-side enforcement but
+wraps it in a task-token and session contract \\
+ABAC / XACML / purpose policy & Expressive subject, object, action,
+environment, and purpose rules & Requires policy authors to encode
+standing rules; does not directly convert one approved analytical task
+into a temporary SQL workspace with per-session exposure accounting &
+Compiles approved task attributes into deterministic runtime state \\
+Short-lived / JIT credentials & Time-bounded authentication and reduced
+credential lifetime & Once issued, the credential can exercise whatever
+database grants it has; expiry alone does not constrain query shape,
+safe views, denied fields, or cumulative disclosure & Credentials are
+necessary but must be bound to the task token and checked at execution \\
+Audit logs / query auditing & After-the-fact visibility into executed
+queries or disclosure risk & Logs alone do not prevent release before an
+unsafe query executes; generic audit records do not define budget impact
+or prove that each attempt stayed inside a delegated task boundary &
+Emits decision receipts and accounts for budget before releasing results \\
+Capabilities / OAuth / authenticated delegation & Scoped authority and
+delegation from user to agent & Usually scoped to API operations,
+resources, or delegated identity; does not resolve arbitrary SQL against
+a safe-view registry or account for multi-query database disclosure &
+Uses a task token as a database-execution capability \\
+PAuth-style task-operation authorization & Checks whether concrete tool
+operations are implied by a natural-language task & Focuses on
+operation-level authorization; it is not designed to let an agent freely
+compose joins, CTEs, aggregates, and windows inside a structured database
+boundary & Enforces a structured SQL boundary after approval \\
+Data Product MCP / data catalogs & Governed discovery and access to
+enterprise data products & Data-product access is coarser than an
+approved task run; it does not define one cumulative budget and receipt
+chain across exploratory SQL attempts & Turns governed data surfaces
+into bounded task sessions \\
+Zanzibar-style relationship authorization & Globally consistent
+relationship checks over subjects and objects & Answers whether a
+subject has a relationship-derived permission; does not answer how an
+agent's temporary SQL session should be budgeted, scoped, and audited &
+Can feed eligibility checks before issuing a task token \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
 \hypertarget{abac-xacml-capabilities-and-purpose-based-access-control}{%
 \subsection{ABAC, XACML, capabilities, and purpose-based access
 control}\label{abac-xacml-capabilities-and-purpose-based-access-control}}
