@@ -1,6 +1,21 @@
 # Submission Status
 
-This is a TDSC-oriented manuscript draft, not a final submission package.
+This is a TDSC-oriented manuscript and artifact candidate, not a final
+submission package until the IEEE Author Portal metadata and upload checks are
+completed.
+
+## Canonical Artifact
+
+- Artifact tag: `tdsc-submission-2026-07-07`
+- Working branch: `tdsc-hardening`
+- Manifest: `paper/tdsc/ARTIFACT_MANIFEST.md`
+- Manuscript source: `paper/tdsc/sessionbound-tdsc.tex`
+- Manuscript PDF: `paper/tdsc/sessionbound-tdsc.pdf`
+- Current compiled length: 14 pages
+
+The TDSC manuscript is the canonical claim contract for this candidate. The
+arXiv v1 workspace is an earlier preprint snapshot unless and until an arXiv v2
+is prepared from the TDSC text.
 
 ## Current Improvements
 
@@ -21,6 +36,11 @@ This is a TDSC-oriented manuscript draft, not a final submission package.
 - Added receipt/budget ablation and a 1k/10k/100k scoped-row scale sweep.
 - Switched the manuscript entrypoint to `\documentclass[journal]{IEEEtran}`.
 - Added IEEE keywords.
+- Compressed the TDSC manuscript from an over-explanatory long draft into a
+  14-page candidate by shortening motivation, discussion, related work, future
+  work, and limitations.
+- Moved the full canonical validation table out of the manuscript body and into
+  the artifact evidence.
 
 ## Still Required Before Formal Submission
 
@@ -37,3 +57,5 @@ This is a TDSC-oriented manuscript draft, not a final submission package.
   planner/executor integration and runtime optimization.
 - Re-run layout review after the official IEEE/TDSC template and
   submission metadata are finalized.
+- Prepare arXiv v2 only after the TDSC text stabilizes; do not treat arXiv v1
+  as the current artifact-backed claim contract.

@@ -1,11 +1,13 @@
 # Performance Benchmark
 
-Status: benchmark completed.
+Status: early benchmark completed; superseded for TDSC claims by the overhead
+breakdown and scale/concurrency reports under `paper/tdsc/experiments/`.
 
 Raw results:
 
 ```text
-paper/arxiv-v1/benchmarks/raw_results/benchmark_1782321795.json
+paper/tdsc/experiments/raw_results/performance_1783221625.json
+paper/tdsc/experiments/raw_results/scale_1783224892.json
 ```
 
 ## Environment
@@ -57,7 +59,11 @@ The benchmark intentionally excludes HTTP latency and dynamic credential creatio
 
 ## Interpretation
 
-The measured absolute SessionBound p50 latency is approximately 1.4-1.5 ms for these small synthetic queries. Relative overhead is high because the raw PostgreSQL baseline is extremely small, roughly 0.052-0.074 ms p50.
+The older measured absolute SessionBound p50 latency is approximately 1.4-1.5
+ms for these small synthetic queries. Relative overhead is high because the raw
+PostgreSQL baseline is extremely small, roughly 0.052-0.074 ms p50. The TDSC
+manuscript uses the later overhead breakdown and scale sweep as its current
+artifact-backed performance evidence.
 
 The likely overhead sources are:
 
@@ -77,9 +83,10 @@ prototype.
 
 ## Reproduction
 
-With Docker services running:
+For the current TDSC performance and scale scripts, use the commands in
+`paper/tdsc/experiments/README.md`. With Docker services running, the current
+performance command is:
 
 ```bash
-docker compose exec -T api python - < paper/arxiv-v1/benchmarks/scripts/run_benchmark.py \
-  > paper/arxiv-v1/benchmarks/raw_results/benchmark_$(date +%s).json
+docker compose exec -T api sh -lc 'TDSC_OUT_DIR=/tmp/tdsc_experiments/raw_results TDSC_BASE_URL=http://127.0.0.1:8000 python /tmp/tdsc_experiments/scripts/tdsc_performance_eval.py'
 ```

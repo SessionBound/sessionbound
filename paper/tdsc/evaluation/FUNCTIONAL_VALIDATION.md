@@ -42,7 +42,7 @@ Command:
 ```bash
 python3 scripts/sessionbound_agent_eval.py \
   --base-url http://localhost:8000 \
-  --output-dir paper/arxiv-v1/evaluation/eval_runs
+  --output-dir paper/tdsc/experiments/raw_results/eval_runs
 ```
 
 Latest output:
@@ -51,8 +51,8 @@ Latest output:
 SessionBound evaluation
 Passed: 24 / 24
 Failed: 0 / 24
-JSON: paper/arxiv-v1/evaluation/eval_runs/sessionbound_agent_eval_1782327881.json
-Markdown: paper/arxiv-v1/evaluation/eval_runs/sessionbound_agent_eval_1782327881.md
+JSON: paper/tdsc/experiments/raw_results/eval_runs/sessionbound_agent_eval_1783224117.json
+Markdown: paper/tdsc/experiments/raw_results/eval_runs/sessionbound_agent_eval_1783224117.md
 ```
 
 Legacy mismatch resolved: `scripts/sessionbound_agent_eval.py` now reflects current SessionBound semantics and no longer returns outdated 8 / 11 results.
@@ -62,7 +62,7 @@ Legacy mismatch resolved: `scripts/sessionbound_agent_eval.py` now reflects curr
 Raw canonical evidence:
 
 ```text
-paper/arxiv-v1/evaluation/eval_runs/sessionbound_agent_eval_1782327881.json
+paper/tdsc/experiments/raw_results/eval_runs/sessionbound_agent_eval_1783224117.json
 ```
 
 | Scenario | Category | Expected | Actual | Evidence |
@@ -86,7 +86,7 @@ paper/arxiv-v1/evaluation/eval_runs/sessionbound_agent_eval_1782327881.json
 Raw canonical evidence:
 
 ```text
-paper/arxiv-v1/evaluation/eval_runs/sessionbound_agent_eval_1782327881.json
+paper/tdsc/experiments/raw_results/eval_runs/sessionbound_agent_eval_1783224117.json
 ```
 
 | SQL | Classification | Evidence |
