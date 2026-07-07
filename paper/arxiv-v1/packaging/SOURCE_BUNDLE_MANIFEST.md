@@ -26,7 +26,7 @@ Final manuscript packaging status:
 
 - Discussion section added.
 - Paper manuscript no longer contains commit hashes or Git tag references.
-- Code availability points only to `https://github.com/SessionBound/sessionbound`.
+- Code availability points to `https://github.com/SessionBound/sessionbound`; the arXiv paper link is listed separately.
 - Bibliography style changed to `unsrt`.
 - First in-text citation starts at `[1]`.
 - No unused references remain.

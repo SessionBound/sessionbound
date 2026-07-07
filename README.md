@@ -12,8 +12,11 @@ to safe views, query/disclosure budgets, and receipts.
 > Note: the current PostgreSQL prototype keeps the `taskbound` SQL schema name
 > for compatibility with the existing demo implementation.
 
-Code availability: the prototype source code and synthetic evaluation dataset
-are available at https://github.com/SessionBound/sessionbound.
+Paper: https://arxiv.org/abs/2607.00751
+
+Code and artifacts: the prototype source code, synthetic evaluation dataset,
+validation reports, benchmark outputs, and LaTeX source for the paper are
+available at https://github.com/SessionBound/sessionbound.
 
 Hosted demo: https://www.sessionbound.org/
 

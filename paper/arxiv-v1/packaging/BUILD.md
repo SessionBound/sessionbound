@@ -129,7 +129,7 @@ Build log review:
 - Validation text confirmed as 24 of 24: yes.
 - Discussion section added.
 - Paper manuscript no longer contains commit hashes or Git tag references.
-- Code availability points only to `https://github.com/SessionBound/sessionbound`.
+- Code availability points to `https://github.com/SessionBound/sessionbound`; the arXiv paper link is listed separately.
 - Upload ZIP regenerated.
 - Formal architecture figure added.
 - Major tables now have captions and labels.

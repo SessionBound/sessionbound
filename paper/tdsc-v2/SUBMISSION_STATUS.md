@@ -12,8 +12,13 @@ This is a TDSC-oriented manuscript draft, not a final submission package.
   role-only, RLS-only, safe-view-only, and full SessionBound.
 - Added v2 experiment reports and raw-result references under
   `experiments/`.
-- Updated the manuscript to report the measured credential-token binding
-  gap instead of overclaiming strict binding.
+- Implemented and measured strict credential-token binding:
+  credential-id matching, actor matching, audience validation,
+  cross-credential replay rejection, expiration, revocation, and
+  same-session rebind rejection.
+- Implemented and measured safe-view drift invalidation using registry
+  version, policy version, and view-definition hash checks.
+- Added receipt/budget ablation and a 1k/10k/100k scoped-row scale sweep.
 - Switched the manuscript entrypoint to `\documentclass[journal]{IEEEtran}`.
 - Added IEEE keywords.
 
@@ -25,14 +30,9 @@ This is a TDSC-oriented manuscript draft, not a final submission package.
   requirements, open-access choice, and submission metadata.
 - Confirm the current CAS / Chinese Academy of Sciences journal
   partition using the author's institution-approved list.
-- Implement and re-test strict credential-id-to-token binding, token
-  replay rejection across a second credential, and same-session rebind
-  rejection.
-- Implement and test safe-view version/hash invalidation for schema
-  drift.
-- Add a receipt-disabled SessionBound variant before claiming isolated
-  receipt overhead.
-- Run a larger dataset scale sweep before making scale or throughput
-  claims.
+- Treat current performance as a prototype limitation unless a lower-level
+  parser-hook/runtime path is implemented and measured. The 100k scale
+  sweep shows multi-second Full SessionBound p50 in the current PL/pgSQL
+  implementation.
 - Re-run layout review after the official IEEE/TDSC template and
   submission metadata are finalized.

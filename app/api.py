@@ -42,6 +42,8 @@ class CreateTaskRequest(BaseModel):
     task_type: str = "monthly_travel_expense_review"
     delegator: str = "user:alice"
     actor: str | None = None
+    credential_id: str | None = None
+    runtime_options: dict[str, bool] | None = None
     department_id: str | None = None
     scope: dict[str, Any] | None = None
     budgets: dict[str, int] | None = None
@@ -57,6 +59,7 @@ class QueryRequest(BaseModel):
 
 class CredentialRequest(BaseModel):
     agent_id: str = Field(default="travel-analyst", min_length=1, max_length=64)
+    actor: str | None = None
     ttl_minutes: int = Field(default=15, ge=1, le=60)
 
 
@@ -64,6 +67,7 @@ class AgentCredential(BaseModel):
     db_host: str = "postgres"
     db_port: int = 5432
     db_name: str = "travel"
+    credential_id: str | None = None
     db_user: str
     db_password: str
 
@@ -136,6 +140,26 @@ def connect_with_credential(credential: AgentCredential):
 def rows_as_dicts(cur) -> list[dict[str, Any]]:
     names = [d.name for d in cur.description]
     return [dict(zip(names, row)) for row in cur.fetchall()]
+
+
+def actor_for_agent(agent_id: str, actor: str | None = None) -> str:
+    if actor:
+        return actor
+    if agent_id.startswith("agent:"):
+        return agent_id
+    return f"agent:{agent_id}"
+
+
+def fetch_safe_view_registry_claims(allowed_views: list[str]) -> dict[str, Any]:
+    with admin_connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT taskbound.safe_view_registry_snapshot(%s)", (allowed_views,))
+            snapshot = cur.fetchone()[0]
+    return {
+        "safe_view_registry": snapshot,
+        "safe_view_registry_version": snapshot["safe_view_registry_version"],
+        "view_definition_hash": snapshot["view_definition_hash"],
+    }
 
 
 def user_role(delegator: str) -> str:
@@ -957,6 +981,20 @@ def create_task(req: CreateTaskRequest):
             requested_scope=requested_scope,
             requested_budgets=requested_budgets,
         )
+        runtime_claims = fetch_safe_view_registry_claims(payload.get("allowed_views", []))
+        if req.credential_id:
+            runtime_claims["credential_id"] = req.credential_id
+        if req.runtime_options:
+            runtime_claims["runtime_options"] = req.runtime_options
+        payload, payload_text, signature = build_task_from_template(
+            task_id=req.task_id,
+            task_type=req.task_type,
+            delegator=req.delegator,
+            actor=req.actor,
+            requested_scope=requested_scope,
+            requested_budgets=requested_budgets,
+            runtime_claims=runtime_claims,
+        )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
@@ -1091,6 +1129,8 @@ def issue_credential(req: CredentialRequest):
     safe_agent = "".join(ch if ch.isalnum() else "_" for ch in req.agent_id.lower())[:40]
     db_user = f"agent_{safe_agent}_{secrets.token_hex(4)}"
     db_password = secrets.token_urlsafe(24)
+    credential_id = db_user
+    actor = actor_for_agent(req.agent_id, req.actor)
 
     with admin_connect() as conn:
         with conn.cursor() as cur:
@@ -1105,14 +1145,26 @@ def issue_credential(req: CredentialRequest):
             cur.execute(
                 psql.SQL("GRANT agent_runtime TO {}").format(psql.Identifier(db_user))
             )
+            cur.execute(
+                """
+                INSERT INTO taskbound.credential_ledger (
+                  credential_id, db_user, actor, audience, expires_at
+                )
+                VALUES (%s, %s, %s, 'sessionbounddb', %s)
+                """,
+                (credential_id, db_user, actor, expires_at),
+            )
 
     return {
         "db_host": "postgres",
         "db_port": 5432,
         "db_name": "travel",
+        "credential_id": credential_id,
         "db_user": db_user,
         "db_password": db_password,
         "expires_at": expires_at.isoformat(),
+        "actor": actor,
+        "audience": "sessionbounddb",
         "role": "agent_runtime",
         "note": "This short-lived DB credential only authenticates the agent runtime. It still needs a signed task token to access task-scoped data.",
     }
@@ -1305,7 +1357,11 @@ def agent_command(req: AgentCommandRequest):
 @app.post("/agent-chat")
 def agent_chat(req: AgentChatRequest):
     credential_dict = issue_credential(
-        CredentialRequest(agent_id="deepseek-agent", ttl_minutes=15)
+        CredentialRequest(
+            agent_id="deepseek-agent",
+            actor="agent:deepseek-travel-analyst",
+            ttl_minutes=15,
+        )
     )
     task_dict = create_task(
         CreateTaskRequest(
@@ -1313,6 +1369,7 @@ def agent_chat(req: AgentChatRequest):
             task_type=req.task_type,
             delegator=req.delegator,
             actor="agent:deepseek-travel-analyst",
+            credential_id=credential_dict["credential_id"],
             department_id=req.department_id,
             max_rows=req.max_rows,
             max_queries=req.max_queries,
@@ -1322,6 +1379,7 @@ def agent_chat(req: AgentChatRequest):
         db_host=credential_dict["db_host"],
         db_port=credential_dict["db_port"],
         db_name=credential_dict["db_name"],
+        credential_id=credential_dict["credential_id"],
         db_user=credential_dict["db_user"],
         db_password=credential_dict["db_password"],
     )
@@ -1774,8 +1832,11 @@ LIMIT 3 OFFSET 3`,
         db_host: credential.db_host,
         db_port: credential.db_port,
         db_name: credential.db_name,
+        credential_id: credential.credential_id,
         db_user: credential.db_user,
         db_password: credential.db_password,
+        actor: credential.actor,
+        audience: credential.audience,
         role: credential.role,
         expires_at: credential.expires_at
       };
@@ -1831,6 +1892,8 @@ LIMIT 3 OFFSET 3`,
         task_id: 'task_api_' + Date.now(),
         task_type: document.getElementById('taskType').value || 'monthly_travel_expense_review',
         delegator: document.getElementById('delegator').value || 'user:alice',
+        actor: credential?.actor || 'agent:travel-expense-analyst',
+        credential_id: credential?.credential_id || null,
         department_id: document.getElementById('department').value || null,
         max_rows: Number(document.getElementById('maxRows').value),
         max_queries: Number(document.getElementById('maxQueries').value)
@@ -1850,6 +1913,7 @@ LIMIT 3 OFFSET 3`,
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           agent_id: document.getElementById('agentId').value || 'travel-analyst',
+          actor: 'agent:travel-expense-analyst',
           ttl_minutes: Number(document.getElementById('ttl').value)
         })
       });
@@ -1858,8 +1922,8 @@ LIMIT 3 OFFSET 3`,
       refreshPreviews();
     }
     async function runAgentQuery() {
-      if (!task) await createTask();
       if (!credential) await issueCredential();
+      if (!task) await createTask();
       const body = {
         credential,
         payload_text: task.payload_text,
@@ -1882,8 +1946,8 @@ LIMIT 3 OFFSET 3`,
       show(lastResponse);
     }
     async function runAgentCommand() {
-      if (!task) await createTask();
       if (!credential) await issueCredential();
+      if (!task) await createTask();
       const commandRequest = buildAgentCommandRequest();
       document.getElementById('requestPreview').textContent = JSON.stringify(commandRequest, null, 2);
       const res = await fetch('/agent-command', {

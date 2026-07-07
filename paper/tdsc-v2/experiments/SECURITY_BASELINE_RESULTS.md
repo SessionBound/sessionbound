@@ -11,15 +11,16 @@ Raw file: `raw_results/security_baseline_1783221673.json`.
 | Query budget | No | No | No | No | Yes |
 | Disclosure budget | No | No | No | No | Yes |
 | Payload aggregation blocking | No | No | No | No | Yes |
-| Credential-token binding | No | No | No | No | Partial |
+| Credential-token binding | No | No | No | No | Yes |
 | Receipts | No | No | No | No | Yes |
-| Schema drift token invalidation | Not tested | Not tested | Not tested | Not tested | Not implemented |
+| Schema drift token invalidation | Not tested | Not tested | Not tested | Not tested | Yes |
 
-`Partial` means the runtime validates signed tokens, expiration, and
-revoked task state, but the separate credential-token tests show that it
-does not yet enforce strict credential-id matching, actor matching,
-audience validation, token replay blocking with a second credential, or
-same-session rebind blocking.
+The updated credential-token tests in
+`raw_results/credential_token_1783224156.json` show denial for
+credential-id mismatch, cross-credential replay, wrong audience, wrong
+actor, expired tokens, revoked task state, same-session rebind to a
+second active task, safe-view registry-version drift, safe-view
+policy-version drift, and view-definition hash mismatch.
 
 ## Summary
 
@@ -29,5 +30,4 @@ fields, and row-scope escapes, but lacks budgets, receipts, and token
 semantics. RLS-only enforces row scope and write blocking, but leaves raw
 table structure and denied fields visible. Full SessionBound adds
 database-enforced budgets, safe-view access, payload aggregation blocking,
-and receipts; its measured prototype gap is strict credential-token
-binding, including actor/audience validation and replay/rebind rejection.
+receipts, credential-token binding, and safe-view drift invalidation.

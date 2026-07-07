@@ -6,7 +6,9 @@ We present **SessionBound**, a control-plane and database-runtime architecture t
 
 SessionBound does not require the database to parse natural-language task descriptions, nor does it trust the agent or an LLM to correctly interpret or obey the task. The agent remains free to generate SQL, join safe business objects, aggregate, rank, and drill down. The database decides whether each attempt stays inside the approved boundary. This design targets a setting distinct from authenticated delegation, task-scoped service-operation authorization, and data-product marketplace access: enterprise-internal analytical work where fixed SaaS screens are too rigid, direct database access is too broad, and approved tasks should become temporary, budgeted, receipt-bearing database sessions.
 
-**Code availability.** The prototype source code, synthetic evaluation dataset, validation reports, benchmark outputs, and arXiv source are available at https://github.com/SessionBound/sessionbound.
+**Code availability.** The prototype source code, synthetic evaluation dataset, validation reports, benchmark outputs, and LaTeX source for the paper are available at https://github.com/SessionBound/sessionbound.
+
+**Paper.** The arXiv version is available at https://arxiv.org/abs/2607.00751.
 
 ---
 

@@ -49,17 +49,19 @@ def canonical(payload: dict[str, Any]) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
-def issue_credential(agent_id: str) -> dict[str, Any]:
-    return post_json("/credentials", {"agent_id": agent_id, "ttl_minutes": 15})
+def issue_credential(agent_id: str, actor: str = "agent:travel-expense-analyst") -> dict[str, Any]:
+    return post_json("/credentials", {"agent_id": agent_id, "actor": actor, "ttl_minutes": 15})
 
 
-def issue_task(task_id: str) -> dict[str, Any]:
+def issue_task(task_id: str, credential_id: str) -> dict[str, Any]:
     return post_json(
         "/tasks",
         {
             "task_id": task_id,
             "task_type": "monthly_travel_expense_review",
             "delegator": "user:alice",
+            "actor": "agent:travel-expense-analyst",
+            "credential_id": credential_id,
             "department_id": "dep_sales",
             "scope": {"expense_month": "2026-06", "department_id": "dep_sales"},
             "max_rows": 5000,
@@ -96,6 +98,50 @@ def revoke_task(task_id: str) -> None:
         conn.commit()
 
 
+def bump_safe_view_registry(view_name: str = "expenses") -> int:
+    with psycopg.connect(ADMIN_DSN) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE taskbound.safe_view_registry
+                SET registry_version = registry_version + 1
+                WHERE view_name = %s
+                RETURNING registry_version
+                """,
+                (view_name,),
+            )
+            new_version = cur.fetchone()[0]
+        conn.commit()
+    return new_version
+
+
+def restore_safe_view_registry(version: int, view_name: str = "expenses") -> None:
+    with psycopg.connect(ADMIN_DSN) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE taskbound.safe_view_registry SET registry_version = %s WHERE view_name = %s",
+                (version, view_name),
+            )
+        conn.commit()
+
+
+def replace_safe_view_policy_version(policy_version: str, view_name: str = "expenses") -> str:
+    with psycopg.connect(ADMIN_DSN) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE taskbound.safe_view_registry
+                SET policy_version = %s
+                WHERE view_name = %s
+                RETURNING policy_version
+                """,
+                (policy_version, view_name),
+            )
+            new_version = cur.fetchone()[0]
+        conn.commit()
+    return new_version
+
+
 def main() -> None:
     run_id = str(int(time.time()))
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -103,13 +149,13 @@ def main() -> None:
 
     cred_a = issue_credential(f"tdsc-cred-a-{run_id}")
     cred_b = issue_credential(f"tdsc-cred-b-{run_id}")
-    task_a = issue_task(f"tdsc_cred_task_a_{run_id}")
-    task_b = issue_task(f"tdsc_cred_task_b_{run_id}")
+    task_a = issue_task(f"tdsc_cred_task_a_{run_id}", cred_a["credential_id"])
+    task_b = issue_task(f"tdsc_cred_task_b_{run_id}", cred_b["credential_id"])
 
     mismatch = query(cred_a, task_b)
     tests.append({
         "name": "credential_A_with_token_B_mismatch",
-        "expected_security_property": "Denied if credential-token binding is implemented.",
+        "expected_security_property": "Denied because the signed token credential_id is bound to credential B.",
         "observed": "Allowed" if mismatch.get("ok") else "Denied",
         "result": mismatch,
     })
@@ -118,7 +164,7 @@ def main() -> None:
     replay_second = query(cred_b, task_a)
     tests.append({
         "name": "token_replay_with_second_credential",
-        "expected_security_property": "Denied if token is bound to one credential or one runtime principal.",
+        "expected_security_property": "Denied because token A cannot be replayed with credential B.",
         "observed": "Allowed" if replay_second.get("ok") else "Denied",
         "first_result_ok": replay_first.get("ok"),
         "result": replay_second,
@@ -162,6 +208,49 @@ def main() -> None:
         "result": wrong_actor,
     })
 
+    drift_task = issue_task(f"tdsc_schema_drift_{run_id}", cred_a["credential_id"])
+    old_registry_version = drift_task["payload"]["safe_view_registry"]["views"]["expenses"]["registry_version"]
+    new_registry_version = bump_safe_view_registry("expenses")
+    try:
+        drift_result = query(cred_a, drift_task)
+    finally:
+        restore_safe_view_registry(old_registry_version, "expenses")
+    tests.append({
+        "name": "safe_view_registry_version_drift",
+        "expected_security_property": "Denied when safe_view_registry_version/view_definition_hash/policy snapshot no longer matches runtime registry.",
+        "observed": "Allowed" if drift_result.get("ok") else "Denied",
+        "old_registry_version": old_registry_version,
+        "new_registry_version": new_registry_version,
+        "result": drift_result,
+    })
+
+    policy_task = issue_task(f"tdsc_policy_drift_{run_id}", cred_a["credential_id"])
+    old_policy_version = policy_task["payload"]["safe_view_registry"]["views"]["expenses"]["policy_version"]
+    new_policy_version = replace_safe_view_policy_version(f"{old_policy_version}-drift", "expenses")
+    try:
+        policy_result = query(cred_a, policy_task)
+    finally:
+        replace_safe_view_policy_version(old_policy_version, "expenses")
+    tests.append({
+        "name": "safe_view_policy_version_drift",
+        "expected_security_property": "Denied when the registered safe-view policy_version changes after token approval.",
+        "observed": "Allowed" if policy_result.get("ok") else "Denied",
+        "old_policy_version": old_policy_version,
+        "new_policy_version": new_policy_version,
+        "result": policy_result,
+    })
+
+    hash_payload = dict(task_a["payload"])
+    hash_payload["task_id"] = f"tdsc_hash_mismatch_{run_id}"
+    hash_payload["view_definition_hash"] = "0" * 64
+    hash_mismatch = query(cred_a, task_from_payload(hash_payload))
+    tests.append({
+        "name": "view_definition_hash_claim_mismatch",
+        "expected_security_property": "Denied when the signed token's view_definition_hash does not match the runtime safe-view snapshot.",
+        "observed": "Allowed" if hash_mismatch.get("ok") else "Denied",
+        "result": hash_mismatch,
+    })
+
     revoke_task(task_a["payload"]["task_id"])
     revoked = query(cred_a, task_a)
     tests.append({
@@ -171,7 +260,8 @@ def main() -> None:
         "result": revoked,
     })
 
-    # Direct same-session rebind test: bind task A then task B over one credential.
+    # Direct same-session rebind test: bind two credential-valid tasks over one backend session.
+    task_c = issue_task(f"tdsc_cred_task_c_{run_id}", cred_a["credential_id"])
     dsn = f"postgresql://{cred_a['db_user']}:{cred_a['db_password']}@{DB_HOST}:5432/{DB_NAME}"
     with psycopg.connect(dsn) as conn:
         conn.autocommit = True
@@ -180,7 +270,7 @@ def main() -> None:
             try:
                 cur.execute("SELECT taskbound.bind_task(%s, %s)", (task_a["payload_text"], task_a["signature"]))
                 direct["first_bind"] = cur.fetchone()[0]
-                cur.execute("SELECT taskbound.bind_task(%s, %s)", (task_b["payload_text"], task_b["signature"]))
+                cur.execute("SELECT taskbound.bind_task(%s, %s)", (task_c["payload_text"], task_c["signature"]))
                 direct["second_bind"] = cur.fetchone()[0]
                 direct["ok"] = True
             except Exception as exc:

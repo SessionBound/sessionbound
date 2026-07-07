@@ -46,13 +46,22 @@ def post_json(path: str, body: dict[str, Any]) -> dict[str, Any]:
 
 def run_session(level: int, index: int, run_id: str) -> dict[str, Any]:
     started = time.perf_counter()
-    credential = post_json("/credentials", {"agent_id": f"tdsc-concurrency-{level}-{index}-{run_id}", "ttl_minutes": 15})
+    credential = post_json(
+        "/credentials",
+        {
+            "agent_id": f"tdsc-concurrency-{level}-{index}-{run_id}",
+            "actor": "agent:travel-expense-analyst",
+            "ttl_minutes": 15,
+        },
+    )
     task = post_json(
         "/tasks",
         {
             "task_id": f"tdsc_conc_{level}_{index}_{run_id}",
             "task_type": "monthly_travel_expense_review",
             "delegator": "user:alice",
+            "actor": "agent:travel-expense-analyst",
+            "credential_id": credential.get("credential_id"),
             "department_id": "dep_sales",
             "scope": {"expense_month": "2026-06", "department_id": "dep_sales"},
             "max_rows": 5000,

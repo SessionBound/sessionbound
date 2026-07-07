@@ -30,7 +30,7 @@
 - [x] Recommended category documented: primary cs.DB, secondary cs.CR, optional cs.AI.
 - [x] Discussion section added.
 - [x] Paper manuscript no longer contains commit hashes or Git tag references.
-- [x] Code availability points only to `https://github.com/SessionBound/sessionbound`.
+- [x] Code availability points to `https://github.com/SessionBound/sessionbound`; the arXiv paper link is listed separately.
 - [x] Bibliography style changed to `unsrt`.
 - [x] First in-text citation starts at `[1]`.
 - [x] No unused references remain.

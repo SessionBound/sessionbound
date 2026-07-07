@@ -20,10 +20,12 @@ reports in this directory cite those files.
 
 ## Raw Results
 
-- Functional validation: `raw_results/eval_runs/sessionbound_agent_eval_1783221284.json`
+- Functional validation: `raw_results/eval_runs/sessionbound_agent_eval_1783224117.json`
 - Security baselines: `raw_results/security_baseline_1783221673.json`
 - Performance baselines: `raw_results/performance_1783221625.json`
-- Credential-token tests: `raw_results/credential_token_1783222420.json`
+- Credential-token and schema drift tests: `raw_results/credential_token_1783224156.json`
+- Receipt/budget ablation: `raw_results/ablation_1783224624.json`
+- Scale sweep: `raw_results/scale_1783224892.json`
 - Concurrency smoke test: `raw_results/concurrency_1783221968.json`
 
 Older intermediate security, performance, and credential-token JSON files
@@ -41,6 +43,8 @@ docker compose exec -T postgres psql -U postgres -d travel -f /tmp/tdsc_experime
 docker compose exec -T api sh -lc 'TDSC_OUT_DIR=/tmp/tdsc_experiments/raw_results TDSC_BASE_URL=http://127.0.0.1:8000 python /tmp/tdsc_experiments/scripts/tdsc_security_eval.py'
 docker compose exec -T api sh -lc 'TDSC_OUT_DIR=/tmp/tdsc_experiments/raw_results TDSC_BASE_URL=http://127.0.0.1:8000 python /tmp/tdsc_experiments/scripts/tdsc_performance_eval.py'
 docker compose exec -T api sh -lc 'TDSC_OUT_DIR=/tmp/tdsc_experiments/raw_results TDSC_BASE_URL=http://127.0.0.1:8000 python /tmp/tdsc_experiments/scripts/tdsc_credential_token_tests.py'
+docker compose exec -T api sh -lc 'TDSC_OUT_DIR=/tmp/tdsc_experiments/raw_results TDSC_BASE_URL=http://127.0.0.1:8000 python /tmp/tdsc_experiments/scripts/tdsc_ablation_eval.py'
+docker compose exec -T api sh -lc 'TDSC_OUT_DIR=/tmp/tdsc_experiments/raw_results TDSC_BASE_URL=http://127.0.0.1:8000 python /tmp/tdsc_experiments/scripts/tdsc_scale_eval.py'
 docker compose exec -T api sh -lc 'TDSC_OUT_DIR=/tmp/tdsc_experiments/raw_results TDSC_BASE_URL=http://127.0.0.1:8000 python /tmp/tdsc_experiments/scripts/tdsc_concurrency_eval.py'
 ```
 

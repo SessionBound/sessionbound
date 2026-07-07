@@ -81,13 +81,22 @@ def post_json(path: str, body: dict[str, Any]) -> dict[str, Any]:
 
 def open_session(max_queries: int) -> tuple[dict[str, Any], dict[str, Any]]:
     suffix = str(int(time.time() * 1000))
-    credential = post_json("/credentials", {"agent_id": f"tdsc-perf-{suffix}", "ttl_minutes": 30})
+    credential = post_json(
+        "/credentials",
+        {
+            "agent_id": f"tdsc-perf-{suffix}",
+            "actor": "agent:travel-expense-analyst",
+            "ttl_minutes": 30,
+        },
+    )
     task = post_json(
         "/tasks",
         {
             "task_id": f"tdsc_perf_{suffix}",
             "task_type": "monthly_travel_expense_review",
             "delegator": "user:alice",
+            "actor": "agent:travel-expense-analyst",
+            "credential_id": credential.get("credential_id"),
             "department_id": "dep_sales",
             "scope": {"expense_month": "2026-06", "department_id": "dep_sales"},
             "max_rows": 5000,

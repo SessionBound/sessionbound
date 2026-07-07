@@ -109,7 +109,11 @@ class SessionBoundEvalClient:
         credential = post_json(
             self.base_url,
             "/credentials",
-            {"agent_id": f"sessionbound-eval-{safe_scenario}", "ttl_minutes": 15},
+            {
+                "agent_id": f"sessionbound-eval-{safe_scenario}",
+                "actor": "agent:travel-expense-analyst",
+                "ttl_minutes": 15,
+            },
         )
         task = post_json(
             self.base_url,
@@ -118,6 +122,8 @@ class SessionBoundEvalClient:
                 "task_id": f"task_{self.run_id}_{self.counter}_{safe_scenario}",
                 "task_type": "monthly_travel_expense_review",
                 "delegator": delegator,
+                "actor": "agent:travel-expense-analyst",
+                "credential_id": credential.get("credential_id"),
                 "scope": {"expense_month": "2026-06"},
                 "max_rows": max_rows,
                 "max_queries": max_queries,

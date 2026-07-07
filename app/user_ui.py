@@ -726,7 +726,11 @@ USER_HTML = r"""
         const credential = await fetch("/credentials", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({agent_id: "sessionbound-demo-agent", ttl_minutes: 15})
+          body: JSON.stringify({
+            agent_id: "sessionbound-demo-agent",
+            actor: "agent:travel-expense-analyst",
+            ttl_minutes: 15
+          })
         }).then(r => r.json());
         const task = await fetch("/tasks", {
           method: "POST",
@@ -736,6 +740,7 @@ USER_HTML = r"""
             task_type: state.application.taskType,
             delegator: state.application.requester,
             actor: "agent:travel-expense-analyst",
+            credential_id: credential.credential_id,
             department_id: state.application.departmentId || null,
             max_queries: state.maxQueries,
             max_rows: state.maxRows

@@ -519,6 +519,7 @@ def build_task_from_template(
     actor: str | None,
     requested_scope: dict[str, Any] | None,
     requested_budgets: dict[str, int] | None,
+    runtime_claims: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], str, str]:
     template = TASK_TEMPLATES.get(task_type)
     if template is None:
@@ -586,7 +587,10 @@ def build_task_from_template(
             },
         ),
         "expires_at": expires_at,
+        "audience": "sessionbounddb",
         "policy_version": template.get("policy_version", "template-v1"),
     }
+    if runtime_claims:
+        payload.update(runtime_claims)
     payload_text = canonical_json(payload)
     return payload, payload_text, sign(payload_text)

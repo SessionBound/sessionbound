@@ -69,7 +69,11 @@ The likely overhead sources are:
 - unique row exposure accounting;
 - receipt insertion.
 
-These results should not be generalized to larger datasets without additional experiments. For larger analytical queries, fixed runtime overhead may be less significant relative to scan/join/aggregation cost.
+These early results should not be generalized to larger datasets. The
+TDSC v2 experiment pass adds a separate 1k/10k/100k scoped-row scale
+sweep under `paper/tdsc-v2/experiments/raw_results/scale_1783224892.json`,
+which shows substantial scale-sensitive overhead in the current PL/pgSQL
+prototype.
 
 ## Reproduction
 

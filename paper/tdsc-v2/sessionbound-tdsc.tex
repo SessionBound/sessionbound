@@ -150,9 +150,11 @@ tasks should become temporary, budgeted, receipt-bearing database
 sessions.
 
 Code availability. The prototype source code, synthetic
-evaluation dataset, validation reports, benchmark outputs, and arXiv
-source are available at
+evaluation dataset, validation reports, benchmark outputs, and LaTeX
+source for the paper are available at
 \url{https://github.com/SessionBound/sessionbound}.
+\par\noindent Preprint. An arXiv version is available at
+\url{https://arxiv.org/abs/2607.00751}.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -1474,11 +1476,12 @@ separate access-surface reduction from task-bound session enforcement:
 \end{itemize}
 
 Table~\ref{tab:security-baselines} summarizes the observed security
-properties. The ``Partial'' credential-token result for SessionBound
-means that token expiration and revoked task state are enforced, but
-strict credential-id matching, actor matching, audience validation, token
-replay rejection across a second credential, and same-session rebind
-rejection were not enforced in the measured prototype.
+properties. In the updated credential-token test suite, SessionBound
+denies credential-id mismatch, cross-credential token replay, wrong
+audience, wrong actor, expired tokens, revoked tasks, and same-session
+rebind to a second active task. It also rejects tokens whose safe-view
+registry version, policy version, or view-definition hash no longer
+matches the runtime registry.
 
 \hypertarget{performance-microbenchmark}{%
 \subsection{Performance
@@ -1554,28 +1557,40 @@ patterns. Relative overhead is high because the raw PostgreSQL baseline
 is extremely small. The likely sources are PL/pgSQL runtime dispatch,
 SQL text checks, task-session lookup, safe-view evaluation, query-budget
 updates, unique-row exposure accounting, payload-aggregation checks, and
-receipt insertion. These microbenchmark results should not be
-generalized to larger datasets without additional experiments.
+receipt insertion.
+
+We also ran a receipt/budget ablation over three SessionBound query
+patterns. The full runtime measured 29.0--30.9 ms p50. Disabling receipts
+removed receipt rows as expected, and disabling budget accounting left
+\texttt{query\_count} unchanged, but the small dataset produced noisy
+latency deltas rather than a stable single-component attribution.
+
+Finally, we ran a synthetic scale sweep over 1k, 10k, and 100k scoped
+expense rows. For aggregate-by-category queries, raw PostgreSQL p50 was
+0.41, 2.70, and 14.77 ms, while full SessionBound p50 was 84.41, 688.66,
+and 6742.55 ms. For top-k ordering, raw p50 was 0.40, 2.54, and 15.62 ms,
+while full SessionBound p50 was 82.44, 661.62, and 6965.09 ms. These
+results show that the PL/pgSQL prototype has substantial scale-sensitive
+overhead and should be treated as a security reference implementation,
+not as an optimized execution engine.
 
 \hypertarget{credential-token-edge-cases}{%
 \subsection{Credential-token edge cases and
 concurrency}\label{credential-token-edge-cases}}
 
-We separately tested credential-token edge cases. Expired tokens and
-revoked task state were denied. Five intended production properties were
-not enforced by the measured prototype: using credential A with token B
-was allowed, replaying a token with a second credential was allowed,
-binding a second active task in the same session was allowed, a wrong
-token audience was allowed, and a wrong token actor was allowed. These
-results make strict credential-id binding, actor/audience validation,
-token replay rejection, and rebind rejection implementation requirements
-rather than demonstrated properties of the prototype.
+We separately tested credential-token edge cases. The updated prototype
+denied all tested edge cases: credential A with token B, replaying a
+token with a second credential, binding a second active task in the same
+session, wrong token audience, wrong token actor, expired token, and
+revoked task state. We also tested safe-view drift checks: registry
+version drift, safe-view policy-version drift, and view-definition hash
+mismatch were denied and require re-approval before execution.
 
 The default seed contains 430 expenses, 240 employees, and 124
 departments. A concurrency smoke test over the API completed 1, 5, and
 20 concurrent sessions with zero failed sessions. At 20 concurrent
 sessions, query p50 was 82.896 ms and query p95 was 110.356 ms. This is
-not a large-scale throughput claim.
+an API-stack smoke test, not a throughput-capacity claim.
 
 \hypertarget{threat-to-defense-matrix}{%
 \subsection{Threat-to-defense
@@ -1632,7 +1647,7 @@ V24 & Disclosure budget overflow & \texttt{disclosure\_budget\_overflow} & too m
 \centering
 \scriptsize
 \setlength{\tabcolsep}{2.5pt}
-\caption{Security-property comparison across measured baselines. Partial credential-token binding means that expiration and revocation are enforced, but strict credential-id matching, actor matching, audience validation, token replay rejection, and same-session rebind rejection are not yet implemented.}
+\caption{Security-property comparison across measured baselines. Credential-token binding includes credential-id matching, actor matching, audience validation, cross-credential replay rejection, expiration, revocation, and same-session rebind rejection. Schema drift invalidation checks safe-view registry version, policy version, and view-definition hash at bind time.}
 \label{tab:security-baselines}
 \begin{tabular}{@{}lccccc@{}}
 \toprule
@@ -1645,9 +1660,9 @@ Enforces row scope & No & No & Yes & Yes & Yes \\
 Query budget & No & No & No & No & Yes \\
 Disclosure budget & No & No & No & No & Yes \\
 Payload aggregation blocking & No & No & No & No & Yes \\
-Credential-token binding & No & No & No & No & Partial \\
+Credential-token binding & No & No & No & No & Yes \\
 Receipts & No & No & No & No & Yes \\
-Schema drift token invalidation & Not tested & Not tested & Not tested & Not tested & Not implemented \\
+Schema drift token invalidation & Not tested & Not tested & Not tested & Not tested & Yes \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -1690,9 +1705,9 @@ Scope escape & row scope in safe views \\
 Unauthorized writes & read SQL blocked; writes via controlled commands \\
 Query flood & query budget \\
 Cumulative detail exposure & disclosure budget vector \\
-Credential leakage & short-lived DB credential plus required task-token binding; strict credential-id, actor, audience, replay, and rebind checks remain prototype gaps \\
+Credential leakage & short-lived DB credential plus required task-token binding; credential-id, actor, audience, replay, and rebind checks are enforced in the tested path \\
 Audit gap & task receipts \\
-Schema drift & safe view version and definition hash checks are required but not implemented in the measured prototype \\
+Schema drift & safe view registry version, policy version, and definition hash checks invalidate stale task tokens \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1907,6 +1922,16 @@ or executor-level enforcement. This includes AST validation, PostgreSQL
 hooks, aggregate-function policies, catalog-access controls, and robust
 handling of generated SQL equivalence.
 
+A concrete PostgreSQL extension path is to bind the task token once at
+session start, then use parse/analyze hooks to inspect the resolved query
+tree rather than SQL text. The hook can reject relations outside the
+safe-view registry, columns outside the task capability, mutating
+commands, catalog access, and disallowed aggregate functions after name
+resolution. Planner or executor hooks can attach task identifiers to the
+plan, account for returned business-object identifiers, and emit receipts
+without routing every query through a PL/pgSQL wrapper. This design is
+the natural next step suggested by the 100k-row scale sweep.
+
 Third, stronger disclosure accounting is needed. The current
 budget-vector model is operational rather than formal. Future work
 should explore sensitivity-aware budgets, aggregate leakage models,
@@ -1960,15 +1985,19 @@ Current limitations include:
 \item
   safe views require careful review and versioning;
 \item
-  view drift invalidation is a design requirement and is not implemented
-  in the measured prototype;
+  view drift invalidation is implemented through registry-version,
+  policy-version, and view-definition hash checks, but production
+  deployments still need operational migration and re-approval workflows;
 \item
   strict credential-id binding, actor matching, audience validation,
   token replay rejection across a second credential, and same-session
-  rebind rejection are not implemented in the measured prototype;
+  rebind rejection are implemented in the measured prototype, but require
+  production-grade credential brokerage, key management, and audit
+  retention outside this demo;
 \item
-  current performance results are microbenchmarks over small synthetic
-  data and should not be generalized to production workloads;
+  current performance results include microbenchmarks and a 1k/10k/100k
+  synthetic scale sweep, but should not be generalized to production
+  workloads or an optimized parser-hook implementation;
 \item
   denial receipts may require out-of-transaction logging in production;
 \item

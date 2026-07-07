@@ -40,3 +40,7 @@ disclosure accounting, and receipt insertion.
 The relative percentages are large because the raw PostgreSQL baseline is
 sub-millisecond. The absolute Full SessionBound p50 cost is about
 20.9--22.2 ms for the measured small-dataset query patterns.
+
+Follow-up performance probes are reported separately: receipt/budget
+ablation in `RECEIPT_OVERHEAD_RESULTS.md` and the 1k/10k/100k scoped-row
+scale sweep in `SCALE_CONCURRENCY_RESULTS.md`.

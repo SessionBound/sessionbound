@@ -100,7 +100,7 @@ Final manuscript fixes completed:
 
 - Discussion section added.
 - Paper manuscript no longer contains commit hashes or Git tag references.
-- Code availability points only to `https://github.com/SessionBound/sessionbound`.
+- Code availability points to `https://github.com/SessionBound/sessionbound`; the arXiv paper link is listed separately.
 - `arxiv.bbl` regenerated.
 - Upload ZIP regenerated.
 - Subtitle subsection removed.

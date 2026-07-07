@@ -6,9 +6,11 @@ SET search_path = taskbound, pg_temp
 AS $$
 DECLARE
   p jsonb;
+  v_receipts_enabled boolean;
 BEGIN
   p := taskbound.current_payload();
-  IF p IS NOT NULL THEN
+  v_receipts_enabled := COALESCE((p #>> ARRAY['runtime_options', 'receipts_enabled'])::boolean, true);
+  IF p IS NOT NULL AND v_receipts_enabled THEN
     INSERT INTO taskbound.task_query_receipts (
       task_id, budget_account, query_digest, decision, reason
     )
@@ -43,11 +45,15 @@ DECLARE
   max_rows int;
   v_task_id text;
   v_budget_account text;
+  v_receipts_enabled boolean;
+  v_budget_accounting_enabled boolean;
   receipt uuid;
 BEGIN
   p := taskbound.require_payload();
   v_task_id := p->>'task_id';
   v_budget_account := COALESCE(p->>'budget_account', v_task_id);
+  v_receipts_enabled := COALESCE((p #>> ARRAY['runtime_options', 'receipts_enabled'])::boolean, true);
+  v_budget_accounting_enabled := COALESCE((p #>> ARRAY['runtime_options', 'budget_accounting_enabled'])::boolean, true);
   lowered := lower(sql_text);
 
   IF regexp_replace(sql_text, ';\s*$', '') ~ ';' THEN
@@ -92,60 +98,76 @@ BEGIN
   max_queries := COALESCE((p #>> ARRAY['budgets', 'max_queries'])::int, 100);
   max_rows := COALESCE((p #>> ARRAY['budgets', 'max_unique_expense_rows'])::int, 1000000);
 
-  IF (SELECT query_count FROM taskbound.task_execution_state WHERE task_execution_state.task_id = v_task_id) >= max_queries THEN
-    PERFORM taskbound.fail_receipt(sql_text, 'query budget exhausted');
-    RAISE EXCEPTION 'SessionBoundDB denied query: query budget exhausted';
+  IF v_budget_accounting_enabled THEN
+    IF (SELECT query_count FROM taskbound.task_execution_state WHERE task_execution_state.task_id = v_task_id) >= max_queries THEN
+      PERFORM taskbound.fail_receipt(sql_text, 'query budget exhausted');
+      RAISE EXCEPTION 'SessionBoundDB denied query: query budget exhausted';
+    END IF;
   END IF;
 
-  SELECT count(*) INTO unique_before
-  FROM taskbound.task_rows_seen
-  WHERE task_rows_seen.budget_account = v_budget_account
-    AND row_kind = 'expense';
+  IF v_budget_accounting_enabled THEN
+    SELECT count(*) INTO unique_before
+    FROM taskbound.task_rows_seen
+    WHERE task_rows_seen.budget_account = v_budget_account
+      AND row_kind = 'expense';
+  ELSE
+    unique_before := 0;
+  END IF;
 
   FOR row_item IN EXECUTE sql_text LOOP
     row_json := to_jsonb(row_item);
     rows := array_append(rows, row_json);
     rows_returned := rows_returned + 1;
 
-    IF row_json ? 'expense_id' THEN
+    IF v_budget_accounting_enabled AND row_json ? 'expense_id' THEN
       INSERT INTO taskbound.task_rows_seen (budget_account, row_kind, row_id)
       VALUES (v_budget_account, 'expense', row_json->>'expense_id')
       ON CONFLICT DO NOTHING;
     END IF;
   END LOOP;
 
-  SELECT count(*) INTO unique_after
-  FROM taskbound.task_rows_seen
-  WHERE task_rows_seen.budget_account = v_budget_account
-    AND row_kind = 'expense';
+  IF v_budget_accounting_enabled THEN
+    SELECT count(*) INTO unique_after
+    FROM taskbound.task_rows_seen
+    WHERE task_rows_seen.budget_account = v_budget_account
+      AND row_kind = 'expense';
+  ELSE
+    unique_after := 0;
+  END IF;
 
   unique_added := unique_after - unique_before;
 
-  IF unique_after > max_rows THEN
-    PERFORM taskbound.fail_receipt(sql_text, 'unique expense row budget exceeded');
-    RAISE EXCEPTION 'SessionBoundDB denied query: unique expense row budget exceeded';
+  IF v_budget_accounting_enabled THEN
+    IF unique_after > max_rows THEN
+      PERFORM taskbound.fail_receipt(sql_text, 'unique expense row budget exceeded');
+      RAISE EXCEPTION 'SessionBoundDB denied query: unique expense row budget exceeded';
+    END IF;
   END IF;
 
-  UPDATE taskbound.task_execution_state
-  SET query_count = query_count + 1,
-      returned_rows = returned_rows + rows_returned,
-      unique_expense_rows = unique_after
-  WHERE task_execution_state.task_id = v_task_id;
+  IF v_budget_accounting_enabled THEN
+    UPDATE taskbound.task_execution_state
+    SET query_count = query_count + 1,
+        returned_rows = returned_rows + rows_returned,
+        unique_expense_rows = unique_after
+    WHERE task_execution_state.task_id = v_task_id;
+  END IF;
 
-  INSERT INTO taskbound.task_query_receipts (
-    task_id, budget_account, query_digest, decision, rows_returned,
-    unique_rows_added, remaining_unique_row_budget
-  )
-  VALUES (
-    v_task_id,
-    v_budget_account,
-    encode(public.digest(sql_text, 'sha256'), 'hex'),
-    'allowed',
-    rows_returned,
-    unique_added,
-    max_rows - unique_after
-  )
-  RETURNING receipt_id INTO receipt;
+  IF v_receipts_enabled THEN
+    INSERT INTO taskbound.task_query_receipts (
+      task_id, budget_account, query_digest, decision, rows_returned,
+      unique_rows_added, remaining_unique_row_budget
+    )
+    VALUES (
+      v_task_id,
+      v_budget_account,
+      encode(public.digest(sql_text, 'sha256'), 'hex'),
+      'allowed',
+      rows_returned,
+      unique_added,
+      CASE WHEN v_budget_accounting_enabled THEN max_rows - unique_after ELSE NULL END
+    )
+    RETURNING receipt_id INTO receipt;
+  END IF;
 
   FOREACH row_json IN ARRAY rows LOOP
     RETURN NEXT row_json;
