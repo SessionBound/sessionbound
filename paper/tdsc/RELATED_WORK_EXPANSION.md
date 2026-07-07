@@ -1,7 +1,7 @@
 # Related Work Expansion
 
-This file records sources verified for the TDSC v3 related-work expansion.
-Only verified sources should be copied into `paper/tdsc-v2/references.bib`.
+This file records sources verified for the TDSC related-work expansion.
+Only verified sources should be copied into `paper/tdsc/references.bib`.
 
 | Key | Title | Authors / Org | Year | URL / DOI | Why relevant | Verified |
 |---|---|---|---:|---|---|---|

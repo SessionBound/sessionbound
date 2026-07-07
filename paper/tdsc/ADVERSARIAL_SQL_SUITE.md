@@ -2,8 +2,8 @@
 
 ## Status
 
-- Script: `paper/tdsc-v3/scripts/adversarial_sql_eval.py`
-- Latest raw result: `paper/tdsc-v3/raw_results/adversarial_sql_20260707_145022.json`
+- Script: `paper/tdsc/scripts/adversarial_sql_eval.py`
+- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260707_145022.json`
 - API target: `http://localhost:8000`
 - Cases: 28
 - Passed expected classification: 28 / 28
@@ -55,7 +55,7 @@ set-operation stacking, aggregate inference, and search-path/function abuse.
 
 ## Interpretation
 
-The v3 prototype blocks the tested direct exfiltration attempts, catalog
+The current prototype blocks the tested direct exfiltration attempts, catalog
 lookups, DDL/DML, search-path abuse, recursive/set-operation stacking, and
 payload aggregation/compression attempts. Ordinary safe-view analytical SQL,
 including aliases, CTEs, and simple expressions over allowed columns, remains

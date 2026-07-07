@@ -1,4 +1,4 @@
-# Final v2 Experiment Report
+# Final Experiment Report
 
 ## Status
 
@@ -6,7 +6,7 @@
 - Base commit at experiment time: `5dce85f`
 - Docker status during runs: API up on port 8000; PostgreSQL healthy
 - Dataset: 430 expenses, 240 employees, 124 departments
-- PDF target: `paper/tdsc-v2/sessionbound-tdsc.pdf`
+- PDF target: `paper/tdsc/sessionbound-tdsc.pdf`
 
 ## Results
 

@@ -1,6 +1,6 @@
-# v2 Experiment Report
+# Experiment Report
 
-The v2 experiment pass validates the current SessionBound prototype and
+The experiment pass validates the current SessionBound prototype and
 adds direct comparisons against raw PostgreSQL, role-only, safe-view-only,
 and RLS-only configurations.
 

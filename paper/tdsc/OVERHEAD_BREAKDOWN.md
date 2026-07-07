@@ -2,9 +2,9 @@
 
 ## Status
 
-- Script: `paper/tdsc-v3/scripts/overhead_breakdown.py`
-- Latest raw JSON: `paper/tdsc-v3/raw_results/overhead_breakdown_20260707_064236.json`
-- Latest raw CSV: `paper/tdsc-v3/raw_results/overhead_breakdown_20260707_064236.csv`
+- Script: `paper/tdsc/scripts/overhead_breakdown.py`
+- Latest raw JSON: `paper/tdsc/raw_results/overhead_breakdown_20260707_064236.json`
+- Latest raw CSV: `paper/tdsc/raw_results/overhead_breakdown_20260707_064236.csv`
 - Warmup: 10 iterations per pattern and mode
 - Measurement: 100 iterations per pattern and mode
 - Metrics: p50, p95, mean, standard deviation, rows returned, errors

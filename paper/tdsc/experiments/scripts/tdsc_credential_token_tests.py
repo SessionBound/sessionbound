@@ -16,7 +16,7 @@ import psycopg
 
 
 BASE_URL = os.environ.get("TDSC_BASE_URL", "http://127.0.0.1:8000")
-OUT_DIR = Path(os.environ.get("TDSC_OUT_DIR", "paper/tdsc-v2/experiments/raw_results"))
+OUT_DIR = Path(os.environ.get("TDSC_OUT_DIR", "paper/tdsc/experiments/raw_results"))
 DB_HOST = os.environ.get("TDSC_DB_HOST", "postgres")
 DB_NAME = os.environ.get("TDSC_DB_NAME", "travel")
 ADMIN_DSN = f"postgresql://postgres:postgres@{DB_HOST}:5432/{DB_NAME}"

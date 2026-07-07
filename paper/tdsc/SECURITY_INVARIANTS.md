@@ -70,7 +70,7 @@ I6. Budget state is monotonic: an allowed query consumes budget, or the query
 is denied.
 
 The prototype increments query count and tracks unique exposed `expense_id`
-values when budget accounting is enabled. The v3 overhead script also measures
+values when budget accounting is enabled. The hardening overhead script also measures
 the supported budget-disabled ablation to isolate this cost.
 
 I7. Every allow/deny decision emits a receipt.

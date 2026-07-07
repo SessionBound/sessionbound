@@ -1,6 +1,6 @@
-# SessionBound TDSC v2 Experiments
+# SessionBound TDSC Experiments
 
-This directory contains the v2 experiment workspace used to revise the
+This directory contains the experiment workspace used to revise the
 TDSC manuscript. Raw outputs are preserved under `raw_results/`; summary
 reports in this directory cite those files.
 
@@ -36,7 +36,7 @@ listed above.
 
 ```sh
 docker compose up -d --build api
-python scripts/sessionbound_agent_eval.py --base-url http://localhost:8000 --output-dir paper/tdsc-v2/experiments/raw_results/eval_runs
+python scripts/sessionbound_agent_eval.py --base-url http://localhost:8000 --output-dir paper/tdsc/experiments/raw_results/eval_runs
 docker compose exec -T postgres psql -U postgres -d travel -f /tmp/tdsc_experiments/sql/role_only_baseline.sql
 docker compose exec -T postgres psql -U postgres -d travel -f /tmp/tdsc_experiments/sql/safe_view_only_baseline.sql
 docker compose exec -T postgres psql -U postgres -d travel -f /tmp/tdsc_experiments/sql/rls_baseline.sql

@@ -2,7 +2,7 @@
 
 This is a TDSC-oriented manuscript draft, not a final submission package.
 
-## Current v2 Improvements
+## Current Improvements
 
 - Removed manuscript-body wording that described the paper as a future
   journal plan instead of as the submitted work.
@@ -10,7 +10,7 @@ This is a TDSC-oriented manuscript draft, not a final submission package.
   for a future version.
 - Added measured security and performance baselines for raw PostgreSQL,
   role-only, RLS-only, safe-view-only, and full SessionBound.
-- Added v2 experiment reports and raw-result references under
+- Added experiment reports and raw-result references under
   `experiments/`.
 - Implemented and measured strict credential-token binding:
   credential-id matching, actor matching, audience validation,

@@ -1,13 +1,13 @@
-# TDSC v3 Readiness
+# TDSC Readiness
 
 ## Status
 
 Recommendation: not ready for final TDSC submission yet, but materially
-stronger than v2.
+stronger than the prior draft.
 
 ## Completed
 
-- Created `tdsc-v3-hardening` branch and `paper/tdsc-v3/` workspace.
+- Created the hardening branch and consolidated `paper/tdsc/` workspace.
 - Captured baseline environment, Docker startup, PostgreSQL version, and current
   manuscript path.
 - Added `sqlglot==30.12.0` and `app/sql_ast_validator.py`.
@@ -18,9 +18,9 @@ stronger than v2.
 - Added 28-case adversarial SQL suite and raw results.
 - Added overhead breakdown script with raw JSON/CSV outputs.
 - Expanded related work to 29 verified references.
-- Updated the active TDSC manuscript in `paper/tdsc-v2/sessionbound-tdsc.tex`
+- Updated the active TDSC manuscript in `paper/tdsc/sessionbound-tdsc.tex`
   with security invariants, AST validation positioning, adversarial SQL summary,
-  v3 overhead breakdown, limitations, and expanded related work.
+  overhead breakdown, limitations, and expanded related work.
 
 ## Evidence
 
@@ -40,7 +40,7 @@ stronger than v2.
 - Disclosure budgets are operational controls, not formal differential privacy.
 - The PL/pgSQL reference runtime has high scale-sensitive overhead in prior
   100k-row tests.
-- RLS-only was not measured in the v3 overhead breakdown because the current
+- RLS-only was not measured in the hardening overhead breakdown because the current
   prototype does not define RLS policies in the active runtime path.
 - Production claims require hardened signing/key management, credential
   lifecycle cleanup, out-of-transaction denial logging, and operational

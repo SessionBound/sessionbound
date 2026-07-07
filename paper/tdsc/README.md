@@ -1,8 +1,7 @@
-# SessionBound TDSC v2 Draft
+# SessionBound TDSC Draft
 
-This directory contains the second TDSC-oriented manuscript draft.
-It uses an IEEE journal-style LaTeX entrypoint and keeps the measured
-experiment artifacts under this directory.
+This directory contains the current TDSC-oriented manuscript, build files,
+measured experiment artifacts, and hardening reports.
 
 ## Main Files
 
@@ -12,7 +11,10 @@ experiment artifacts under this directory.
   the current machine does not provide it globally.
 - `IEEEtran.bst`: local IEEEtran BibTeX style from CTAN.
 - `SUBMISSION_STATUS.md`: remaining checks before any formal submission.
-- `experiments/`: v2 experiment scripts, raw results, and reports.
+- `experiments/`: baseline experiment scripts, raw results, and reports.
+- `raw_results/`: latest hardening raw JSON/CSV outputs.
+- `scripts/`: latest hardening evaluation scripts.
+- `FINAL_HARDENING_REPORT.md`: current hardening status and blockers.
 
 ## Build
 

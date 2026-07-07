@@ -182,7 +182,7 @@ def run_eval(base_url: str) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://localhost:8000")
-    parser.add_argument("--output-dir", default=str(REPO_ROOT / "paper/tdsc-v3/raw_results"))
+    parser.add_argument("--output-dir", default=str(REPO_ROOT / "paper/tdsc/raw_results"))
     args = parser.parse_args()
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)

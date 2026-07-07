@@ -6,8 +6,8 @@
 - Parser: `sqlglot==30.12.0`
 - Runtime integration: API-layer preflight after token binding and before
   `taskbound.run(...)`
-- Evaluation script: `paper/tdsc-v3/scripts/ast_validation_eval.py`
-- Latest raw result: `paper/tdsc-v3/raw_results/ast_validation_20260707_065023.json`
+- Evaluation script: `paper/tdsc/scripts/ast_validation_eval.py`
+- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260707_065023.json`
 - Result: 17 / 17 cases passed
 
 This is an AST-level prototype validator for query-shape analysis before

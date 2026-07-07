@@ -2,7 +2,7 @@
 \PassOptionsToPackage{unicode}{hyperref}
 \PassOptionsToPackage{hyphens}{url}
 %
-% TDSC v2 draft.
+% Current TDSC draft.
 \documentclass[journal]{IEEEtran}
 \usepackage{amsmath,amssymb}
 \usepackage{lmodern}
@@ -1505,11 +1505,11 @@ synthetic dataset.
 \hypertarget{experimental-setup}{%
 \subsection{Experimental setup}\label{experimental-setup}}
 
-The v3 hardening run used Docker Compose with PostgreSQL 16.14 and the
+The latest hardening run used Docker Compose with PostgreSQL 16.14 and the
 FastAPI SessionBoundDB prototype. The repository branch was
-\texttt{tdsc-v3-hardening}, commit \texttt{c95e6ed}. The default seed
-contains 430 expenses, 240 employees, and 124 departments. The v3 raw
-outputs are stored under \texttt{paper/tdsc-v3/raw\_results/}.
+\texttt{c95e6ed}. The default seed
+contains 430 expenses, 240 employees, and 124 departments. The raw
+outputs are stored under \texttt{paper/tdsc/raw\_results/}.
 
 The AST and adversarial SQL evaluations exercise the HTTP API, including
 dynamic credential issuance, signed task-token creation, token binding,
@@ -1578,7 +1578,7 @@ matches the runtime registry.
 \hypertarget{adversarial-sql-evaluation}{%
 \subsection{Adversarial SQL evaluation}\label{adversarial-sql-evaluation}}
 
-The v3 hardening run adds an adversarial SQL suite with 28 cases across
+The latest hardening run adds an adversarial SQL suite with 28 cases across
 direct boundary violations, catalog escape, payload aggregation,
 obfuscation, CTEs, set-operation stacking, small-group aggregate
 inference, and search-path/function abuse. The suite passed all expected
@@ -1590,7 +1590,7 @@ classified as a known limitation.
 \centering
 \scriptsize
 \setlength{\tabcolsep}{3pt}
-\caption{Adversarial SQL evaluation summary from the v3 hardening suite.}
+\caption{Adversarial SQL evaluation summary from the hardening suite.}
 \label{tab:adversarial-sql}
 \begin{tabular}{@{}
   >{\raggedright\arraybackslash}p{0.22\textwidth}
@@ -1613,7 +1613,7 @@ Search path / function abuse & \texttt{SHOW}, \texttt{SET}, \texttt{CREATE FUNCT
 \end{table*}
 
 This result should not be read as a proof of complete SQL safety. It
-does show that the v3 prototype is no longer limited to literal string
+does show that the current prototype is no longer limited to literal string
 checks for the main tested attack families. The remaining small-group
 aggregate case motivates minimum group-size rules, aggregate sensitivity
 scoring, and stronger inference-control work.
@@ -1622,7 +1622,7 @@ scoring, and stronger inference-control work.
 \subsection{Performance overhead and
 ablation}\label{performance-overhead-and-ablation}}
 
-The v3 overhead breakdown measures five query patterns: simple
+The latest overhead breakdown measures five query patterns: simple
 \texttt{SELECT}, \texttt{JOIN}, \texttt{GROUP\ BY}, CTE, and window
 function. Each pattern uses 10 warmup iterations and 100 measured
 iterations per mode. The run compares raw PostgreSQL, a temporary
@@ -1631,9 +1631,9 @@ RLS-only mode, SessionBound without receipts, SessionBound without
 budget updates, and full SessionBound. Table~\ref{tab:performance}
 reports p50 latency in milliseconds.
 
-The RLS-only row is marked \texttt{N/A} in this v3 run because the
-current prototype does not define PostgreSQL RLS policies. Earlier v2
-experiments separately measured an RLS baseline, but the v3 breakdown
+The RLS-only row is marked \texttt{N/A} in this run because the
+current prototype does not define PostgreSQL RLS policies. Earlier
+experiments separately measured an RLS baseline, but the latest breakdown
 focuses on currently supported ablations and does not invent an RLS
 toggle.
 
@@ -1675,7 +1675,7 @@ not as an optimized execution engine.
 \hypertarget{remaining-gaps}{%
 \subsection{Discussion of remaining gaps}\label{remaining-gaps}}
 
-The v3 hardening results improve direct SQL-structure coverage and make
+The hardening results improve direct SQL-structure coverage and make
 the overhead source clearer, but several gaps remain. The AST validator
 is still an API-layer preflight rather than a PostgreSQL parser hook.
 Small-group aggregate inference remains a known limitation. The budget
@@ -2154,7 +2154,7 @@ Current limitations include:
   production-grade credential brokerage, key management, and audit
   retention outside this demo;
 \item
-  current performance results include microbenchmarks, v3 overhead
+  current performance results include microbenchmarks, overhead
   ablations, and a prior 1k/10k/100k synthetic scale sweep, but should
   not be generalized to production workloads or an optimized parser-hook
   implementation;
