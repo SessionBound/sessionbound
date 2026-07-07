@@ -89,6 +89,46 @@ The prototype task token may carry a safe-view registry snapshot. During
 binding, `taskbound.bind_task` recomputes the registry snapshot and rejects
 stale safe-view registry version, policy version, or view-definition hash.
 
+## Security Guarantees for the Prototype SQL Fragment
+
+The TDSC draft states the invariant contract over a restricted SQL fragment,
+`SELECT-F`. This fragment contains single-statement, read-only `SELECT` SQL with
+projection, predicates, joins, `GROUP BY`/`HAVING`, ordering and limits,
+non-recursive CTEs, and window functions over registered safe-view names.
+
+`SELECT-F` excludes stacked statements, DDL, DML, `COPY`, `DO`, `CALL`,
+`CREATE FUNCTION`, temporary object creation, recursive CTEs, set-operation
+stacking, table functions, raw-schema or catalog references, and high-risk
+payload aggregation such as `json_agg`, `jsonb_agg`, `array_agg`,
+`string_agg`, `xmlagg`, `row_to_json`, `json_build_object`, and
+`jsonb_build_object`.
+
+Under a well-formed state `S=<T,C,V,B,R>` with a valid token/session binding,
+matching safe-view registry and policy hashes, nonnegative budget vector, and
+verifiable receipt chain, the prototype contract is:
+
+**Proposition 1: Safe-surface confinement.** If `q in SELECT-F` and
+`decide(q,S)=allow`, every resolved relation named by `q` is an approved safe
+view in `V`. Raw base tables may be reached only through trusted safe-view
+definitions, not by direct agent-supplied SQL.
+
+**Proposition 2: Denied-field non-disclosure for direct references.** If a
+column is absent from the approved safe-view column lists or appears in the
+token's denied-field set, no allowed query can directly project that column.
+This is a direct syntactic guarantee and does not rule out semantic inference
+from permitted columns or aggregates.
+
+**Proposition 3: Monotonic budget accounting.** For every allowed query, the
+remaining budget vector is componentwise non-increasing. If the required
+query-count or disclosure charge exceeds the remaining budget, the query is
+denied and no result is released.
+
+**Proposition 4: Receipt-chain tamper evidence under trusted DB assumptions.**
+Given collision-resistant hashing and append-only receipt storage inside the
+trusted database boundary, removing or modifying an interior receipt changes
+that receipt's hash or breaks the downstream previous-hash pointer. This is not
+a Byzantine storage guarantee against malicious DBAs or compromised hosts.
+
 ## Production Boundary
 
 The hardening prototype now includes AST-level API preflight plus an

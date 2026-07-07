@@ -1017,6 +1017,109 @@ should harden these structural checks into always-on planner or executor
 integration, but the invariant set is independent of that implementation
 choice.
 
+\hypertarget{security-guarantees-for-the-prototype-sql-fragment}{%
+\subsection{Security Guarantees for the Prototype SQL
+Fragment}\label{security-guarantees-for-the-prototype-sql-fragment}}
+
+We state the prototype security contract over a deliberately restricted
+SQL fragment. Let \(\mathrm{SELECT}\text{-}F\) denote single-statement,
+read-only SQL consisting of \texttt{SELECT}, projection, predicates,
+joins, \texttt{GROUP\ BY}/\texttt{HAVING}, ordering and limits,
+non-recursive CTEs, and window functions over registered safe-view
+names. The fragment excludes stacked statements, DDL, DML,
+\texttt{COPY}, \texttt{DO}, \texttt{CALL}, \texttt{CREATE\ FUNCTION},
+temporary object creation, recursive CTEs, set-operation stacking,
+table functions, raw-schema or catalog references, and high-risk payload
+aggregation such as \texttt{json\_agg}, \texttt{jsonb\_agg},
+\texttt{array\_agg}, \texttt{string\_agg}, \texttt{xmlagg},
+\texttt{row\_to\_json}, \texttt{json\_build\_object}, and
+\texttt{jsonb\_build\_object}.
+
+Let \(\mathrm{Rels}(q)\) be the set of relation identifiers in \(q\)
+after database name resolution and before safe-view expansion. Let
+\(\mathrm{Views}(T,V)\) be the approved safe views carried by token \(T\)
+and validated against registry \(V\). Let \(\mathrm{Cols}_{out}(q)\) be
+the direct column references that appear in the output expressions of
+\(q\). A state \(S=\langle T,C,V,B,R\rangle\) is well formed when the
+token is valid and bound to credential \(C\), the safe-view registry and
+policy hashes match the token, the budget vector \(B\) is nonnegative,
+and the receipt chain \(R\) verifies. Under these assumptions, the
+prototype provides the following direct-reference and accounting
+guarantees. These are not guarantees against arbitrary semantic
+inference from allowed answers, and they are not differential privacy.
+
+\noindent\textbf{Proposition 1 (Safe-surface confinement).}
+For any well-formed state \(S\) and query
+\(q \in \mathrm{SELECT}\text{-}F\), if
+\(decide(q,S)=allow(result,S')\), then
+\(\mathrm{Rels}(q)\subseteq \mathrm{Views}(T,V)\). Consequently, every
+raw base relation evaluated during query execution is reached only
+through the definition of a registered safe view approved for the task;
+the query has no direct reference path to raw tables or catalogs.
+
+\emph{Argument.} The decision pipeline resolves relation identifiers and
+checks them against the task's approved safe-view registry before any
+result is released. Database permissions deny raw-schema access, while
+the AST preflight and hook path reject resolved relation OIDs outside
+the approved safe-view set. Therefore any query that names an
+unregistered relation is denied. Raw base tables may still be read by
+trusted safe-view definitions, but not by direct agent-supplied SQL.
+
+\noindent\textbf{Proposition 2 (Denied-field non-disclosure for direct
+references).}
+Let \(D(T)\) be the denied-field set in token \(T\), and let
+\(\mathrm{Cols}(v,V)\) be the registered column list for safe view
+\(v\). If \(decide(q,S)=allow(result,S')\), then every direct output
+column reference \(c \in \mathrm{Cols}_{out}(q)\) is in
+\(\bigcup_{v\in \mathrm{Views}(T,V)} \mathrm{Cols}(v,V)\) and
+\(c\notin D(T)\). Thus a column that is absent from the approved
+safe-view column lists, or that appears in the denied-field set, cannot
+be directly projected by an allowed query.
+
+\emph{Argument.} In \(\mathrm{SELECT}\text{-}F\), output columns must
+resolve against the relations that survived Proposition~1. A column not
+exported by an approved safe view cannot be bound by name. A column name
+or alias in the denied-field set is rejected by the structural policy
+before execution. The guarantee is syntactic and direct: it does not
+rule out inferences about denied fields from permitted columns or
+aggregates.
+
+\noindent\textbf{Proposition 3 (Monotonic budget accounting).}
+Let budgets be ordered componentwise by \(\preceq\), and let
+\(\Delta(q,result)\succeq 0\) be the budget charge for a released
+result. For any allowed query,
+\(decide(q,S)=allow(result,S')\) implies
+\(0 \preceq B' \preceq B\), where \(B'\) is the budget component of
+\(S'\). If a required charge is not covered by the remaining budget,
+then the query is denied and no result is released.
+
+\emph{Argument.} The runtime treats budget dimensions as nonnegative
+counters. Query-count budget is checked before execution, and disclosure
+budget is charged before release using the accounted result shape and
+business identifiers. Updates only subtract nonnegative charges from the
+remaining vector. Therefore the remaining budget cannot increase across
+an allowed transition; an over-budget attempt reaches a denial state
+instead of returning the result.
+
+\noindent\textbf{Proposition 4 (Receipt-chain tamper evidence under
+trusted DB assumptions).}
+Assume collision-resistant hashing and append-only receipt storage
+inside the trusted database boundary. For a receipt chain
+\(R=(r_1,\ldots,r_n)\) where each \(r_i\) stores the hash of
+\(r_{i-1}\) and a hash of its own canonical contents, removing or
+modifying any interior receipt \(r_j\), \(1<j<n\), changes \(r_j\)'s
+hash or breaks the previous-hash value stored in \(r_{j+1}\). The
+change is detected by chain verification unless the adversary can
+violate append-only storage or find a hash collision.
+
+\emph{Argument.} Each receipt commits to the previous receipt hash and
+to the current decision, query hash, timestamp, and budget delta.
+Changing an interior receipt changes its hash; deleting it changes the
+predecessor expected by the next receipt. Under append-only storage, the
+adversary cannot rewrite the downstream chain to hide the mismatch.
+This is a tamper-evidence property for the audit trail, not a Byzantine
+storage guarantee against malicious DBAs or compromised hosts.
+
 
 \hypertarget{anti-evasion-scope}{%
 \section{Anti-Evasion Scope}\label{anti-evasion-scope}}
