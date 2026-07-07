@@ -349,6 +349,7 @@ REVOKE ALL ON ALL TABLES IN SCHEMA taskbound FROM PUBLIC;
 
 GRANT USAGE ON SCHEMA taskbound TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.bind_task(text, text) TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.fail_receipt(text, text) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.run(text) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.command(text, jsonb) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.inspect_task_state() TO agent_runtime;

@@ -23,6 +23,7 @@ from task_registry import (
     upsert_template,
 )
 from user_ui import USER_HTML
+from sql_ast_validator import SQLValidationResult, validate_sql_structure
 
 
 app = FastAPI(title="SessionBoundDB Travel Demo")
@@ -257,6 +258,38 @@ def bind(cur, payload_text: str, signature: str) -> dict[str, Any]:
 def fetch_state(cur) -> list[dict[str, Any]]:
     cur.execute("SELECT * FROM taskbound.inspect_task_state()")
     return rows_as_dicts(cur)
+
+
+def ast_preflight(
+    cur,
+    payload_text: str,
+    sql_text: str,
+) -> SQLValidationResult:
+    try:
+        payload = json.loads(payload_text)
+    except json.JSONDecodeError:
+        result = SQLValidationResult(
+            allowed=False,
+            reasons=["payload_text is not valid JSON"],
+            flags=["invalid_payload"],
+            metadata={},
+            parser="sqlglot",
+        )
+    else:
+        result = validate_sql_structure(
+            sql_text,
+            allowed_views=payload.get("allowed_views", []),
+            denied_columns=payload.get("denied_columns", []),
+        )
+    if not result.allowed:
+        try:
+            cur.execute(
+                "SELECT taskbound.fail_receipt(%s, %s)",
+                (sql_text, f"AST preflight denied query: {result.reason_text()}"),
+            )
+        except Exception:
+            pass
+    return result
 
 
 def fetch_receipts(cur) -> list[dict[str, Any]]:
@@ -1176,6 +1209,18 @@ def query(req: QueryRequest):
         with conn.cursor() as cur:
             try:
                 bound = bind(cur, req.payload_text, req.signature)
+                validation = ast_preflight(cur, req.payload_text, req.sql)
+                if not validation.allowed:
+                    state = fetch_state(cur)
+                    receipts = fetch_receipts(cur)
+                    return {
+                        "ok": False,
+                        "error": f"AST preflight denied query: {validation.reason_text()}",
+                        "bound": bound,
+                        "ast_validation": validation.to_dict(),
+                        "state": state,
+                        "receipts": receipts,
+                    }
                 cur.execute("SELECT * FROM taskbound.run(%s)", (req.sql,))
                 rows = [row[0] for row in cur.fetchall()]
                 state = fetch_state(cur)
@@ -1183,6 +1228,7 @@ def query(req: QueryRequest):
                 return {
                     "ok": True,
                     "bound": bound,
+                    "ast_validation": validation.to_dict(),
                     "rows": rows,
                     "state": state,
                     "receipts": receipts,
@@ -1213,6 +1259,19 @@ def agent_query(req: AgentQueryRequest):
         with conn.cursor() as cur:
             try:
                 bound = bind(cur, req.payload_text, req.signature)
+                validation = ast_preflight(cur, req.payload_text, req.sql)
+                if not validation.allowed:
+                    state = fetch_state(cur)
+                    receipts = fetch_receipts(cur)
+                    return {
+                        "ok": False,
+                        "used_dynamic_credential": req.credential.db_user,
+                        "error": f"AST preflight denied query: {validation.reason_text()}",
+                        "bound": bound,
+                        "ast_validation": validation.to_dict(),
+                        "state": state,
+                        "receipts": receipts,
+                    }
                 cur.execute("SELECT * FROM taskbound.run(%s)", (req.sql,))
                 rows = [row[0] for row in cur.fetchall()]
                 state = fetch_state(cur)
@@ -1221,6 +1280,7 @@ def agent_query(req: AgentQueryRequest):
                     "ok": True,
                     "used_dynamic_credential": req.credential.db_user,
                     "bound": bound,
+                    "ast_validation": validation.to_dict(),
                     "rows": rows,
                     "state": state,
                     "receipts": receipts,
@@ -1290,6 +1350,22 @@ def agent_question(req: AgentQuestionRequest):
         with conn.cursor() as cur:
             try:
                 bound = bind(cur, req.payload_text, req.signature)
+                validation = ast_preflight(cur, req.payload_text, sql_text)
+                if not validation.allowed:
+                    state = fetch_state(cur)
+                    receipts = fetch_receipts(cur)
+                    return {
+                        "ok": False,
+                        "question": req.question,
+                        "generated_sql": sql_text,
+                        "generation": generation,
+                        "used_dynamic_credential": req.credential.db_user,
+                        "error": f"AST preflight denied query: {validation.reason_text()}",
+                        "bound": bound,
+                        "ast_validation": validation.to_dict(),
+                        "state": state,
+                        "receipts": receipts,
+                    }
                 cur.execute("SELECT * FROM taskbound.run(%s)", (sql_text,))
                 rows = [row[0] for row in cur.fetchall()]
                 state = fetch_state(cur)
@@ -1301,6 +1377,7 @@ def agent_question(req: AgentQuestionRequest):
                     "generation": generation,
                     "used_dynamic_credential": req.credential.db_user,
                     "bound": bound,
+                    "ast_validation": validation.to_dict(),
                     "rows": rows,
                     "state": state,
                     "receipts": receipts,
