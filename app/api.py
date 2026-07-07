@@ -24,6 +24,7 @@ from task_registry import (
 )
 from user_ui import USER_HTML
 from sql_ast_validator import SQLValidationResult, validate_sql_structure
+from taskbound_sdk import TaskboundSession
 
 
 app = FastAPI(title="SessionBoundDB Travel Demo")
@@ -1207,12 +1208,13 @@ def issue_credential(req: CredentialRequest):
 def query(req: QueryRequest):
     with connect() as conn:
         with conn.cursor() as cur:
+            session = TaskboundSession(cur=cur)
             try:
-                bound = bind(cur, req.payload_text, req.signature)
+                bound = session.bind_task(req.payload_text, req.signature)
                 validation = ast_preflight(cur, req.payload_text, req.sql)
                 if not validation.allowed:
-                    state = fetch_state(cur)
-                    receipts = fetch_receipts(cur)
+                    state = session.inspect_state()
+                    receipts = session.receipts()
                     return {
                         "ok": False,
                         "error": f"AST preflight denied query: {validation.reason_text()}",
@@ -1221,10 +1223,9 @@ def query(req: QueryRequest):
                         "state": state,
                         "receipts": receipts,
                     }
-                cur.execute("SELECT * FROM taskbound.run(%s)", (req.sql,))
-                rows = [row[0] for row in cur.fetchall()]
-                state = fetch_state(cur)
-                receipts = fetch_receipts(cur)
+                rows = session.query(req.sql)
+                state = session.inspect_state()
+                receipts = session.receipts()
                 return {
                     "ok": True,
                     "bound": bound,
@@ -1235,8 +1236,8 @@ def query(req: QueryRequest):
                 }
             except Exception as exc:
                 try:
-                    state = fetch_state(cur)
-                    receipts = fetch_receipts(cur)
+                    state = session.inspect_state()
+                    receipts = session.receipts()
                 except Exception:
                     state = []
                     receipts = []
@@ -1257,12 +1258,13 @@ def agent_query(req: AgentQueryRequest):
 
     with conn:
         with conn.cursor() as cur:
+            session = TaskboundSession(cur=cur)
             try:
-                bound = bind(cur, req.payload_text, req.signature)
+                bound = session.bind_task(req.payload_text, req.signature)
                 validation = ast_preflight(cur, req.payload_text, req.sql)
                 if not validation.allowed:
-                    state = fetch_state(cur)
-                    receipts = fetch_receipts(cur)
+                    state = session.inspect_state()
+                    receipts = session.receipts()
                     return {
                         "ok": False,
                         "used_dynamic_credential": req.credential.db_user,
@@ -1272,10 +1274,9 @@ def agent_query(req: AgentQueryRequest):
                         "state": state,
                         "receipts": receipts,
                     }
-                cur.execute("SELECT * FROM taskbound.run(%s)", (req.sql,))
-                rows = [row[0] for row in cur.fetchall()]
-                state = fetch_state(cur)
-                receipts = fetch_receipts(cur)
+                rows = session.query(req.sql)
+                state = session.inspect_state()
+                receipts = session.receipts()
                 return {
                     "ok": True,
                     "used_dynamic_credential": req.credential.db_user,
@@ -1287,8 +1288,8 @@ def agent_query(req: AgentQueryRequest):
                 }
             except Exception as exc:
                 try:
-                    state = fetch_state(cur)
-                    receipts = fetch_receipts(cur)
+                    state = session.inspect_state()
+                    receipts = session.receipts()
                 except Exception:
                     state = []
                     receipts = []
@@ -1348,12 +1349,13 @@ def agent_question(req: AgentQuestionRequest):
 
     with conn:
         with conn.cursor() as cur:
+            session = TaskboundSession(cur=cur)
             try:
-                bound = bind(cur, req.payload_text, req.signature)
+                bound = session.bind_task(req.payload_text, req.signature)
                 validation = ast_preflight(cur, req.payload_text, sql_text)
                 if not validation.allowed:
-                    state = fetch_state(cur)
-                    receipts = fetch_receipts(cur)
+                    state = session.inspect_state()
+                    receipts = session.receipts()
                     return {
                         "ok": False,
                         "question": req.question,
@@ -1366,10 +1368,9 @@ def agent_question(req: AgentQuestionRequest):
                         "state": state,
                         "receipts": receipts,
                     }
-                cur.execute("SELECT * FROM taskbound.run(%s)", (sql_text,))
-                rows = [row[0] for row in cur.fetchall()]
-                state = fetch_state(cur)
-                receipts = fetch_receipts(cur)
+                rows = session.query(sql_text)
+                state = session.inspect_state()
+                receipts = session.receipts()
                 return {
                     "ok": True,
                     "question": req.question,
@@ -1384,8 +1385,8 @@ def agent_question(req: AgentQuestionRequest):
                 }
             except Exception as exc:
                 try:
-                    state = fetch_state(cur)
-                    receipts = fetch_receipts(cur)
+                    state = session.inspect_state()
+                    receipts = session.receipts()
                 except Exception:
                     state = []
                     receipts = []
@@ -1410,13 +1411,10 @@ def agent_command(req: AgentCommandRequest):
 
     with conn:
         with conn.cursor() as cur:
+            session = TaskboundSession(cur=cur)
             try:
-                bound = bind(cur, req.payload_text, req.signature)
-                cur.execute(
-                    "SELECT taskbound.command(%s, %s::jsonb)",
-                    (req.command_name, json.dumps(req.args)),
-                )
-                result = cur.fetchone()[0]
+                bound = session.bind_task(req.payload_text, req.signature)
+                result = session.command(req.command_name, req.args)
                 return {
                     "ok": True,
                     "used_dynamic_credential": req.credential.db_user,

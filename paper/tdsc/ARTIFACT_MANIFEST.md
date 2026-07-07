@@ -24,6 +24,9 @@ text when checking current claims.
 Core validated claims in the TDSC candidate:
 
 - canonical functional validation: 24 / 24 scenarios passed;
+- SDK query surface: 2 / 2 cases passed, showing that
+  `TaskboundSession.query(sql)` wraps ordinary safe-view SQL through the
+  accounting runtime while bare safe-view `SELECT` remains ungranted;
 - adversarial SQL suite: 28 cases, with 22 blocked cases, 5 allowed safe-view
   analytical cases, and 1 known limitation;
 - default-seed overhead: full SessionBound p50 latency is 14.6--18.6 ms across
@@ -42,6 +45,7 @@ Core validated claims in the TDSC candidate:
 - Functional validation summary: `paper/tdsc/evaluation/FUNCTIONAL_VALIDATION.md`
 - Adversarial SQL report: `paper/tdsc/ADVERSARIAL_SQL_SUITE.md`
 - AST validation report: `paper/tdsc/AST_VALIDATION.md`
+- SDK query surface report: `paper/tdsc/SDK_QUERY_SURFACE.md`
 - PostgreSQL hook report: `paper/tdsc/POSTGRES_HOOK_ENFORCEMENT.md`
 - Overhead breakdown report: `paper/tdsc/OVERHEAD_BREAKDOWN.md`
 - Security invariants companion: `paper/tdsc/SECURITY_INVARIANTS.md`

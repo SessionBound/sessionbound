@@ -133,7 +133,10 @@ a Byzantine storage guarantee against malicious DBAs or compromised hosts.
 
 The hardening prototype now includes AST-level API preflight plus an
 experimental PostgreSQL `post_parse_analyze_hook` extension path before dynamic
-execution. The database also enforces no raw schema grants, safe views, budgets,
-and receipts. A production implementation should harden this path into
-always-on planner/executor integration, optimized accounting, and
-out-of-transaction denial logging.
+execution. The generated runtime credential can connect directly to PostgreSQL,
+but it has no bare `SELECT` grant on raw tables or safe views; approved SQL over
+safe views is exposed through `TaskboundSession.query(sql)` and executed through
+`taskbound.run(...)`, where budgets and receipts are applied. A production
+implementation that exposes native agent `SELECT` syntax must harden this path
+into always-on planner/executor integration, optimized result accounting before
+client release, receipt emission, and out-of-transaction denial logging.

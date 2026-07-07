@@ -20,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 AGENT_CASES: list[dict[str, str]] = [
     {
         "id": "HG01",
-        "name": "allowed_safe_view_select",
+        "name": "allowed_safe_view_select_through_runtime",
         "expected": "Allowed",
         "sql": "SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2",
         "expected_reason": "",
@@ -52,6 +52,14 @@ AGENT_CASES: list[dict[str, str]] = [
         "expected": "Blocked",
         "sql": "SELECT claim(ARRAY['tenant_id']) FROM expenses LIMIT 1",
         "expected_reason": "direct access to taskbound runtime helper functions is not allowed",
+    },
+    {
+        "id": "HG06",
+        "name": "bare_safe_view_select_denied_by_grants",
+        "mode": "bare_select",
+        "expected": "Blocked",
+        "sql": "SELECT expense_id, amount FROM taskbound.expenses LIMIT 1",
+        "expected_reason": "permission denied",
     },
 ]
 
@@ -204,16 +212,24 @@ def issue_task(base_url: str, run_id: str) -> tuple[dict[str, Any], dict[str, An
 
 
 def run_agent_case(case: dict[str, str], credential: dict[str, Any], task: dict[str, Any]) -> dict[str, Any]:
-    sql_script = (
-        f"SELECT taskbound.bind_task({sql_literal(task['payload_text'])}, {sql_literal(task['signature'])});\n"
-        f"SELECT * FROM taskbound.run({sql_literal(case['sql'])});\n"
-    )
+    if case.get("mode") == "bare_select":
+        sql_script = (
+            f"SELECT taskbound.bind_task({sql_literal(task['payload_text'])}, {sql_literal(task['signature'])});\n"
+            f"{case['sql']};\n"
+        )
+        path = "agent credential direct database call without taskbound.run"
+    else:
+        sql_script = (
+            f"SELECT taskbound.bind_task({sql_literal(task['payload_text'])}, {sql_literal(task['signature'])});\n"
+            f"SELECT * FROM taskbound.run({sql_literal(case['sql'])});\n"
+        )
+        path = "agent credential direct database call through taskbound.run"
     result = run_psql(sql_script, user=credential["db_user"], password=credential["db_password"])
     actual = classify_psql(result)
     reason_ok = not case["expected_reason"] or case["expected_reason"] in result["output_tail"]
     return {
         **case,
-        "path": "agent credential direct database call",
+        "path": path,
         "actual": actual,
         "passed": actual == case["expected"] and reason_ok,
         "reason_matched": reason_ok,

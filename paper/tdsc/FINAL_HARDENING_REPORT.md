@@ -3,7 +3,7 @@
 ## Status
 
 - Branch: `tdsc-hardening`
-- Base commit at latest hook/evaluation run time: `c8b10b8`
+- Base commit at latest hook/evaluation run time: `5dbece5`
 - Docker status: API up on port 8000; PostgreSQL healthy
 - API health: `/` returned HTTP 200; `/docs` returned HTTP 200
 - PostgreSQL: 16.14
@@ -19,9 +19,14 @@
 
 - AST validation status: implemented as API-layer preflight with `sqlglot`; 17
   / 17 AST validation cases passed.
+- SDK query surface status: implemented in `app/taskbound_sdk.py`; 2 / 2 SDK
+  surface cases passed, including an accounted `query(sql)` call and a blocked
+  bare safe-view `SELECT`.
 - PostgreSQL hook status: implemented as experimental
   `post_parse_analyze_hook` enforcement with trusted SUSET GUC context and
-  approved safe-view OID checks; 10 / 10 hook evaluation cases passed.
+  approved safe-view OID checks; 11 / 11 hook evaluation cases passed,
+  including a blocked bare safe-view `SELECT` with the generated runtime
+  credential.
 - Adversarial SQL suite status: implemented; 28 / 28 expected classifications
   passed.
 - Overhead breakdown status: implemented; latest supported modes ran with zero
@@ -37,12 +42,14 @@
 ## Key Results
 
 - AST validation: 17 / 17 passed; latest raw result:
-  `paper/tdsc/raw_results/ast_validation_20260707_163514.json`.
-- PostgreSQL hook enforcement: 10 / 10 passed; latest raw result:
-  `paper/tdsc/raw_results/sessionbound_guard_hook_20260707_164553.json`.
+  `paper/tdsc/raw_results/ast_validation_20260707_182706.json`.
+- SDK query surface: 2 / 2 passed; latest raw result:
+  `paper/tdsc/raw_results/sdk_query_20260707_102212.json`.
+- PostgreSQL hook enforcement: 11 / 11 passed; latest raw result:
+  `paper/tdsc/raw_results/sessionbound_guard_hook_20260707_182650.json`.
 - Adversarial SQL: 22 blocked, 5 allowed but accounted, 1 known limitation;
   latest raw result:
-  `paper/tdsc/raw_results/adversarial_sql_20260707_163408.json`.
+  `paper/tdsc/raw_results/adversarial_sql_20260707_182701.json`.
 - Canonical validation: 24 / 24 passed.
 - Overhead: full SessionBound p50 on the default seed was 14.630 ms for SELECT,
   18.581 ms for JOIN, 15.024 ms for GROUP BY, 15.425 ms for CTE, and 15.854 ms

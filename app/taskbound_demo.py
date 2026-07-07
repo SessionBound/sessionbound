@@ -7,6 +7,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 
 import psycopg
+from taskbound_sdk import TaskboundSession
 
 
 DATABASE_URL = os.environ.get(
@@ -74,8 +75,8 @@ def connect():
 
 
 def bind(cur, payload_text: str, signature: str):
-    cur.execute("SELECT taskbound.bind_task(%s, %s)", (payload_text, signature))
-    print_json("BOUND", cur.fetchone()[0])
+    session = TaskboundSession(cur=cur)
+    print_json("BOUND", session.bind_task(payload_text, signature))
 
 
 def print_json(label: str, value):
@@ -84,27 +85,18 @@ def print_json(label: str, value):
 
 
 def run_query(cur, sql: str):
+    session = TaskboundSession(cur=cur)
     print(f"\nSQL> {sql}")
     try:
-        cur.execute("SELECT * FROM taskbound.run(%s)", (sql,))
-        rows = [row[0] for row in cur.fetchall()]
-        print_json("ROWS", rows)
+        print_json("ROWS", session.query(sql))
     except Exception as exc:
         print(f"DENIED: {exc}")
 
 
 def inspect(cur):
-    cur.execute("SELECT * FROM taskbound.inspect_task_state()")
-    print_json("TASK STATE", [dict(zip([d.name for d in cur.description], row)) for row in cur.fetchall()])
-    cur.execute(
-        """
-        SELECT decision, rows_returned, unique_rows_added,
-               remaining_unique_row_budget, reason, created_at
-        FROM taskbound.receipts()
-        LIMIT 10
-        """
-    )
-    print_json("RECEIPTS", [dict(zip([d.name for d in cur.description], row)) for row in cur.fetchall()])
+    session = TaskboundSession(cur=cur)
+    print_json("TASK STATE", session.inspect_state())
+    print_json("RECEIPTS", session.receipts(limit=10))
 
 
 def command_token(args):
@@ -236,7 +228,7 @@ def build_parser():
     token.add_argument("--max-rows", type=int, default=5)
     token.set_defaults(func=command_token)
 
-    query = sub.add_parser("query", help="run one SQL query through taskbound.run")
+    query = sub.add_parser("query", help="run one native-looking SQL query through the SDK")
     query.add_argument("sql")
     query.add_argument("--max-queries", type=int, default=5)
     query.add_argument("--max-rows", type=int, default=5)

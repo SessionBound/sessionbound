@@ -4,7 +4,7 @@
 
 - Date: 2026-07-07T14:30:06+08:00
 - Branch at run time: `tdsc-hardening`
-- Commit at latest hook run time: `c8b10b863f7f968382685602d107cc3aef62a005`
+- Commit at latest hook run time: `5dbece5`
 - Docker Compose: `Docker Compose version v2.40.3-desktop.1`
 - Python: `Python 3.13.5`
 - PostgreSQL: `PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1)`
@@ -56,9 +56,20 @@ PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by g
 AST validation:
 
 - Script: `paper/tdsc/scripts/ast_validation_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260707_163514.json`
+- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260707_182706.json`
 - Result: 17 / 17 cases passed
-- Status: implemented as API-layer AST preflight before `taskbound.run(...)`
+- Status: implemented as API-layer AST preflight before the SDK calls
+  `taskbound.run(...)`
+
+SDK query surface:
+
+- Implementation: `app/taskbound_sdk.py`
+- Script: `paper/tdsc/scripts/sdk_query_eval.py`
+- Latest raw result: `paper/tdsc/raw_results/sdk_query_20260707_102212.json`
+- Result: 2 / 2 cases passed
+- Status: `TaskboundSession.query(sql)` exposes ordinary safe-view SQL to the
+  agent while internally wrapping `taskbound.run(sql)`; bare safe-view `SELECT`
+  remains denied by PostgreSQL privileges.
 
 PostgreSQL hook enforcement:
 
@@ -70,15 +81,16 @@ PostgreSQL hook enforcement:
   including approved safe-view OIDs from `taskbound.safe_view_registry`.
 - Script: `paper/tdsc/scripts/sessionbound_guard_hook_eval.py`
 - Latest raw result:
-  `paper/tdsc/raw_results/sessionbound_guard_hook_20260707_164553.json`
-- Result: 10 / 10 cases passed
+  `paper/tdsc/raw_results/sessionbound_guard_hook_20260707_182650.json`
+- Result: 11 / 11 cases passed, including a blocked bare safe-view `SELECT`
+  attempted directly by the generated runtime credential.
 - Status: experimental database-resident structural enforcement path; API
   AST preflight remains defense in depth.
 
 Adversarial SQL:
 
 - Script: `paper/tdsc/scripts/adversarial_sql_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260707_163408.json`
+- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260707_182701.json`
 - Result: 28 / 28 expected classifications passed
 - Classification counts: 22 blocked, 5 allowed but accounted, 1 known limitation
 

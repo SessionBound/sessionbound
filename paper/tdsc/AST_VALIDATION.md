@@ -4,11 +4,11 @@
 
 - Implementation: `app/sql_ast_validator.py`
 - Parser: `sqlglot==30.12.0`
-- Runtime integration: API-layer preflight after token binding and before
-  `taskbound.run(...)`
+- Runtime integration: API-layer preflight after token binding and before the
+  SDK-backed query path calls `taskbound.run(...)`
 - Database hook companion: `postgres/sessionbound_guard/`
 - Evaluation script: `paper/tdsc/scripts/ast_validation_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260707_163514.json`
+- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260707_182706.json`
 - Result: 17 / 17 cases passed
 
 This is an AST-level prototype validator for query-shape analysis before
@@ -73,7 +73,10 @@ Acceptable wording for the paper:
 ```text
 The hardening prototype includes both API-layer AST validation and an
 experimental PostgreSQL hook path for structural SQL enforcement. The database
-also enforces no raw schema grants, safe views, budgets, and receipts. A
-production implementation should harden this path into planner/executor-level
-enforcement and out-of-transaction denial logging.
+also enforces no raw schema grants and no bare safe-view `SELECT` grants for
+runtime credentials; approved safe-view SQL is exposed to agents through
+`TaskboundSession.query(sql)` and accounted through `taskbound.run(...)`. A
+production implementation that exposes native agent `SELECT` syntax should
+harden this path into planner/executor-level accounting, receipt emission before
+client release, and out-of-transaction denial logging.
 ```

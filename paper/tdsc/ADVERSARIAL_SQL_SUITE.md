@@ -3,7 +3,7 @@
 ## Status
 
 - Script: `paper/tdsc/scripts/adversarial_sql_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260707_163408.json`
+- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260707_182701.json`
 - API target: `http://localhost:8000`
 - Cases: 28
 - Passed expected classification: 28 / 28

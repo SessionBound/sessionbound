@@ -16,6 +16,8 @@ measured experiment artifacts, and hardening reports.
 - `scripts/`: latest hardening evaluation scripts.
 - `POSTGRES_HOOK_ENFORCEMENT.md`: PostgreSQL hook prototype notes and
   evaluation summary.
+- `SDK_QUERY_SURFACE.md`: agent-facing `query(sql)` SDK notes and evaluation
+  summary.
 - `FINAL_HARDENING_REPORT.md`: current hardening status and blockers.
 
 ## Build

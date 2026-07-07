@@ -25,7 +25,13 @@ It enforces:
 
 ## SQL Entry Point
 
-The prototype uses controlled entry points:
+The prototype exposes a native-feeling SDK method:
+
+```python
+rows = session.query("SELECT * FROM expenses LIMIT 10")
+```
+
+The SDK wraps the supplied SQL in controlled database entry points:
 
 ```sql
 SELECT taskbound.bind_task(:payload_text, :signature_hex);
@@ -33,7 +39,9 @@ SELECT * FROM taskbound.run(:sql);
 SELECT * FROM taskbound.command(:command_name, :json_args);
 ```
 
-The agent can generate SQL, but it cannot directly widen the database session's authority.
+The agent can generate SQL, but runtime credentials are not granted bare
+`SELECT` on safe views and cannot directly widen the database session's
+authority.
 
 ## Safe Views
 

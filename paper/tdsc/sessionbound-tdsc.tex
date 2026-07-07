@@ -612,6 +612,20 @@ task token. The session may issue open-ended SQL, but every attempt is
 checked against the token, safe view registry, operation policy, and
 remaining budget.
 
+In the current prototype, a direct database connection does not mean
+bare \texttt{SELECT} privilege on safe views. The generated runtime
+credential may bind one task and call \texttt{taskbound.run},
+\texttt{taskbound.command}, and receipt/state inspection functions, but
+it is not granted \texttt{SELECT} on either raw application tables or the
+safe-view schema. Thus a direct PostgreSQL connection can bypass the HTTP
+API, but it cannot bypass the runtime accounting path: approved SQL over
+safe views must still be submitted through the SDK's \texttt{query(sql)}
+method, which wraps \texttt{taskbound.run}; query budgets, disclosure
+budgets, and receipts are applied there. A production deployment that
+chooses to expose native bare \texttt{SELECT} syntax to agents must move
+this same accounting contract into always-on planner/executor hooks
+before any rows are released to the client.
+
 A connection may bind at most one active task token. Rebinding is
 denied. When the token expires or is revoked, further
 \texttt{taskbound.run} calls fail.
@@ -791,10 +805,14 @@ the discoverable surface and make it governable.
 \hypertarget{operation-policy}{%
 \subsection{Operation policy}\label{operation-policy}}
 
-\texttt{taskbound.run(sql)} is intended for read-only analytical SQL.
-High-value writes should use controlled commands or stored procedures.
-The runtime rejects mutations, DDL, unsafe utility commands, raw schema
-access, denied fields, and blocked schemas.
+\texttt{taskbound.run(sql)} is the database accounting entrypoint for
+read-only analytical SQL. The agent-facing SDK exposes this as a
+native-feeling \texttt{query(sql)} method: the agent supplies ordinary SQL
+over approved safe-view names, and the SDK submits that SQL as a
+parameter to \texttt{taskbound.run}. High-value writes should use
+controlled commands or stored procedures. The runtime rejects mutations,
+DDL, unsafe utility commands, raw schema access, denied fields, and
+blocked schemas.
 
 \hypertarget{query-decision-pipeline}{%
 \subsection{Query decision
@@ -1176,6 +1194,8 @@ The current prototype includes:
 \item
   \texttt{taskbound.bind\_task(payload,\ signature)};
 \item
+  an agent SDK with \texttt{TaskboundSession.query(sql)};
+\item
   \texttt{taskbound.run(sql)};
 \item
   sensitive field denial;
@@ -1201,8 +1221,15 @@ honesty}\label{implementation-honesty}}
 The current hardening prototype uses API-layer AST preflight,
 conservative database-side checks, a database-resident PostgreSQL hook
 path, and PostgreSQL permissions. Agents do not receive raw schema
-grants. Agents call \texttt{taskbound.run(sql)}. The runtime role cannot
-access \texttt{app\_data} directly. Safe views are the query surface.
+grants. Agents call the SDK's \texttt{query(sql)} method; the SDK calls
+\texttt{taskbound.run(sql)} with the supplied SQL as a parameter. The
+runtime role cannot access \texttt{app\_data} directly. In this
+prototype, agents also do not receive bare \texttt{SELECT} grants on the
+safe views; safe views are the logical query surface, but
+\texttt{taskbound.run} is the database accounting entrypoint. A bare
+direct query such as
+\texttt{SELECT ... FROM taskbound.expenses} is denied by PostgreSQL
+privilege checks rather than being allowed outside the receipt chain.
 High-value writes go through controlled commands.
 
 The database hook path is implemented by the
@@ -1247,6 +1274,12 @@ structural policy into:
 \item
   blocked unsafe utility commands;
 \item
+  executor-level result accounting for deployments that allow native
+  agent \texttt{SELECT} syntax, including query-budget debit before
+  execution, bounded result materialization or streaming interception,
+  disclosure-budget accounting before client release, and receipt
+  emission through an audit path that survives transaction aborts;
+\item
   \texttt{statement\_timeout} and resource limits;
 \item
   cleanup for expired short-lived roles;
@@ -1262,7 +1295,7 @@ catalog access, mutations, DDL, \texttt{COPY}, \texttt{SET},
 CTEs, \texttt{UNION}/\texttt{INTERSECT}/\texttt{EXCEPT} stacking,
 unknown functions, denied-field aliases, and high-risk payload
 aggregation functions. The API AST validation evaluation passed 17 of 17
-query-shape cases, and the PostgreSQL hook evaluation passed 10 of 10
+query-shape cases, and the PostgreSQL hook evaluation passed 11 of 11
 direct database enforcement cases.
 
 \hypertarget{query-example}{%
@@ -1344,13 +1377,15 @@ outputs are stored under \texttt{paper/tdsc/raw\_results/}.
 
 The AST and adversarial SQL evaluations exercise the HTTP API, including
 dynamic credential issuance, signed task-token creation, token binding,
-AST preflight, \texttt{taskbound.run}, budget state, and receipts. The
-hook evaluation bypasses the API query endpoint for agent cases by using
-generated runtime credentials directly against PostgreSQL, and it uses
-trusted superuser setup for hook-only structural checks. The overhead
-breakdown uses direct PostgreSQL connections from the Compose network so
-that it isolates database runtime overhead from HTTP, model calls,
-dynamic credential creation, and API-layer AST parsing.
+AST preflight, the SDK-backed query path, budget state, and receipts. A
+separate SDK surface evaluation calls \texttt{TaskboundSession.query(sql)}
+directly from the Compose network. The hook evaluation bypasses the API
+query endpoint for agent cases by using generated runtime credentials
+directly against PostgreSQL, and it uses trusted superuser setup for
+hook-only structural checks. The overhead breakdown uses direct
+PostgreSQL connections from the Compose network so that it isolates
+database runtime overhead from HTTP, model calls, dynamic credential
+creation, and API-layer AST parsing.
 
 \hypertarget{functional-validation}{%
 \subsection{Functional validation}\label{functional-validation}}
@@ -1451,22 +1486,39 @@ checks for the main tested attack families. The remaining small-group
 aggregate case motivates minimum group-size rules, aggregate sensitivity
 scoring, and stronger inference-control work.
 
+We separately evaluated the native-feeling SDK query surface. The SDK
+suite passed 2 of 2 cases: \texttt{TaskboundSession.query(sql)} returned
+two safe-view rows, incremented the task query count to one, and produced
+an allow receipt with two returned rows; a bare
+\texttt{SELECT ... FROM taskbound.expenses} in the same bound session was
+blocked by PostgreSQL privileges. This establishes the intended user
+experience boundary: agents can write ordinary analytical SQL through
+\texttt{query(sql)}, while bypassing the SDK does not bypass the
+accounting path.
+
 We also evaluated the database hook path directly. The
-\texttt{sessionbound\_guard} suite passed 10 of 10 cases. It confirmed
+\texttt{sessionbound\_guard} suite passed 11 of 11 cases. It confirmed
 that ordinary agent roles cannot enable trusted guard GUCs, that an
-approved safe-view \texttt{SELECT} succeeds through a direct database
-credential call, and that \texttt{UNION} stacking, catalog access,
-recursive CTEs, direct runtime-helper abuse, non-\texttt{SELECT} SQL, raw
-schema access, payload aggregation, and unapproved safe-view OIDs are
-blocked by the database path.
+approved query over safe views succeeds when a direct database credential
+calls \texttt{taskbound.run}, and that \texttt{UNION} stacking, catalog
+access, recursive CTEs, direct runtime-helper abuse, non-\texttt{SELECT}
+SQL, raw schema access, payload aggregation, and unapproved safe-view
+OIDs are blocked by the database path. It also confirms that a bare
+safe-view \texttt{SELECT} by the generated credential is blocked by
+database privileges. The table's ``direct database''
+wording means that the experiment bypasses the HTTP API and connects to
+PostgreSQL as the generated runtime credential; it does not mean that the
+credential is granted bare \texttt{SELECT} over safe views.
 
 \begin{table*}[!t]
 \centering
 \scriptsize
 \setlength{\tabcolsep}{3pt}
 \caption{PostgreSQL hook enforcement evaluation. Agent cases bypass the
-API query endpoint and call PostgreSQL directly as the generated runtime
-credential.}
+API query endpoint and connect to PostgreSQL directly as the generated
+runtime credential; approved SQL is still submitted through
+\texttt{taskbound.run}, because the runtime credential has no bare
+\texttt{SELECT} grant on safe views.}
 \label{tab:postgres-hook}
 \begin{tabular}{@{}
   >{\raggedright\arraybackslash}p{0.24\textwidth}
@@ -1477,9 +1529,10 @@ credential.}
 Case group & Enforcement path & Result & Notes \\
 \midrule
 Trusted GUC tamper & Non-superuser direct DB session & 1 blocked / 1 & Ordinary agent role cannot set SUSET guard GUCs \\
-Safe-view query & Agent credential direct DB call & 1 allowed / 1 & Approved safe-view relation OIDs accepted \\
-Set operation, catalog, recursive CTE & Agent credential direct DB call & 3 blocked / 3 & Denied by parser/analyzer hook \\
-Runtime helper abuse & Agent credential direct DB call & 1 blocked / 1 & Runtime wrapper denies direct helper calls \\
+Safe-view query through runtime & Agent credential direct DB connection calling \texttt{taskbound.run} & 1 allowed / 1 & Approved safe-view relation OIDs accepted; runtime produces budget/accounting receipt \\
+Bare safe-view query & Agent credential direct DB session without \texttt{taskbound.run} & 1 blocked / 1 & No bare safe-view \texttt{SELECT} grant; cannot bypass accounting path \\
+Set operation, catalog, recursive CTE & Agent credential direct DB connection calling \texttt{taskbound.run} & 3 blocked / 3 & Denied by parser/analyzer hook \\
+Runtime helper abuse & Agent credential direct DB connection calling \texttt{taskbound.run} & 1 blocked / 1 & Runtime wrapper denies direct helper calls \\
 Hook-only structural checks & Trusted-GUC hook check without API preflight & 4 blocked / 4 & Non-\texttt{SELECT}, raw schema, payload aggregation, and unapproved safe-view OID denied \\
 \bottomrule
 \end{tabular}

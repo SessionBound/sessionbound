@@ -8,8 +8,8 @@
 - Runtime entrypoint: `public.sessionbound_guard_check(sql_text)`
 - Trusted context: SUSET GUCs set by `taskbound.bind_task(...)`
 - Evaluation script: `paper/tdsc/scripts/sessionbound_guard_hook_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/sessionbound_guard_hook_20260707_164553.json`
-- Result: 10 / 10 cases passed
+- Latest raw result: `paper/tdsc/raw_results/sessionbound_guard_hook_20260707_182650.json`
+- Result: 11 / 11 cases passed
 
 The hardening prototype now includes both API-layer AST validation and an
 experimental PostgreSQL hook path for structural SQL enforcement.
@@ -59,15 +59,21 @@ The hook rejects:
 | Case group | Path | Result |
 |---|---|---:|
 | Trusted GUC tamper attempt | non-superuser direct DB session | 1 / 1 blocked |
-| Safe-view `SELECT` | agent credential direct DB call | 1 / 1 allowed |
-| `UNION`, catalog access, recursive CTE | agent credential direct DB call | 3 / 3 blocked |
-| Runtime helper abuse | agent credential direct DB call | 1 / 1 blocked |
+| Safe-view SQL through `taskbound.run` | agent credential direct DB connection | 1 / 1 allowed |
+| Bare safe-view `SELECT` | agent credential direct DB session without `taskbound.run` | 1 / 1 blocked |
+| `UNION`, catalog access, recursive CTE | agent credential direct DB connection through `taskbound.run` | 3 / 3 blocked |
+| Runtime helper abuse | agent credential direct DB connection through `taskbound.run` | 1 / 1 blocked |
 | Non-`SELECT`, raw schema, payload aggregation, unapproved safe-view OID | superuser trusted-GUC hook check, no API preflight | 4 / 4 blocked |
-| Total | mixed direct database paths | 10 / 10 passed |
+| Total | mixed direct database paths | 11 / 11 passed |
 
 The hook evaluation intentionally bypasses the `/agent-query` API preflight for
-the agent cases by connecting directly as the generated runtime credential. The
-hook-only cases use trusted superuser setup to exercise the extension path
+the agent cases by connecting directly as the generated runtime credential, then
+calling `taskbound.bind_task(...)` and `taskbound.run(...)` from that PostgreSQL
+session. This is a direct database connection, not a bare safe-view `SELECT`.
+The generated runtime credential has no `SELECT` grant on `taskbound` safe
+views or `app_data` tables, so `SELECT ... FROM taskbound.expenses` is denied by
+PostgreSQL privileges instead of running outside budget and receipt accounting.
+The hook-only cases use trusted superuser setup to exercise the extension path
 without the API validator.
 
 ## Boundary
@@ -75,5 +81,8 @@ without the API validator.
 This is a real database-resident hook prototype, but it is still experimental.
 It validates SQL through PostgreSQL parse/analyze before dynamic execution; it
 does not yet provide a production-grade planner or executor hook, optimized
-accounting, or out-of-transaction denial logging. The API-layer AST validator
+accounting, bare-`SELECT` result accounting, or out-of-transaction denial
+logging. A deployment that grants native agent `SELECT` on safe views must move
+query-budget debit, disclosure accounting, and receipt emission into an
+always-on executor path before releasing rows. The API-layer AST validator
 remains as defense in depth and as a portable preflight path.
