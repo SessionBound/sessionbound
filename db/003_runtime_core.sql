@@ -47,6 +47,7 @@ DECLARE
   v_credential record;
   v_binding record;
   v_expected_snapshot jsonb;
+  v_allowed_view_oids text;
 BEGIN
   p := payload_text::jsonb;
   SELECT signing_keys.secret INTO secret
@@ -171,6 +172,16 @@ BEGIN
         credential_id = EXCLUDED.credential_id,
         payload = EXCLUDED.payload,
         bound_at = now();
+
+  SELECT COALESCE(string_agg((database_object::regclass)::oid::text, ',' ORDER BY view_name), '')
+  INTO v_allowed_view_oids
+  FROM taskbound.safe_view_registry
+  WHERE view_name = ANY(taskbound.jsonb_text_array(p->'allowed_views'));
+
+  PERFORM set_config('sessionbound_guard.task_bound', 'on', false);
+  PERFORM set_config('sessionbound_guard.task_id', v_task_id, false);
+  PERFORM set_config('sessionbound_guard.allowed_view_oids', v_allowed_view_oids, false);
+  PERFORM set_config('sessionbound_guard.enabled', 'off', false);
 
   RETURN jsonb_build_object(
     'bound', true,

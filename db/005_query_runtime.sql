@@ -76,6 +76,16 @@ BEGIN
     RAISE EXCEPTION 'SessionBoundDB denied query: direct access to internal schemas or state tables is not allowed';
   END IF;
 
+  IF lowered ~ '\mtaskbound\s*\.' THEN
+    PERFORM taskbound.fail_receipt(sql_text, 'direct access to taskbound runtime functions or objects is not allowed');
+    RAISE EXCEPTION 'SessionBoundDB denied query: direct access to taskbound runtime functions or objects is not allowed';
+  END IF;
+
+  IF lowered ~ '\m(claim|current_payload|require_payload)\s*\(' THEN
+    PERFORM taskbound.fail_receipt(sql_text, 'direct access to taskbound runtime helper functions is not allowed');
+    RAISE EXCEPTION 'SessionBoundDB denied query: direct access to taskbound runtime helper functions is not allowed';
+  END IF;
+
   IF lowered ~ '\m(bank_account|phone|salary)\M' THEN
     PERFORM taskbound.fail_receipt(sql_text, 'sensitive column is outside this task capability');
     RAISE EXCEPTION 'SessionBoundDB denied query: sensitive column is outside this task capability';
@@ -114,17 +124,24 @@ BEGIN
     unique_before := 0;
   END IF;
 
-  FOR row_item IN EXECUTE sql_text LOOP
-    row_json := to_jsonb(row_item);
-    rows := array_append(rows, row_json);
-    rows_returned := rows_returned + 1;
+  BEGIN
+    PERFORM public.sessionbound_guard_check(sql_text);
 
-    IF v_budget_accounting_enabled AND row_json ? 'expense_id' THEN
-      INSERT INTO taskbound.task_rows_seen (budget_account, row_kind, row_id)
-      VALUES (v_budget_account, 'expense', row_json->>'expense_id')
-      ON CONFLICT DO NOTHING;
-    END IF;
-  END LOOP;
+    FOR row_item IN EXECUTE sql_text LOOP
+      row_json := to_jsonb(row_item);
+      rows := array_append(rows, row_json);
+      rows_returned := rows_returned + 1;
+
+      IF v_budget_accounting_enabled AND row_json ? 'expense_id' THEN
+        INSERT INTO taskbound.task_rows_seen (budget_account, row_kind, row_id)
+        VALUES (v_budget_account, 'expense', row_json->>'expense_id')
+        ON CONFLICT DO NOTHING;
+      END IF;
+    END LOOP;
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM taskbound.fail_receipt(sql_text, SQLERRM);
+    RAISE EXCEPTION 'SessionBoundDB denied query: %', SQLERRM;
+  END;
 
   IF v_budget_accounting_enabled THEN
     SELECT count(*) INTO unique_after

@@ -6,13 +6,16 @@
 - Parser: `sqlglot==30.12.0`
 - Runtime integration: API-layer preflight after token binding and before
   `taskbound.run(...)`
+- Database hook companion: `postgres/sessionbound_guard/`
 - Evaluation script: `paper/tdsc/scripts/ast_validation_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260707_065023.json`
+- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260707_163514.json`
 - Result: 17 / 17 cases passed
 
 This is an AST-level prototype validator for query-shape analysis before
-SessionBoundDB execution. It is not a PostgreSQL parser hook or kernel-level
-enforcement path.
+SessionBoundDB execution. The hardening prototype now also includes an
+experimental PostgreSQL `post_parse_analyze_hook` path for database-resident
+structural enforcement; this API validator remains defense in depth and a
+portable preflight path.
 
 ## Extracted Structure
 
@@ -68,9 +71,9 @@ invoke `taskbound.run(...)`.
 Acceptable wording for the paper:
 
 ```text
-The prototype now includes AST-level preflight validation before invoking the
-SessionBoundDB runtime. The database still enforces no raw schema grants, safe
-views, budgets, and receipts. A production implementation should move the same
-structural checks into PostgreSQL parser/planner hooks or an extension-level
-enforcement path.
+The hardening prototype includes both API-layer AST validation and an
+experimental PostgreSQL hook path for structural SQL enforcement. The database
+also enforces no raw schema grants, safe views, budgets, and receipts. A
+production implementation should harden this path into planner/executor-level
+enforcement and out-of-transaction denial logging.
 ```

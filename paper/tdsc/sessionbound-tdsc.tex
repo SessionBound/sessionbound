@@ -134,8 +134,11 @@ task templates, accepts task applications, applies grants and approvals,
 assigns TTLs and budgets, and issues signed task tokens. A database
 runtime, SessionBoundDB, binds an approved task token to a
 short-lived agent session and enforces safe views, row scope, denied
-fields, operation limits, query budgets, disclosure budgets, and query
-receipts at SQL execution time.
+fields, operation limits, structural SQL policy, query budgets,
+disclosure budgets, and query receipts at SQL execution time. The
+hardening prototype includes both API-layer AST validation and an
+experimental PostgreSQL hook path for database-resident structural SQL
+enforcement.
 
 SessionBound does not require the database to parse natural-language
 task descriptions, nor does it trust the agent or an LLM to correctly
@@ -294,10 +297,13 @@ This paper makes five contributions.
 \item
   PostgreSQL prototype and hardening analysis. We implement
   SessionBoundDB as a PostgreSQL-based runtime for SessionBound and
-  demonstrate it on enterprise travel reimbursement analysis. We also
-  analyze anti-evasion scope, budget semantics, schema drift,
-  credential-token binding, receipt structure, and
-  prototype-to-production hardening requirements.
+  demonstrate it on enterprise travel reimbursement analysis. The
+  hardening prototype includes a \texttt{sessionbound\_guard} C extension
+  loaded through \texttt{shared\_preload\_libraries} that uses
+  PostgreSQL's \texttt{post\_parse\_analyze\_hook} to reject unsafe SQL
+  structures before dynamic execution. We also analyze anti-evasion
+  scope, budget semantics, schema drift, credential-token binding,
+  receipt structure, and prototype-to-production hardening requirements.
 \end{enumerate}
 
 
@@ -528,7 +534,7 @@ The prototype does not solve:
 \item
   complete formal verification of SQL equivalence;
 \item
-  production-grade SQL AST enforcement;
+  production-grade planner/executor-level SQL enforcement;
 \item
   cross-database federation;
 \item
@@ -990,12 +996,13 @@ a formal proof that all semantic inference is impossible.
 \end{itemize}
 
 In the prototype, I1--I2 and I8 are checked during
-\texttt{taskbound.bind\_task}; I3--I4 are checked by the AST preflight
-and database permissions; I5 is enforced by safe-view predicates; I6 is
-implemented through task execution state; and I7 is implemented through
-allow/deny receipts. Production implementations should move the
-structural checks into parser-, planner-, or extension-level database
-hooks, but the invariant set is independent of that implementation
+\texttt{taskbound.bind\_task}; I3--I4 are checked by API-layer AST
+preflight, the experimental \texttt{sessionbound\_guard} PostgreSQL
+hook path, and database permissions; I5 is enforced by safe-view
+predicates; I6 is implemented through task execution state; and I7 is
+implemented through allow/deny receipts. Production implementations
+should harden these structural checks into always-on planner or executor
+integration, but the invariant set is independent of that implementation
 choice.
 
 
@@ -1084,9 +1091,9 @@ Mutation & \texttt{DELETE}, \texttt{UPDATE}, \texttt{INSERT} & operation
 policy; read-only \texttt{run} path & writes require controlled
 commands \\
 DDL & \texttt{DROP}, \texttt{ALTER}, \texttt{CREATE} & blocked
-operations & production should use AST validation \\
+operations & production should use hook-backed validation \\
 Catalog escape & \texttt{pg\_catalog}, \texttt{information\_schema} &
-blocked schemas and no grants & production needs parser/hooks \\
+blocked schemas and no grants & production needs planner/executor hooks \\
 Pagination scraping & repeated \texttt{LIMIT/OFFSET} & query budget and
 disclosure budget & budget model matters \\
 JSON / array payload aggregation & payload aggregation functions &
@@ -1388,32 +1395,50 @@ production-grade SQL safety proof.
 \subsection{Implementation
 honesty}\label{implementation-honesty}}
 
-The current prototype uses AST-level API preflight, conservative
-database-side checks, and PostgreSQL permissions. Agents do not receive
-raw schema grants. Agents call \texttt{taskbound.run(sql)}. The runtime
-role cannot access \texttt{app\_data} directly. Safe views are the query
-surface. High-value writes go through controlled commands.
+The current hardening prototype uses API-layer AST preflight,
+conservative database-side checks, a database-resident PostgreSQL hook
+path, and PostgreSQL permissions. Agents do not receive raw schema
+grants. Agents call \texttt{taskbound.run(sql)}. The runtime role cannot
+access \texttt{app\_data} directly. Safe views are the query surface.
+High-value writes go through controlled commands.
 
-The AST preflight is intentionally framed as a prototype: it runs after
-token binding and before invoking \texttt{taskbound.run}. If preflight
-denies a query, the API records a denial receipt through
-\texttt{taskbound.fail\_receipt} and does not call the runtime wrapper.
-The database still enforces no raw schema grants, safe views, budgets,
-and receipts. This is stronger than purely lexical checks, but it is not
-a PostgreSQL parser hook.
+The database hook path is implemented by the
+\texttt{sessionbound\_guard} C extension, loaded through
+\texttt{shared\_preload\_libraries}. The extension registers
+\texttt{post\_parse\_analyze\_hook} and reads trusted SUSET GUCs populated
+by \texttt{taskbound.bind\_task}, including the bound task state and the
+approved safe-view OIDs from the runtime registry. Before dynamic
+execution, \texttt{taskbound.run} calls
+\texttt{public.sessionbound\_guard\_check(sql)}, which uses
+\texttt{SPI\_prepare} to trigger PostgreSQL parse/analyze on the exact SQL
+text. If the hook denies the query, the runtime emits a denial receipt and
+raises an error before execution.
 
-A production implementation should move the same structural policy into:
+The hook rejects non-\texttt{SELECT} statements, raw
+\texttt{app\_data} relations, catalog access, recursive CTEs,
+\texttt{UNION}/\texttt{INTERSECT}/\texttt{EXCEPT}, unapproved relation
+OIDs, non-view relations, unsafe non-catalog functions, sensitive output
+aliases, and high-risk payload aggregation functions such as
+\texttt{json\_agg}, \texttt{jsonb\_agg}, \texttt{array\_agg},
+\texttt{string\_agg}, \texttt{xmlagg}, \texttt{row\_to\_json},
+\texttt{json\_build\_object}, and \texttt{jsonb\_build\_object}. The API
+AST validator remains defense in depth and provides portable preflight
+feedback before the database runtime is invoked.
+
+This should still be read as an experimental hook path, not a production
+SQL-safety proof. A production implementation should harden the same
+structural policy into:
 
 \begin{itemize}
 \tightlist
 \item
-  PostgreSQL parser hooks;
+  always-on PostgreSQL parser/analyzer hooks;
 \item
   planner hooks;
 \item
   executor hooks;
 \item
-  extension-level enforcement;
+  extension-level session state and registry management;
 \item
   deny-by-default schema grants;
 \item
@@ -1433,8 +1458,9 @@ catalog access, mutations, DDL, \texttt{COPY}, \texttt{SET},
 \texttt{SHOW}, \texttt{CREATE\ FUNCTION}, \texttt{DO} blocks, recursive
 CTEs, \texttt{UNION}/\texttt{INTERSECT}/\texttt{EXCEPT} stacking,
 unknown functions, denied-field aliases, and high-risk payload
-aggregation functions. The AST validation evaluation passed 17 of 17
-query-shape cases.
+aggregation functions. The API AST validation evaluation passed 17 of 17
+query-shape cases, and the PostgreSQL hook evaluation passed 10 of 10
+direct database enforcement cases.
 
 \hypertarget{query-example}{%
 \subsection{Query example}\label{query-example}}
@@ -1505,18 +1531,23 @@ synthetic dataset.
 \hypertarget{experimental-setup}{%
 \subsection{Experimental setup}\label{experimental-setup}}
 
-The latest hardening run used Docker Compose with PostgreSQL 16.14 and the
-FastAPI SessionBoundDB prototype. The repository branch was
-\texttt{c95e6ed}. The default seed
+The latest hardening run used Docker Compose with PostgreSQL 16.14, the
+FastAPI SessionBoundDB prototype, and the
+\texttt{sessionbound\_guard} extension loaded through
+\texttt{shared\_preload\_libraries}. The repository branch was
+\texttt{tdsc-hardening}. The default seed
 contains 430 expenses, 240 employees, and 124 departments. The raw
 outputs are stored under \texttt{paper/tdsc/raw\_results/}.
 
 The AST and adversarial SQL evaluations exercise the HTTP API, including
 dynamic credential issuance, signed task-token creation, token binding,
 AST preflight, \texttt{taskbound.run}, budget state, and receipts. The
-overhead breakdown uses direct PostgreSQL connections from the Compose
-network so that it isolates database runtime overhead from HTTP, model
-calls, dynamic credential creation, and API-layer AST parsing.
+hook evaluation bypasses the API query endpoint for agent cases by using
+generated runtime credentials directly against PostgreSQL, and it uses
+trusted superuser setup for hook-only structural checks. The overhead
+breakdown uses direct PostgreSQL connections from the Compose network so
+that it isolates database runtime overhead from HTTP, model calls,
+dynamic credential creation, and API-layer AST parsing.
 
 \hypertarget{functional-validation}{%
 \subsection{Functional validation}\label{functional-validation}}
@@ -1618,6 +1649,40 @@ checks for the main tested attack families. The remaining small-group
 aggregate case motivates minimum group-size rules, aggregate sensitivity
 scoring, and stronger inference-control work.
 
+We also evaluated the database hook path directly. The
+\texttt{sessionbound\_guard} suite passed 10 of 10 cases. It confirmed
+that ordinary agent roles cannot enable trusted guard GUCs, that an
+approved safe-view \texttt{SELECT} succeeds through a direct database
+credential call, and that \texttt{UNION} stacking, catalog access,
+recursive CTEs, direct runtime-helper abuse, non-\texttt{SELECT} SQL, raw
+schema access, payload aggregation, and unapproved safe-view OIDs are
+blocked by the database path.
+
+\begin{table*}[!t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{PostgreSQL hook enforcement evaluation. Agent cases bypass the
+API query endpoint and call PostgreSQL directly as the generated runtime
+credential.}
+\label{tab:postgres-hook}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.24\textwidth}
+  >{\raggedright\arraybackslash}p{0.34\textwidth}
+  >{\raggedright\arraybackslash}p{0.16\textwidth}
+  >{\raggedright\arraybackslash}p{0.16\textwidth}@{}}
+\toprule
+Case group & Enforcement path & Result & Notes \\
+\midrule
+Trusted GUC tamper & Non-superuser direct DB session & 1 blocked / 1 & Ordinary agent role cannot set SUSET guard GUCs \\
+Safe-view query & Agent credential direct DB call & 1 allowed / 1 & Approved safe-view relation OIDs accepted \\
+Set operation, catalog, recursive CTE & Agent credential direct DB call & 3 blocked / 3 & Denied by parser/analyzer hook \\
+Runtime helper abuse & Agent credential direct DB call & 1 blocked / 1 & Runtime wrapper denies direct helper calls \\
+Hook-only structural checks & Trusted-GUC hook check without API preflight & 4 blocked / 4 & Non-\texttt{SELECT}, raw schema, payload aggregation, and unapproved safe-view OID denied \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
 \hypertarget{performance-overhead-and-ablation}{%
 \subsection{Performance overhead and
 ablation}\label{performance-overhead-and-ablation}}
@@ -1639,8 +1704,8 @@ toggle.
 
 The main observation is that most overhead is already present in the
 safe-view-only mode. Raw and role-only queries are sub-millisecond, while
-safe-view-only p50 is 13.5--17.5 ms. Full SessionBound p50 is
-14.7--18.9 ms. Disabling receipts or budget accounting does not
+safe-view-only p50 is 13.3--18.1 ms. Full SessionBound p50 is
+14.6--18.6 ms. Disabling receipts or budget accounting does not
 consistently reduce latency, so receipt insertion and budget updates do
 not dominate this small-dataset benchmark. The likely dominant costs are
 safe-view predicates, repeated session-claim lookup, PL/pgSQL wrapper
@@ -1675,14 +1740,15 @@ not as an optimized execution engine.
 \hypertarget{remaining-gaps}{%
 \subsection{Discussion of remaining gaps}\label{remaining-gaps}}
 
-The hardening results improve direct SQL-structure coverage and make
-the overhead source clearer, but several gaps remain. The AST validator
-is still an API-layer preflight rather than a PostgreSQL parser hook.
-Small-group aggregate inference remains a known limitation. The budget
-vector is operational and does not provide formal differential privacy.
-The PL/pgSQL reference runtime has high scale-sensitive overhead, so a
-production design should move structural checks and accounting closer to
-PostgreSQL parse, plan, or executor hooks.
+The hardening results improve direct SQL-structure coverage and make the
+overhead source clearer, but several gaps remain. The PostgreSQL hook
+path is an experimental parse/analyze guard invoked before dynamic
+execution; it is not yet production-grade planner or executor
+enforcement. Small-group aggregate inference remains a known limitation.
+The budget vector is operational and does not provide formal differential
+privacy. The PL/pgSQL reference runtime has high scale-sensitive
+overhead, so a production design should move structural checks and
+accounting closer to PostgreSQL plan or executor hooks.
 
 \hypertarget{threat-to-defense-matrix}{%
 \subsection{Threat-to-defense
@@ -1769,11 +1835,11 @@ Schema drift token invalidation & Not tested & Not tested & Not tested & Not tes
 \toprule
 Pattern & Raw & Role & Safe view & RLS & SB no receipt & SB no budget & SB full \\
 \midrule
-SELECT & 0.222 & 0.242 & 14.316 & N/A & 15.085 & 14.554 & 14.672 \\
-JOIN & 0.167 & 0.171 & 17.474 & N/A & 18.445 & 18.482 & 18.859 \\
-GROUP BY & 0.174 & 0.208 & 13.942 & N/A & 17.335 & 15.448 & 15.307 \\
-CTE & 0.173 & 0.212 & 13.529 & N/A & 15.264 & 14.871 & 15.905 \\
-Window & 0.416 & 0.405 & 15.698 & N/A & 18.348 & 18.188 & 17.380 \\
+SELECT & 0.233 & 0.229 & 14.213 & N/A & 14.899 & 14.333 & 14.630 \\
+JOIN & 0.182 & 0.171 & 18.092 & N/A & 18.497 & 18.238 & 18.581 \\
+GROUP BY & 0.193 & 0.169 & 13.296 & N/A & 14.840 & 15.074 & 15.024 \\
+CTE & 0.176 & 0.175 & 13.525 & N/A & 14.529 & 15.098 & 15.425 \\
+Window & 0.351 & 0.347 & 13.828 & N/A & 15.089 & 14.852 & 15.854 \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -2006,10 +2072,11 @@ storage~\cite{alneyadi2016dlps,nist2026dlpglossary}.
 
 SessionBound composes these ideas for agent-generated SQL. It uses
 database-side safe views and grants for the data-plane boundary,
-AST-level preflight for query-shape checks in the prototype, and
-receipts plus budgets for task-session accountability. Unlike generic
-DLP, SessionBound accounts for authority spent inside an approved
-database task session rather than inspecting all enterprise data flows.
+API-layer AST preflight plus an experimental PostgreSQL hook path for
+query-shape checks in the hardening prototype, and receipts plus budgets
+for task-session accountability. Unlike generic DLP, SessionBound
+accounts for authority spent inside an approved database task session
+rather than inspecting all enterprise data flows.
 
 \hypertarget{oracle-dds-and-database-enforced-access-control}{%
 \subsection{Oracle DDS and database-enforced access
@@ -2073,22 +2140,22 @@ deployment may need to bind one approved task to Snowflake, BigQuery,
 PostgreSQL, vector stores, and lakehouse tables while preserving one
 budget, one approval record, and one receipt chain.
 
-Second, production-grade SQL enforcement should move from
-API-layer AST preflight, conservative checks, and database permissions
-toward parser-, planner-, or executor-level enforcement inside the
-database. This includes database-resident structural validation,
-PostgreSQL hooks, aggregate-function policies, catalog-access controls,
-and robust handling of generated SQL equivalence.
+Second, production-grade SQL enforcement should harden the current
+database hook prototype into planner- or executor-level enforcement
+inside PostgreSQL. The hardening prototype already includes
+database-resident structural validation through a
+\texttt{post\_parse\_analyze\_hook}; future work should make this path
+always on for task sessions, add deeper aggregate-function and
+catalog-access policies, and handle generated SQL equivalence more
+robustly.
 
-A concrete PostgreSQL extension path is to bind the task token once at
-session start, then use parse/analyze hooks to inspect the resolved query
-tree rather than SQL text. The hook can reject relations outside the
-safe-view registry, columns outside the task capability, mutating
-commands, catalog access, and disallowed aggregate functions after name
-resolution. Planner or executor hooks can attach task identifiers to the
-plan, account for returned business-object identifiers, and emit receipts
-without routing every query through a PL/pgSQL wrapper. This design is
-the natural next step suggested by the 100k-row scale sweep.
+A concrete PostgreSQL production path is to bind the task token once at
+session start, keep approved safe-view OIDs in trusted backend state,
+inspect the resolved query tree after name resolution, and then attach
+task identifiers to the plan or executor state. Planner or executor hooks
+can account for returned business-object identifiers and emit receipts
+without routing every query through a PL/pgSQL wrapper. This design is the
+natural next step suggested by the 100k-row scale sweep.
 
 Third, stronger disclosure accounting is needed. The current
 budget-vector model is operational rather than formal. Future work
@@ -2125,8 +2192,9 @@ Current limitations include:
 \begin{itemize}
 \tightlist
 \item
-  SQL validation now includes AST-level API preflight, but it is not
-  production-grade PostgreSQL parser/planner-hook enforcement;
+  SQL validation now includes AST-level API preflight and an experimental
+  PostgreSQL parse/analyze hook path, but it is not production-grade
+  planner/executor-level enforcement;
 \item
   the prototype targets a single PostgreSQL database;
 \item
@@ -2156,8 +2224,8 @@ Current limitations include:
 \item
   current performance results include microbenchmarks, overhead
   ablations, and a prior 1k/10k/100k synthetic scale sweep, but should
-  not be generalized to production workloads or an optimized parser-hook
-  implementation;
+  not be generalized to production workloads or an optimized
+  planner/executor-hook implementation;
 \item
   denial receipts may require out-of-transaction logging in production;
 \item

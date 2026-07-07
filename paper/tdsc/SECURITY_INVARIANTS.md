@@ -26,9 +26,9 @@ The decision function is:
 decide(q, S) -> allow(result, S') or deny(reason, receipt, S')
 ```
 
-The prototype implements this through `taskbound.bind_task(...)`,
-API-layer AST preflight, `taskbound.run(...)`, safe views, budget state,
-and query receipts.
+The prototype implements this through `taskbound.bind_task(...)`, API-layer AST
+preflight, the experimental `sessionbound_guard` PostgreSQL hook path,
+`taskbound.run(...)`, safe views, budget state, and query receipts.
 
 ## Invariants
 
@@ -48,8 +48,9 @@ I3. Referenced relations must belong to the approved safe-view registry.
 
 The signed token carries `allowed_views`; the API-layer AST preflight extracts
 referenced relations and rejects unapproved relations before invoking
-`taskbound.run`. The database also grants agent roles only the runtime
-functions, not raw schema tables.
+`taskbound.run`. The database also computes approved safe-view OIDs during
+`taskbound.bind_task(...)`, stores them in trusted SUSET GUCs, and the
+`sessionbound_guard` hook rejects relation OIDs outside that registry.
 
 I4. Direct access to denied fields, raw schemas, catalog escape, mutation,
 DDL, and blocked payload aggregation is denied.
@@ -58,7 +59,9 @@ The prototype detects denied field names and aliases, `app_data`,
 `pg_catalog`, `information_schema`, mutation/DDL/utility statements, recursive
 CTEs, set-operation stacking, and high-risk payload aggregation functions such
 as `json_agg`, `jsonb_agg`, `array_agg`, `string_agg`, `xmlagg`,
-`row_to_json`, `json_build_object`, and `jsonb_build_object`.
+`row_to_json`, `json_build_object`, and `jsonb_build_object`. These checks run
+through both the API-layer AST validator and the database-resident hook path for
+the evaluated cases.
 
 I5. Scope predicates or session-bound claims constrain visible rows.
 
@@ -88,8 +91,9 @@ stale safe-view registry version, policy version, or view-definition hash.
 
 ## Production Boundary
 
-The prototype now includes AST-level preflight validation before invoking the
-SessionBoundDB runtime. The database still enforces no raw schema grants, safe
-views, budgets, and receipts. A production implementation should move the same
-structural checks into PostgreSQL parser/planner hooks or an extension-level
-enforcement path.
+The hardening prototype now includes AST-level API preflight plus an
+experimental PostgreSQL `post_parse_analyze_hook` extension path before dynamic
+execution. The database also enforces no raw schema grants, safe views, budgets,
+and receipts. A production implementation should harden this path into
+always-on planner/executor integration, optimized accounting, and
+out-of-transaction denial logging.

@@ -1,0 +1,185 @@
+{
+  "records": [
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "permission denied to set parameter",
+      "id": "HGUC",
+      "name": "trusted_guc_requires_superuser",
+      "passed": true,
+      "path": "non-superuser GUC tamper attempt",
+      "psql": {
+        "output_tail": "SET\nERROR:  permission denied to set parameter \"sessionbound_guard.enabled\"",
+        "returncode": 3,
+        "stderr": "ERROR:  permission denied to set parameter \"sessionbound_guard.enabled\"\n",
+        "stdout": "SET\n"
+      },
+      "reason_matched": true
+    },
+    {
+      "actual": "Allowed",
+      "expected": "Allowed",
+      "expected_reason": "",
+      "id": "HG01",
+      "name": "allowed_safe_view_select",
+      "passed": true,
+      "path": "agent credential direct database call",
+      "psql": {
+        "output_tail": "bind_task                                                                                                      \n--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1783412821\", \"credential_id\": \"agent_hook_eval_1783412821_2011ae62\", \"budget_account\": \"task_hook_eval_1783412821\"}\n(1 row)\n\n                      run                      \n-----------------------------------------------\n {\"amount\": 17200.00, \"expense_id\": \"exp_296\"}\n {\"amount\": 16550.00, \"expense_id\": \"exp_259\"}\n(2 rows)",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "                                                                                                     bind_task                                                                                                      \n--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1783412821\", \"credential_id\": \"agent_hook_eval_1783412821_2011ae62\", \"budget_account\": \"task_hook_eval_1783412821\"}\n(1 row)\n\n                      run                      \n-----------------------------------------------\n {\"amount\": 17200.00, \"expense_id\": \"exp_296\"}\n {\"amount\": 16550.00, \"expense_id\": \"exp_259\"}\n(2 rows)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "UNION, INTERSECT, and EXCEPT are not allowed",
+      "id": "HG02",
+      "name": "hook_blocks_union",
+      "passed": true,
+      "path": "agent credential direct database call",
+      "psql": {
+        "output_tail": "bind_task                                                                                                      \n--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1783412821\", \"credential_id\": \"agent_hook_eval_1783412821_2011ae62\", \"budget_account\": \"task_hook_eval_1783412821\"}\n(1 row)\n\nERROR:  SessionBoundDB denied query: SessionBound guard denied query: UNION, INTERSECT, and EXCEPT are not allowed\nCONTEXT:  PL/pgSQL function run(text) line 111 at RAISE",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBoundDB denied query: SessionBound guard denied query: UNION, INTERSECT, and EXCEPT are not allowed\nCONTEXT:  PL/pgSQL function run(text) line 111 at RAISE\n",
+        "stdout": "                                                                                                     bind_task                                                                                                      \n--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1783412821\", \"credential_id\": \"agent_hook_eval_1783412821_2011ae62\", \"budget_account\": \"task_hook_eval_1783412821\"}\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT expense_id FROM expenses UNION SELECT employee_id FROM employees"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "catalog access is not allowed",
+      "id": "HG03",
+      "name": "hook_blocks_catalog_view",
+      "passed": true,
+      "path": "agent credential direct database call",
+      "psql": {
+        "output_tail": "bind_task                                                                                                      \n--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1783412821\", \"credential_id\": \"agent_hook_eval_1783412821_2011ae62\", \"budget_account\": \"task_hook_eval_1783412821\"}\n(1 row)\n\nERROR:  SessionBoundDB denied query: SessionBound guard denied query: catalog access is not allowed\nCONTEXT:  PL/pgSQL function run(text) line 111 at RAISE",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBoundDB denied query: SessionBound guard denied query: catalog access is not allowed\nCONTEXT:  PL/pgSQL function run(text) line 111 at RAISE\n",
+        "stdout": "                                                                                                     bind_task                                                                                                      \n--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1783412821\", \"credential_id\": \"agent_hook_eval_1783412821_2011ae62\", \"budget_account\": \"task_hook_eval_1783412821\"}\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT schemaname, tablename FROM pg_tables"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "recursive CTEs are not allowed",
+      "id": "HG04",
+      "name": "hook_blocks_recursive_cte",
+      "passed": true,
+      "path": "agent credential direct database call",
+      "psql": {
+        "output_tail": "bind_task                                                                                                      \n--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1783412821\", \"credential_id\": \"agent_hook_eval_1783412821_2011ae62\", \"budget_account\": \"task_hook_eval_1783412821\"}\n(1 row)\n\nERROR:  SessionBoundDB denied query: SessionBound guard denied query: recursive CTEs are not allowed\nCONTEXT:  PL/pgSQL function run(text) line 111 at RAISE",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBoundDB denied query: SessionBound guard denied query: recursive CTEs are not allowed\nCONTEXT:  PL/pgSQL function run(text) line 111 at RAISE\n",
+        "stdout": "                                                                                                     bind_task                                                                                                      \n--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1783412821\", \"credential_id\": \"agent_hook_eval_1783412821_2011ae62\", \"budget_account\": \"task_hook_eval_1783412821\"}\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM r WHERE n < 2) SELECT * FROM r"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "direct access to taskbound runtime helper functions is not allowed",
+      "id": "HG05",
+      "name": "runtime_helper_name_blocked",
+      "passed": true,
+      "path": "agent credential direct database call",
+      "psql": {
+        "output_tail": "bind_task                                                                                                      \n--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1783412821\", \"credential_id\": \"agent_hook_eval_1783412821_2011ae62\", \"budget_account\": \"task_hook_eval_1783412821\"}\n(1 row)\n\nERROR:  SessionBoundDB denied query: direct access to taskbound runtime helper functions is not allowed\nCONTEXT:  PL/pgSQL function run(text) line 54 at RAISE",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBoundDB denied query: direct access to taskbound runtime helper functions is not allowed\nCONTEXT:  PL/pgSQL function run(text) line 54 at RAISE\n",
+        "stdout": "                                                                                                     bind_task                                                                                                      \n--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1783412821\", \"credential_id\": \"agent_hook_eval_1783412821_2011ae62\", \"budget_account\": \"task_hook_eval_1783412821\"}\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT claim(ARRAY['tenant_id']) FROM expenses LIMIT 1"
+    },
+    {
+      "actual": "Blocked",
+      "allowed_views": "all",
+      "expected": "Blocked",
+      "expected_reason": "only SELECT statements are allowed",
+      "id": "HH01",
+      "name": "hook_blocks_non_select",
+      "passed": true,
+      "path": "superuser trusted-GUC hook check without API preflight",
+      "psql": {
+        "output_tail": " set_config \n------------\n on\n(1 row)\n\n          set_config           \n-------------------------------\n 16593,16585,16589,16580,16597\n(1 row)\n\nERROR:  SessionBound guard denied query: only SELECT statements are allowed\nCONTEXT:  SQL statement \"DELETE FROM expenses WHERE expense_id = 'exp_001'\"",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: only SELECT statements are allowed\nCONTEXT:  SQL statement \"DELETE FROM expenses WHERE expense_id = 'exp_001'\"\n",
+        "stdout": "SET\n set_config \n------------\n on\n(1 row)\n\n          set_config           \n-------------------------------\n 16593,16585,16589,16580,16597\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "DELETE FROM expenses WHERE expense_id = 'exp_001'"
+    },
+    {
+      "actual": "Blocked",
+      "allowed_views": "all",
+      "expected": "Blocked",
+      "expected_reason": "raw application schema access is not allowed",
+      "id": "HH02",
+      "name": "hook_blocks_raw_schema",
+      "passed": true,
+      "path": "superuser trusted-GUC hook check without API preflight",
+      "psql": {
+        "output_tail": " set_config \n------------\n on\n(1 row)\n\n          set_config           \n-------------------------------\n 16593,16585,16589,16580,16597\n(1 row)\n\nERROR:  SessionBound guard denied query: raw application schema access is not allowed\nCONTEXT:  SQL statement \"SELECT * FROM app_data.expenses\"",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: raw application schema access is not allowed\nCONTEXT:  SQL statement \"SELECT * FROM app_data.expenses\"\n",
+        "stdout": "SET\n set_config \n------------\n on\n(1 row)\n\n          set_config           \n-------------------------------\n 16593,16585,16589,16580,16597\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT * FROM app_data.expenses"
+    },
+    {
+      "actual": "Blocked",
+      "allowed_views": "all",
+      "expected": "Blocked",
+      "expected_reason": "payload aggregation function is not allowed",
+      "id": "HH03",
+      "name": "hook_blocks_payload_aggregation",
+      "passed": true,
+      "path": "superuser trusted-GUC hook check without API preflight",
+      "psql": {
+        "output_tail": " set_config \n------------\n on\n(1 row)\n\n          set_config           \n-------------------------------\n 16593,16585,16589,16580,16597\n(1 row)\n\nERROR:  SessionBound guard denied query: payload aggregation function is not allowed\nCONTEXT:  SQL statement \"SELECT array_agg(expense_id) FROM expenses\"",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: payload aggregation function is not allowed\nCONTEXT:  SQL statement \"SELECT array_agg(expense_id) FROM expenses\"\n",
+        "stdout": "SET\n set_config \n------------\n on\n(1 row)\n\n          set_config           \n-------------------------------\n 16593,16585,16589,16580,16597\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT array_agg(expense_id) FROM expenses"
+    },
+    {
+      "actual": "Blocked",
+      "allowed_views": "expenses_only",
+      "expected": "Blocked",
+      "expected_reason": "relation is outside the approved safe-view registry",
+      "id": "HH04",
+      "name": "hook_blocks_unapproved_safe_view_oid",
+      "passed": true,
+      "path": "superuser trusted-GUC hook check without API preflight",
+      "psql": {
+        "output_tail": " set_config \n------------\n on\n(1 row)\n\n set_config \n------------\n 16580\n(1 row)\n\nERROR:  SessionBound guard denied query: relation is outside the approved safe-view registry\nCONTEXT:  SQL statement \"SELECT department_id FROM departments\"",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: relation is outside the approved safe-view registry\nCONTEXT:  SQL statement \"SELECT department_id FROM departments\"\n",
+        "stdout": "SET\n set_config \n------------\n on\n(1 row)\n\n set_config \n------------\n 16580\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT department_id FROM departments"
+    }
+  ],
+  "run": {
+    "base_url": "http://localhost:8000",
+    "case_count": 10,
+    "commit": "c8b10b8",
+    "failed": 0,
+    "passed": 10,
+    "timestamp": "2026-07-07T08:27:02Z"
+  }
+}

@@ -12,6 +12,8 @@ Artifacts:
 - `HARDENING_REPORT.md`: baseline environment, startup, and execution notes.
 - `SECURITY_INVARIANTS.md`: enforcement state and invariants.
 - `AST_VALIDATION.md`: SQL structure validation design and evaluation.
+- `POSTGRES_HOOK_ENFORCEMENT.md`: experimental PostgreSQL hook enforcement
+  design and evaluation.
 - `ADVERSARIAL_SQL_SUITE.md`: adversarial SQL test suite and results.
 - `OVERHEAD_BREAKDOWN.md`: overhead measurements and interpretation.
 - `RELATED_WORK_EXPANSION.md`: verified related work notes.

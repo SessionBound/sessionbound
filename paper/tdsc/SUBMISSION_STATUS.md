@@ -30,9 +30,10 @@ This is a TDSC-oriented manuscript draft, not a final submission package.
   requirements, open-access choice, and submission metadata.
 - Confirm the current CAS / Chinese Academy of Sciences journal
   partition using the author's institution-approved list.
-- Treat current performance as a prototype limitation unless a lower-level
-  parser-hook/runtime path is implemented and measured. The 100k scale
-  sweep shows multi-second Full SessionBound p50 in the current PL/pgSQL
-  implementation.
+- Treat current performance as a prototype limitation even though the
+  experimental parse/analyze hook path is now implemented. The 100k scale sweep
+  shows multi-second Full SessionBound p50 in the current PL/pgSQL
+  implementation, so production-scale claims still require lower-level
+  planner/executor integration and runtime optimization.
 - Re-run layout review after the official IEEE/TDSC template and
   submission metadata are finalized.

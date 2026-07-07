@@ -1,4 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS sessionbound_guard;
 
 CREATE ROLE agent_runtime NOLOGIN;
 CREATE ROLE agent_app LOGIN PASSWORD 'agentpass';

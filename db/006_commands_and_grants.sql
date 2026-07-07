@@ -346,6 +346,7 @@ REVOKE ALL ON SCHEMA app_data FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA app_data FROM PUBLIC;
 REVOKE ALL ON SCHEMA taskbound FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA taskbound FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_check(text) FROM PUBLIC;
 
 GRANT USAGE ON SCHEMA taskbound TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.bind_task(text, text) TO agent_runtime;

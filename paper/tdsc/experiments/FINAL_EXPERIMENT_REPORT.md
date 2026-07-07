@@ -43,7 +43,7 @@ A synthetic 1k/10k/100k scoped-row scale sweep was measured in
 p50 was 14.77 ms for aggregate-by-category and 15.62 ms for top-k
 ordering, while Full SessionBound p50 was 6742.55 ms and 6965.09 ms,
 respectively. This confirms that the PL/pgSQL prototype is a security
-reference path and still needs parser-hook or lower-level execution
+reference path and still needs planner/executor-hook or lower-level execution
 engineering before production-scale claims.
 
 Concurrency smoke testing passed at 1, 5, and 20 concurrent sessions with
@@ -53,6 +53,6 @@ p95 was 110.356 ms.
 ## Remaining Work Before TDSC Submission
 
 - Treat performance as a prototype limitation unless a lower-level
-  parser-hook/runtime path is implemented and measured.
+  planner/executor-hook runtime path is implemented and measured.
 - Add broader scale and concurrency runs only after optimizing the
   execution path.

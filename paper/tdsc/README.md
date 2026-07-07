@@ -14,6 +14,8 @@ measured experiment artifacts, and hardening reports.
 - `experiments/`: baseline experiment scripts, raw results, and reports.
 - `raw_results/`: latest hardening raw JSON/CSV outputs.
 - `scripts/`: latest hardening evaluation scripts.
+- `POSTGRES_HOOK_ENFORCEMENT.md`: PostgreSQL hook prototype notes and
+  evaluation summary.
 - `FINAL_HARDENING_REPORT.md`: current hardening status and blockers.
 
 ## Build

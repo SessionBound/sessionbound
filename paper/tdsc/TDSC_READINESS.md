@@ -14,7 +14,11 @@ stronger than the prior draft.
 - Integrated AST preflight in `/query`, `/agent-query`, and `/agent-question`
   before `taskbound.run(...)`.
 - Recorded API-layer preflight denial receipts through `taskbound.fail_receipt`.
+- Added the `sessionbound_guard` PostgreSQL C extension, loaded through
+  `shared_preload_libraries`, with a `post_parse_analyze_hook` path for
+  structural SQL enforcement before dynamic execution.
 - Added AST validation script and raw results.
+- Added hook enforcement script and raw results.
 - Added 28-case adversarial SQL suite and raw results.
 - Added overhead breakdown script with raw JSON/CSV outputs.
 - Expanded related work to 29 verified references.
@@ -25,6 +29,7 @@ stronger than the prior draft.
 ## Evidence
 
 - AST validation: 17 / 17 cases passed.
+- PostgreSQL hook enforcement: 10 / 10 cases passed.
 - Adversarial SQL: 28 / 28 expected classifications passed.
 - Adversarial classifications: 22 blocked, 5 allowed but accounted, 1 known
   limitation.
@@ -34,8 +39,8 @@ stronger than the prior draft.
 
 ## Remaining Blockers
 
-- AST validation is API-layer preflight, not PostgreSQL parser/planner-hook
-  enforcement.
+- The PostgreSQL hook path is experimental parse/analyze enforcement, not yet
+  production-grade planner/executor enforcement.
 - Small-group aggregate inference remains a known limitation.
 - Disclosure budgets are operational controls, not formal differential privacy.
 - The PL/pgSQL reference runtime has high scale-sensitive overhead in prior

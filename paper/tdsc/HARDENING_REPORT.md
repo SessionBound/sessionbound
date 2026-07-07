@@ -3,8 +3,8 @@
 ## Baseline State
 
 - Date: 2026-07-07T14:30:06+08:00
-- Branch at run time: hardening branch
-- Commit: `c95e6eda73217a4565cb0add0abfd92a168b26ee`
+- Branch at run time: `tdsc-hardening`
+- Commit at latest hook run time: `c8b10b863f7f968382685602d107cc3aef62a005`
 - Docker Compose: `Docker Compose version v2.40.3-desktop.1`
 - Python: `Python 3.13.5`
 - PostgreSQL: `PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1)`
@@ -34,7 +34,7 @@ Startup result:
 
 ```text
 taskbound-api-1        taskbound-api   Up, 0.0.0.0:8000->8000/tcp
-taskbounddb-postgres   postgres:16     Up, healthy
+taskbounddb-postgres   taskbound-postgres:16-sessionbound     Up, healthy
 GET /                  200
 GET /docs              200
 ```
@@ -56,22 +56,37 @@ PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by g
 AST validation:
 
 - Script: `paper/tdsc/scripts/ast_validation_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260707_065023.json`
+- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260707_163514.json`
 - Result: 17 / 17 cases passed
 - Status: implemented as API-layer AST preflight before `taskbound.run(...)`
+
+PostgreSQL hook enforcement:
+
+- Extension: `postgres/sessionbound_guard/`
+- Load path: `shared_preload_libraries=sessionbound_guard`
+- Hook: PostgreSQL `post_parse_analyze_hook`, invoked through
+  `public.sessionbound_guard_check(sql_text)` before dynamic execution.
+- Trusted context: SUSET GUCs populated by `taskbound.bind_task(...)`,
+  including approved safe-view OIDs from `taskbound.safe_view_registry`.
+- Script: `paper/tdsc/scripts/sessionbound_guard_hook_eval.py`
+- Latest raw result:
+  `paper/tdsc/raw_results/sessionbound_guard_hook_20260707_164553.json`
+- Result: 10 / 10 cases passed
+- Status: experimental database-resident structural enforcement path; API
+  AST preflight remains defense in depth.
 
 Adversarial SQL:
 
 - Script: `paper/tdsc/scripts/adversarial_sql_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260707_145022.json`
+- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260707_163408.json`
 - Result: 28 / 28 expected classifications passed
 - Classification counts: 22 blocked, 5 allowed but accounted, 1 known limitation
 
 Overhead breakdown:
 
 - Script: `paper/tdsc/scripts/overhead_breakdown.py`
-- Latest raw JSON: `paper/tdsc/raw_results/overhead_breakdown_20260707_064236.json`
-- Latest raw CSV: `paper/tdsc/raw_results/overhead_breakdown_20260707_064236.csv`
+- Latest raw JSON: `paper/tdsc/raw_results/overhead_breakdown_20260707_084853.json`
+- Latest raw CSV: `paper/tdsc/raw_results/overhead_breakdown_20260707_084853.csv`
 - Result: 0 errors across supported modes
 - Main finding: safe-view/session-claim evaluation dominates the measured
   small-dataset overhead; receipts and budget updates do not dominate.
