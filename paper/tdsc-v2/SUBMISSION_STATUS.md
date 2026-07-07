@@ -25,7 +25,7 @@ This is a TDSC-oriented manuscript draft, not a final submission package.
 ## Still Required Before Formal Submission
 
 - Author affiliation and email are confirmed for the current manuscript:
-  Minmin Wu, China Telecom Global Limited, wuminmin@futurenetech.com.
+  Minmin Wu, China Telecom Global Limited, wuminmin@chinatelecomglobal.com.
 - Confirm the latest TDSC author instructions, review mode, template
   requirements, open-access choice, and submission metadata.
 - Confirm the current CAS / Chinese Academy of Sciences journal
