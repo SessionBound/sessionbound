@@ -140,6 +140,18 @@ hardening prototype includes both API-layer AST validation and an
 experimental PostgreSQL hook path for database-resident structural SQL
 enforcement.
 
+The current evaluation validates 24 of 24 canonical scenarios and a
+28-case adversarial SQL suite with 22 blocked cases, 5 allowed
+safe-view analytical cases, and 1 known limitation. Performance results
+separate the security model from the reference runtime. On the default
+synthetic seed, safe-view-only p50 latency is 13.3--18.1 ms and full
+SessionBound p50 latency is 14.6--18.6 ms, indicating that small-scale
+overhead is dominated by the safe-view/session runtime rather than by
+receipt-chain insertion or budget updates. A 100k-row synthetic scale
+sweep exposes multi-second latency in the current PL/pgSQL wrapper path,
+motivating a parser-, planner-, or executor-hook implementation for
+production deployments.
+
 SessionBound does not require the database to parse natural-language
 task descriptions, nor does it trust the agent or an LLM to correctly
 interpret or obey the task. The agent remains free to generate SQL, join
@@ -1707,9 +1719,44 @@ safe-view-only mode. Raw and role-only queries are sub-millisecond, while
 safe-view-only p50 is 13.3--18.1 ms. Full SessionBound p50 is
 14.6--18.6 ms. Disabling receipts or budget accounting does not
 consistently reduce latency, so receipt insertion and budget updates do
-not dominate this small-dataset benchmark. The likely dominant costs are
-safe-view predicates, repeated session-claim lookup, PL/pgSQL wrapper
-dispatch, and row materialization in the reference runtime.
+not dominate this small-dataset benchmark. This is an important
+interpretation point: for the default seed, SessionBound's measured
+latency is mainly a safe-view/session-runtime cost rather than a
+receipt-chain cost.
+
+\hypertarget{performance-diagnosis}{%
+\subsubsection{Performance diagnosis}\label{performance-diagnosis}}
+
+The database-runtime breakdown isolates direct PostgreSQL execution and
+therefore does not include HTTP latency, model calls, dynamic credential
+creation, or API-layer AST preflight. End-to-end agent requests do incur
+the AST preflight before entering PostgreSQL, so the end-to-end path is
+strictly larger than the database-only numbers in
+Table~\ref{tab:performance}.
+
+Within the measured database path, the overhead comes from several
+implementation layers in the reference prototype. First,
+\texttt{taskbound.run} dispatches each query through a PL/pgSQL wrapper
+rather than through PostgreSQL's native planner and executor path alone.
+Second, each execution repeatedly resolves session claims and task state
+instead of caching a bound task descriptor in trusted backend state.
+Third, safe views add predicate and view-expansion cost even before
+SessionBound receipt or budget logic runs. Fourth, the wrapper path
+materializes result rows so that the runtime can account for returned
+business identifiers. Fifth, receipt insertion and budget accounting add
+state updates, but the no-receipt and no-budget ablations show that
+these updates are not the dominant source on the small default dataset.
+
+The scale results in Table~\ref{tab:scale-sweep} show a different
+regime. At 100k scoped expense rows, safe-view-only execution remains in
+the tens of milliseconds, while full SessionBound reaches 6.7--7.0 s.
+This implicates the PL/pgSQL reference runtime's row materialization and
+per-query accounting path, not safe-view predicates alone. We therefore
+interpret the prototype as a security reference implementation, not an
+optimized execution engine. A production implementation should bind the
+task token once, keep approved safe-view identifiers in trusted backend
+state, and move structural checks and disclosure accounting into
+parser/analyzer, planner, or executor hooks.
 
 \hypertarget{scale-and-concurrency}{%
 \subsection{Scale and concurrency}\label{scale-and-concurrency}}
@@ -1728,14 +1775,14 @@ departments. A concurrency smoke test over the API completed 1, 5, and
 sessions, query p50 was 82.896 ms and query p95 was 110.356 ms. This is
 an API-stack smoke test, not a throughput-capacity claim.
 
-We also ran a prior synthetic scale sweep over 1k, 10k, and 100k scoped
-expense rows. For aggregate-by-category queries, raw PostgreSQL p50 was
-0.41, 2.70, and 14.77 ms, while full SessionBound p50 was 84.41, 688.66,
-and 6742.55 ms. For top-k ordering, raw p50 was 0.40, 2.54, and 15.62 ms,
-while full SessionBound p50 was 82.44, 661.62, and 6965.09 ms. These
-results show that the PL/pgSQL prototype has substantial scale-sensitive
-overhead and should be treated as a security reference implementation,
-not as an optimized execution engine.
+We also ran a synthetic scale sweep over 1k, 10k, and 100k scoped
+expense rows. Table~\ref{tab:scale-sweep} reports the p50 latency for
+two representative query shapes. Raw PostgreSQL stays in the
+millisecond-to-tens-of-milliseconds range at 100k rows, and
+safe-view-only execution stays below 33 ms. Full SessionBound reaches
+6.7--7.0 s at 100k rows. These results expose the scale-sensitive
+limitation of the current PL/pgSQL reference runtime and motivate the
+production hook path discussed above.
 
 \hypertarget{remaining-gaps}{%
 \subsection{Discussion of remaining gaps}\label{remaining-gaps}}
@@ -1843,6 +1890,26 @@ Window & 0.351 & 0.347 & 13.828 & N/A & 15.089 & 14.852 & 15.854 \\
 \bottomrule
 \end{tabular}
 \end{table*}
+
+\begin{table}[!t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\caption{Synthetic scale sweep p50 latency in milliseconds. Safe denotes safe-view-only execution; SB denotes full SessionBound.}
+\label{tab:scale-sweep}
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+Rows & Query & Raw & Safe & RLS & SB \\
+\midrule
+1k & Agg. & 0.41 & 0.60 & 0.39 & 84.41 \\
+1k & Top-k & 0.40 & 0.53 & 0.43 & 82.44 \\
+10k & Agg. & 2.70 & 3.76 & 2.38 & 688.66 \\
+10k & Top-k & 2.54 & 3.32 & 2.39 & 661.62 \\
+100k & Agg. & 14.77 & 29.96 & 15.08 & 6742.55 \\
+100k & Top-k & 15.62 & 32.39 & 14.61 & 6965.09 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{table}[!t]
 \centering
@@ -2258,6 +2325,17 @@ database execution:
 \begin{verbatim}
 The agent can try. The database decides.
 \end{verbatim}
+
+The performance results sharpen the implementation lesson. On the
+default dataset, full SessionBound adds little over safe-view-only
+execution, so the small-scale overhead is primarily safe-view and
+session-runtime overhead rather than receipt-chain insertion or budget
+updates. At 100k scoped rows, however, the PL/pgSQL reference runtime
+becomes multi-second while raw PostgreSQL and safe-view-only execution
+remain much faster. This does not change the core task-bound session
+model, but it does define the production engineering path: move from the
+wrapper-based reference runtime toward parser/analyzer, planner, and
+executor integration inside PostgreSQL.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
