@@ -39,8 +39,8 @@ Date: 2026-07-08
 
 - Added `paper/tdsc/scripts/native_end_to_end_benchmark.py`.
 - Latest raw results:
-  - `paper/tdsc/raw_results/native_end_to_end_20260708_235456.json`
-  - `paper/tdsc/raw_results/native_end_to_end_20260708_235456.csv`
+  - `paper/tdsc/raw_results/native_end_to_end_20260709_013634.json`
+  - `paper/tdsc/raw_results/native_end_to_end_20260709_013634.csv`
 - Modes:
   - Raw PostgreSQL;
   - Safe-view-only;
@@ -50,8 +50,8 @@ Date: 2026-07-08
 - Query shapes: SELECT, JOIN, GROUP BY, CTE, Window.
 - Scale targets: 1k, 10k, 100k scoped rows.
 - Key result: current native hook/executor accounting is measured but not
-  optimized. At 100k rows, wrapper p50 is 6136.37--6313.42 ms and native
-  hook/executor p50 is 6242.66--6444.11 ms across the five query shapes.
+  optimized. At 100k rows, wrapper p50 is 6108.33--6236.90 ms and native
+  hook/executor p50 is 6176.94--6298.30 ms across the five query shapes.
 
 ## Artifact and Report Updates
 

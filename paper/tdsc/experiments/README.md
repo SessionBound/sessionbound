@@ -29,7 +29,7 @@ reports in this directory cite those files.
 - Credential-token and schema drift tests: `../raw_results/credential_token_1783515640.json`
 - Historical wrapper scale sweep: `../raw_results/scale_1783515366.json`
 - Native end-to-end scale benchmark:
-  `../raw_results/native_end_to_end_20260708_235456.json`
+  `../raw_results/native_end_to_end_20260709_013634.json`
 - Hook-only microbenchmark: `../raw_results/hook_microbenchmark_20260708_205831.json`
 - Rollback audit: `../raw_results/rollback_audit_20260708_205904.json`
 - Concurrency smoke test: `raw_results/concurrency_1783221968.json` (historical)
@@ -54,7 +54,7 @@ TDSC_OUT_DIR=paper/tdsc/raw_results TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TD
 TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 python paper/tdsc/scripts/overhead_breakdown.py --output-dir paper/tdsc/raw_results
 TDSC_OUT_DIR=paper/tdsc/raw_results TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TDSC_BASE_URL=http://localhost:8000 python paper/tdsc/experiments/scripts/tdsc_credential_token_tests.py
 TDSC_OUT_DIR=paper/tdsc/raw_results TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TDSC_BASE_URL=http://localhost:8000 python paper/tdsc/experiments/scripts/tdsc_scale_eval.py
-TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TDSC_BASE_URL=http://localhost:8000 python paper/tdsc/scripts/native_end_to_end_benchmark.py --output-dir paper/tdsc/raw_results
+TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TDSC_BASE_URL=http://localhost:8000 TDSC_NATIVE_ROWS=1000,10000,100000 TDSC_NATIVE_WARMUP=10 TDSC_NATIVE_MEASURED_BY_ROWS=1000:100,10000:100,100000:30 python paper/tdsc/scripts/native_end_to_end_benchmark.py --output-dir paper/tdsc/raw_results
 docker compose exec -T api sh -lc 'TDSC_OUT_DIR=/tmp/tdsc_experiments/raw_results TDSC_BASE_URL=http://127.0.0.1:8000 python /tmp/tdsc_experiments/scripts/tdsc_concurrency_eval.py'
 python paper/tdsc/scripts/hook_microbenchmark.py --output-dir paper/tdsc/raw_results
 ```

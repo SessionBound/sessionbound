@@ -48,8 +48,8 @@ Core validated claims in the TDSC candidate:
   p50 was 0.125--0.138 ms across SELECT/JOIN/GROUP BY/CTE-window checks,
   with raw-schema, UNION, direct-entity group-by, and HAVING denials verified;
 - diagnostic native end-to-end scale benchmark: at 100k scoped rows, wrapper
-  p50 is 6.14--6.31 s and native hook/executor accounting p50 is
-  6.24--6.44 s across SELECT/JOIN/GROUP BY/CTE/window query shapes;
+  p50 is 6.11--6.24 s and native hook/executor accounting p50 is
+  6.18--6.30 s across SELECT/JOIN/GROUP BY/CTE/window query shapes;
 - security guarantees are limited to the stated prototype SQL fragment and do
   not claim arbitrary semantic inference prevention or differential privacy.
 
@@ -76,7 +76,7 @@ Core validated claims in the TDSC candidate:
 - Scale sweep raw result:
   `paper/tdsc/raw_results/scale_1783515366.json`
 - Native end-to-end scale raw result:
-  `paper/tdsc/raw_results/native_end_to_end_20260708_235456.json`
+  `paper/tdsc/raw_results/native_end_to_end_20260709_013634.json`
 - Credential-token and schema drift raw result:
   `paper/tdsc/raw_results/credential_token_1783515640.json`
 - Security baseline raw result:

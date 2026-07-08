@@ -69,10 +69,10 @@
   0.976--1.119 ms p50; latest raw result:
   `paper/tdsc/raw_results/overhead_breakdown_20260708_205527.json`.
 - Native end-to-end scale: at 100k scoped rows, SessionBound wrapper p50 was
-  6136.37--6313.42 ms and SessionBound native hook/executor p50 was
-  6242.66--6444.11 ms across SELECT/JOIN/GROUP BY/CTE/window query shapes;
+  6108.33--6236.90 ms and SessionBound native hook/executor p50 was
+  6176.94--6298.30 ms across SELECT/JOIN/GROUP BY/CTE/window query shapes;
   latest raw result:
-  `paper/tdsc/raw_results/native_end_to_end_20260708_235456.json`.
+  `paper/tdsc/raw_results/native_end_to_end_20260709_013634.json`.
 - Manuscript audits: no stale draft-language, placeholder, Codex, or prior
   author-name matches in the final manuscript and bibliography sweep.
 

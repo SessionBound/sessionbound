@@ -40,9 +40,43 @@ SAFE_VIEW_ONLY_DSN = f"postgresql://tdsc_safe_view_only:tdsc_safe_view_only_pass
 RLS_SAFE_AUDIT_DSN = f"postgresql://tdsc_rls_safe_audit:tdsc_rls_safe_audit_pass@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 SQL_DIR = REPO_ROOT / "paper/tdsc/experiments/sql"
 
-WARMUP = int(os.environ.get("TDSC_NATIVE_WARMUP", "2"))
-MEASURED = int(os.environ.get("TDSC_NATIVE_MEASURED", "10"))
+DEFAULT_WARMUP = int(os.environ.get("TDSC_NATIVE_WARMUP", "10"))
+DEFAULT_MEASURED = int(os.environ.get("TDSC_NATIVE_MEASURED", "30"))
 TARGET_ROWS = [int(x) for x in os.environ.get("TDSC_NATIVE_ROWS", "1000,10000,100000").split(",")]
+MAX_QUERIES_PER_TASK = int(os.environ.get("TDSC_NATIVE_MAX_QUERIES_PER_TASK", "100"))
+DEFAULT_TARGET_MEASURED = {1000: 100, 10000: 100, 100000: 30}
+
+
+def parse_target_counts(env_name: str) -> dict[int, int]:
+    raw = os.environ.get(env_name, "").strip()
+    counts: dict[int, int] = {}
+    if not raw:
+        return counts
+    for item in raw.split(","):
+        if not item.strip():
+            continue
+        row_text, _, count_text = item.partition(":")
+        if not row_text or not count_text:
+            raise ValueError(f"{env_name} item must be ROWS:COUNT, got {item!r}")
+        counts[int(row_text)] = int(count_text)
+    return counts
+
+
+TARGET_WARMUPS = parse_target_counts("TDSC_NATIVE_WARMUP_BY_ROWS")
+if "TDSC_NATIVE_MEASURED_BY_ROWS" in os.environ:
+    TARGET_MEASURED = parse_target_counts("TDSC_NATIVE_MEASURED_BY_ROWS")
+elif "TDSC_NATIVE_MEASURED" in os.environ:
+    TARGET_MEASURED = {}
+else:
+    TARGET_MEASURED = DEFAULT_TARGET_MEASURED
+
+
+def warmup_for(target_rows: int) -> int:
+    return TARGET_WARMUPS.get(target_rows, DEFAULT_WARMUP)
+
+
+def measured_for(target_rows: int) -> int:
+    return TARGET_MEASURED.get(target_rows, DEFAULT_MEASURED)
 
 
 @dataclass(frozen=True)
@@ -353,13 +387,13 @@ def open_session(max_queries: int) -> tuple[dict[str, Any], dict[str, Any]]:
     return credential, task
 
 
-def connect_for_mode(mode: Mode):
+def connect_for_mode(mode: Mode, max_queries: int):
     if mode.kind in {"raw", "safe"}:
         assert mode.dsn is not None
         conn = psycopg.connect(mode.dsn)
         conn.autocommit = True
         return conn
-    credential, task = open_session(max_queries=WARMUP + MEASURED + 5)
+    credential, task = open_session(max_queries=max_queries)
     dsn = f"postgresql://{credential['db_user']}:{credential['db_password']}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     conn = psycopg.connect(dsn)
     conn.autocommit = True
@@ -415,20 +449,54 @@ def summarize(latencies: list[float], rows: int | None, errors: list[str]) -> di
     }
 
 
-def run_mode_pattern(mode: Mode, pattern_name: str, pattern: dict[str, str], target_rows: int) -> dict[str, Any]:
+def run_mode_pattern(
+    mode: Mode,
+    pattern_name: str,
+    pattern: dict[str, str],
+    target_rows: int,
+    warmup: int,
+    measured: int,
+) -> dict[str, Any]:
     errors: list[str] = []
     latencies: list[float] = []
     rows: int | None = None
-    conn = connect_for_mode(mode)
     sql_text, params = sql_for(mode, pattern)
+
+    if mode.kind in {"sessionbound_wrapper", "sessionbound_native"}:
+        remaining = measured
+        while remaining > 0:
+            task_budget = min(MAX_QUERIES_PER_TASK, max(1, warmup + remaining + 5))
+            measured_capacity = max(1, task_budget - warmup)
+            measured_this_session = min(remaining, measured_capacity)
+            conn = connect_for_mode(mode, max_queries=task_budget)
+            try:
+                with conn.cursor() as cur:
+                    for _ in range(warmup):
+                        try:
+                            rows = run_one(cur, mode, sql_text, params, pattern_name, target_rows)
+                        except Exception as exc:
+                            errors.append(str(exc).splitlines()[0])
+                    for _ in range(measured_this_session):
+                        try:
+                            started = time.perf_counter_ns()
+                            rows = run_one(cur, mode, sql_text, params, pattern_name, target_rows)
+                            latencies.append((time.perf_counter_ns() - started) / 1_000_000)
+                        except Exception as exc:
+                            errors.append(str(exc).splitlines()[0])
+            finally:
+                conn.close()
+            remaining -= measured_this_session
+        return summarize(latencies, rows, errors)
+
+    conn = connect_for_mode(mode, max_queries=warmup + measured + 5)
     try:
         with conn.cursor() as cur:
-            for _ in range(WARMUP):
+            for _ in range(warmup):
                 try:
                     rows = run_one(cur, mode, sql_text, params, pattern_name, target_rows)
                 except Exception as exc:
                     errors.append(str(exc).splitlines()[0])
-            for _ in range(MEASURED):
+            for _ in range(measured):
                 try:
                     started = time.perf_counter_ns()
                     rows = run_one(cur, mode, sql_text, params, pattern_name, target_rows)
@@ -444,12 +512,16 @@ def flatten(results: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for target_rows, target in results["targets"].items():
         actual_rows = target["setup"]["actual_rows"]
+        warmup = target.get("warmup_iterations")
+        measured = target.get("measured_iterations")
         for mode_name, mode_results in target["modes"].items():
             for pattern_name, summary in mode_results.items():
                 rows.append(
                     {
                         "target_rows": target_rows,
                         "actual_rows": actual_rows,
+                        "warmup_iterations": warmup,
+                        "measured_iterations": measured,
                         "mode": mode_name,
                         "pattern": pattern_name,
                         "p50_ms": summary.get("p50_ms"),
@@ -478,8 +550,11 @@ def main() -> int:
         "run": {
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "commit": git_commit(),
-            "warmup": WARMUP,
-            "measured": MEASURED,
+            "default_warmup": DEFAULT_WARMUP,
+            "default_measured": DEFAULT_MEASURED,
+            "target_warmups": {str(k): v for k, v in sorted(TARGET_WARMUPS.items())},
+            "target_measured": {str(k): v for k, v in sorted(TARGET_MEASURED.items())},
+            "max_queries_per_task": MAX_QUERIES_PER_TASK,
             "db_host": DB_HOST,
             "db_port": DB_PORT,
             "patterns": list(PATTERNS),
@@ -488,6 +563,7 @@ def main() -> int:
                 "SessionBound modes use API-issued runtime credentials and signed task tokens, but API calls are outside measured query latency.",
                 "SessionBound wrapper executes SELECT * FROM taskbound.run(sql).",
                 "SessionBound native hook/executor executes direct safe-view SELECT after taskbound.bind_task.",
+                "SessionBound modes are split across fresh task sessions when needed to respect the prototype max_queries limit.",
                 "Hook-only structural microbenchmarks are separate and do not execute rows, account budgets, or emit allow receipts.",
             ],
         },
@@ -495,13 +571,30 @@ def main() -> int:
     }
     try:
         for target_rows in TARGET_ROWS:
+            warmup = warmup_for(target_rows)
+            measured = measured_for(target_rows)
             setup = prepare_scale(target_rows)
-            target: dict[str, Any] = {"setup": setup, "modes": {}}
+            target: dict[str, Any] = {
+                "setup": setup,
+                "warmup_iterations": warmup,
+                "measured_iterations": measured,
+                "modes": {},
+            }
             for mode in MODES:
                 mode_results: dict[str, Any] = {}
                 for pattern_name, pattern in PATTERNS.items():
-                    print(f"{target_rows} | {mode.name} | {pattern_name}", flush=True)
-                    mode_results[pattern_name] = run_mode_pattern(mode, pattern_name, pattern, target_rows)
+                    print(
+                        f"{target_rows} | warmup={warmup} measured={measured} | {mode.name} | {pattern_name}",
+                        flush=True,
+                    )
+                    mode_results[pattern_name] = run_mode_pattern(
+                        mode,
+                        pattern_name,
+                        pattern,
+                        target_rows,
+                        warmup,
+                        measured,
+                    )
                 target["modes"][mode.name] = mode_results
             results["targets"][str(target_rows)] = target
             if not args.keep_scale_rows:

@@ -15,7 +15,7 @@ RLS+Safe View+Short Credential+Audit, and SessionBound configurations.
 | Adversarial SQL | 140/140 expected classifications passed | `../raw_results/adversarial_sql_20260708_235742.json` |
 | Hook/direct DB enforcement | 18/18 cases passed | `../raw_results/sessionbound_guard_hook_20260708_205325.json` |
 | Hook-only structural microbenchmark | 6/6 checks passed | `../raw_results/hook_microbenchmark_20260708_205831.json` |
-| Native end-to-end scale | 1k, 10k, and 100k scoped rows | `../raw_results/native_end_to_end_20260708_235456.json` |
+| Native end-to-end scale | 1k/10k with 100 measured iterations; 100k with 30 measured iterations | `../raw_results/native_end_to_end_20260709_013634.json` |
 | Historical wrapper scale sweep | 1k, 10k, and 100k scoped rows | `../raw_results/scale_1783515366.json` |
 | Concurrency smoke test | 1, 5, and 20 concurrent sessions | `raw_results/concurrency_1783221968.json` |
 
@@ -37,7 +37,9 @@ exposed-column hash mismatch.
 The overhead run confirms that receipt and budget-accounting switches work as
 intended, but small-dataset latency deltas are noisy. The native end-to-end
 scale benchmark shows severe overhead in both current SessionBound accounting
-paths at 100k scoped rows: wrapper p50 is 6.14--6.31 s and native
-hook/executor p50 is 6.24--6.44 s across SELECT/JOIN/GROUP BY/CTE/window
-query shapes. The hook-only microbenchmark separates this accounting bottleneck
-from native structural guard cost.
+paths at 100k scoped rows: wrapper p50 is 6.11--6.24 s and native
+hook/executor p50 is 6.18--6.30 s across SELECT/JOIN/GROUP BY/CTE/window
+query shapes. The 1k and 10k scale targets use 100 measured iterations per
+mode/pattern; the 100k target uses 30 measured iterations. The hook-only
+microbenchmark separates this accounting bottleneck from native structural
+guard cost.
