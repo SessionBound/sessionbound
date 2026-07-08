@@ -10,7 +10,7 @@ SessionBound submission candidate.
 - Manuscript source: `paper/tdsc/sessionbound-tdsc.tex`
 - Manuscript PDF: `paper/tdsc/sessionbound-tdsc.pdf`
 - Build command: `cd paper/tdsc && make`
-- Page count after P0 hardening revision: 15 pages
+- Page count after P0 hardening revision: 14 pages
 
 No immutable Git tag has been created for this revision yet. The manuscript and
 raw results in this branch are the current submission-candidate artifact set;

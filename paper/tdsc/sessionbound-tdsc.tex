@@ -22,16 +22,8 @@
   \usepackage[]{microtype}
   \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
 }{}
-\makeatletter
-\@ifundefined{KOMAClassName}{% if non-KOMA class
-  \IfFileExists{parskip.sty}{%
-    \usepackage{parskip}
-  }{% else
-    \setlength{\parindent}{0pt}
-    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
-}{% if KOMA class
-  \KOMAoptions{parskip=half}}
-\makeatother
+% IEEEtran defines paragraph indentation and spacing; avoid Pandoc's
+% parskip defaults because they waste double-column page budget.
 \usepackage{xcolor}
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
 \IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
@@ -117,40 +109,34 @@ China Telecom Global Limited\\
 \begin{abstract}
 
 Enterprise AI agents can write useful exploratory SQL for audit,
-compliance, and operational analysis, but raw database access is too
-broad and fixed SaaS screens are too rigid. SessionBound bridges this
-gap by turning an approved business task into a short-lived, budgeted,
-and auditable database session. A control plane defines task templates,
-applications, approvals, TTLs, budgets, and signed task tokens; a
-database runtime, SessionBoundDB, binds the token to an agent session and
-enforces safe views, row scope, denied fields, read-only SQL policy,
-query/disclosure budgets, and receipts.
+compliance, and operational analysis, but raw database access is
+over-privileged and fixed SaaS screens are too rigid for temporary
+business tasks. This paper presents SessionBound, a database-enforced
+task-bound session model for enterprise AI agents. A control plane turns
+an approved task into a signed token carrying task scope, safe views,
+denied fields, TTL, operation policy, budgets, and policy-version claims.
+The PostgreSQL runtime, SessionBoundDB, binds the token to a short-lived
+credential and enforces the approved boundary through safe-view
+resolution, read-only SQL policy, disclosure accounting,
+minimum-group aggregate protection, schema-drift checks, and receipts.
 
-The prototype is implemented over PostgreSQL with an accounting-complete
-wrapper reference path and a native hook/executor hardening path.
-Evaluation validates 24 of 24 canonical scenarios and a 140-case
-adversarial SQL suite: 126 tested violations are blocked, 14 safe-view
-analytical cases are allowed and accounted for, and all tested direct
-small-group aggregate-release attempts are blocked by the minimum-group
-policy. In the wrapper-based reference path, full SessionBound has p50
-latency of 17.4--18.6 ms across representative query patterns on the
-default seed. A diagnostic native end-to-end scale benchmark over
-1k/10k/100k scoped rows shows that both accounting-complete paths remain
-interactive at 1k rows (75.6--95.5 ms p50) and sub-second around 10k
-rows (632.4--647.0 ms p50), but become multi-second at 100k rows
-(6.11--6.30 s p50), exposing an unoptimized result-accounting
-bottleneck for large detail releases. A separate
-hook-only parse/analyze guard microbenchmark shows 0.125--0.138 ms p50
-structural-check latency, indicating that structural guarding is not the
-dominant bottleneck.
-
-SessionBound is not a replacement for RLS, ABAC, delegation, data
-catalogs, or differential privacy. It composes database-side enforcement
-with a task-control-plane contract: business users approve tasks, agents
-generate SQL, and the database decides whether each attempt stays inside
-the approved boundary. The artifact repository, including code,
-synthetic data, validation reports, benchmark outputs, and LaTeX source,
-is included in the submitted artifact package.
+SessionBoundDB implements an accounting-complete wrapper reference path
+and a native PostgreSQL hook/executor hardening path. The evaluation
+validates 24 canonical scenarios and a 140-case adversarial SQL suite,
+blocking 126 boundary-violation cases while allowing and accounting for
+14 safe-view analytical cases. A stronger
+RLS+safe-view+short-credential+audit baseline shows that conventional
+database controls cover
+important pieces but do not provide task-token binding, cumulative
+disclosure budgets, safe-view drift invalidation, or receipt chains. On
+the default seed, full SessionBound has 17.4--18.6 ms p50 latency in the
+wrapper path. Diagnostic scale benchmarks show that structural guarding
+is sub-millisecond, while unoptimized result accounting becomes the
+bottleneck for large detail-release stress settings. These results
+support SessionBound as a task-session contract for database-enforced
+AI-agent governance, while identifying executor-level accounting
+optimization as future work. The submitted artifact includes code,
+synthetic data, raw outputs, and LaTeX source.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -1227,8 +1213,11 @@ aliases, and high-risk payload aggregation functions such as
 \texttt{json\_build\_object}, and \texttt{jsonb\_build\_object}. The API
 AST validator remains defense in depth and provides portable preflight
 feedback before the database runtime is invoked. Minimum-group policy is
-enforced as API shape checks, wrapper/runtime group-cardinality checks
-before row release, and conservative native shape checks for direct SQL.
+enforced as API shape checks and wrapper/runtime group-cardinality
+checks before row release. The native path enforces direct safe-view SQL
+and tuple-level disclosure accounting, but implements minimum-group
+protection conservatively: shapes requiring full per-group cardinality
+reasoning are denied unless routed through the wrapper reference path.
 
 This should still be read as an experimental hook path, not a production
 SQL-safety proof. A production implementation should harden the same
@@ -1352,6 +1341,15 @@ expenses, 240 employees, and 124 departments. The artifact metadata
 records the git commit identifier, environment variables, raw result
 paths, and run timestamps.
 
+Experiments ran on Ubuntu 22.04.5 LTS under WSL2 on a 13th Gen Intel
+Core i9-13900HX host with 32 logical CPUs and 15 GiB RAM, using Docker
+29.1.3, Docker Compose v2.40.3, and Docker Desktop \texttt{overlay2}
+storage. PostgreSQL used default settings except for
+\texttt{shared\_preload\_libraries}. API measurements used local Docker
+networking; database-only measurements used direct connections from the
+Compose network. The benchmark harness did not intentionally generate
+competing load.
+
 The AST and adversarial SQL evaluations exercise the HTTP API, including
 dynamic credential issuance, signed task-token creation, token binding,
 AST preflight, the wrapper reference query path, budget state, and receipts. A
@@ -1384,17 +1382,10 @@ reproduction entrypoints are \texttt{ast\_validation\_eval.py},
 over-budget prefix accounting. Exact command lines and
 environment variables are recorded in the artifact README and changelog.
 
-The reported tables cite the following raw result files:
-\texttt{ast\_validation\_20260708\_205921.json},
-\texttt{adversarial\_sql\_20260708\_235742.json},
-\texttt{sessionbound\_guard\_hook\_20260709\_015110.json},
-\texttt{hook\_microbenchmark\_20260708\_205831.json},
-\texttt{overhead\_breakdown\_20260708\_205527.json},
-\texttt{native\_end\_to\_end\_20260709\_013634.json/csv}, and
-\texttt{native\_partial\_budget\_20260709\_014913.json}. Scripts write
-timestamps, git commit, iteration counts, error counts, and measured
-latencies into the raw result files; the tables below are derived from
-those files rather than hand-entered experimental claims.
+The artifact manifest maps each table to its raw JSON/CSV result files.
+Scripts write timestamps, git commit, iteration counts, error counts,
+and measured latencies into those files; the tables below are derived
+from raw outputs rather than hand-entered experimental claims.
 
 \hypertarget{functional-validation}{%
 \subsection{Functional validation}\label{functional-validation}}
@@ -1447,6 +1438,14 @@ separate access-surface reduction from task-bound session enforcement:
   disclosure budget, minimum-group policy, anti-payload aggregation
   checks, and receipts.
 \end{itemize}
+
+For fairness, the safe-view-only baseline uses pre-scoped or manually
+parameterized views matching the evaluated task scope, but it lacks
+signed task binding, cumulative budgets, drift invalidation, and
+decision-bound receipts. The RLS+Safe View+Short Credential+Audit
+baseline is intentionally strong: it combines row policy, field
+limitation, credential lifetime, read-only grants, and basic audit
+logging, but omits SessionBound's task-session contract.
 
 Table~\ref{tab:security-baselines} summarizes the observed security
 properties. In the updated credential-token test suite, SessionBound
@@ -1637,6 +1636,14 @@ performance. The current native accounting path demonstrates direct DB
 enforcement semantics but has not yet delivered optimized scale
 behavior.
 
+The 100k-row setting intentionally raises the disclosure budget to
+stress-test accounting completeness for large detail releases. It should
+not be interpreted as the common operating mode for approved analytical
+tasks, where detail-release budgets are typically smaller and aggregate
+queries dominate. The result is therefore a diagnostic finding: current
+prototype accounting is the bottleneck to optimize, while structural SQL
+guarding itself is not.
+
 \hypertarget{scale-and-concurrency}{%
 \subsection{Scale and concurrency}\label{scale-and-concurrency}}
 
@@ -1660,9 +1667,10 @@ expense rows. Table~\ref{tab:scale-sweep} reports p50 ranges across
 \texttt{SELECT}, \texttt{JOIN}, \texttt{GROUP BY}, CTE, and window
 queries, along with the maximum p95 and p99 observed across those
 patterns. All listed measurements completed with zero query errors.
-These results expose a scale-sensitive limitation shared by the current
-wrapper and native accounting implementations. They should be read as a
-diagnostic prototype result, not a production-throughput claim.
+The 100k target is a detail-release stress setting with elevated
+budgets; these results expose a scale-sensitive limitation shared by the
+current wrapper and native accounting implementations and should not be
+read as a production-throughput claim.
 
 \hypertarget{remaining-gaps}{%
 \subsection{Discussion of remaining gaps}\label{remaining-gaps}}
@@ -1681,7 +1689,7 @@ and does not provide formal differential privacy.
 \centering
 \scriptsize
 \setlength{\tabcolsep}{2.5pt}
-\caption{Security-property comparison across evaluated configurations. The RLS baseline combines RLS policies, field-limited safe views, a short-lived read-only role, and basic audit logging, but does not include SessionBound task-token semantics. Credential-token binding includes credential-id matching, actor matching, audience validation, cross-credential replay rejection, expiration, revocation, and same-session rebind rejection. Schema drift invalidation checks safe-view registry version, policy version, view-definition hash, and exposed-column hash at bind time.}
+\caption{Security-property comparison across evaluated configurations. The RLS baseline includes row policy, field-limited views, short credentials, read-only grants, and audit, but omits SessionBound task tokens, budgets, drift invalidation, and receipt chains.}
 \label{tab:security-baselines}
 \begin{tabular}{@{}lccccc@{}}
 \toprule
@@ -1706,7 +1714,7 @@ Schema drift token invalidation & No & No & No & No & Yes \\
 \centering
 \scriptsize
 \setlength{\tabcolsep}{2.2pt}
-\caption{Overhead breakdown p50 latency in milliseconds. The run used 10 warmup and 100 measured iterations per pattern and mode. RLS+SV+Audit is the RLS+safe-view+short-credential+audit baseline.}
+\caption{Overhead p50 latency in milliseconds. Each pattern/mode used 10 warmup and 100 measured iterations.}
 \label{tab:performance}
 \begin{tabular}{@{}lrrrrrrr@{}}
 \toprule
@@ -1725,14 +1733,10 @@ Window & 0.251 & 0.238 & 0.281 & 1.119 & 16.818 & 17.778 & 17.639 \\
 \centering
 \scriptsize
 \setlength{\tabcolsep}{2pt}
-\caption{Diagnostic native end-to-end scale benchmark in milliseconds.
-The p50 column gives the range across SELECT/JOIN/GROUP BY/CTE/window
-queries; p95 and p99 are the maximum observed across those patterns.
-The 1k and 10k targets use 10 warmup and 100 measured iterations per
-mode and pattern; the 100k target uses 10 warmup and 30 measured
-iterations. SessionBound modes are split across fresh task sessions when
-needed to respect the prototype 100-query task limit. API token issuance
-is excluded from measured query latency.}
+\caption{Diagnostic end-to-end scale benchmark in milliseconds. p50 is
+the range across five query shapes; p95/p99 are maxima. The 1k and 10k
+targets use 10 warmup plus 100 measured iterations; 100k uses 10 warmup
+plus 30 measured iterations.}
 \label{tab:scale-sweep}
 \begin{tabular}{@{}llrrrc@{}}
 \toprule
@@ -1757,37 +1761,15 @@ Rows & Mode & p50 range & max p95 & max p99 & Err. \\
 \end{tabular}
 \end{table}
 
-\hypertarget{discussion}{%
-\section{Discussion}\label{discussion}}
-
-SessionBound separates task approval from database policy authoring.
-Managers and data owners approve work; the control plane translates that
-approval into a template, scope, TTL, budget vector, and signed token;
-the database runtime enforces the resulting session boundary. The
-runtime is not an LLM judge of task intent, and it does not require a
-business approver to write SQL predicates.
-
-The runtime distinguishes filtering from denial. Scope predicates inside
-safe views may make out-of-scope rows disappear under normal SQL
-semantics. Attempts to leave the approved query surface--raw tables,
-denied fields, mutation, DDL, catalog escape, or blocked payload
-aggregation--are denied.
-
-Budgets are authority accounting, not differential privacy. They
-measure how much task-approved information has been released and let
-receipts record how the approved authority was spent. SessionBound
-therefore composes with existing identity, delegation, RLS/VPD, policy,
-and data-catalog systems rather than replacing them.
-
-
 \hypertarget{related-work}{%
 \section{Related Work}\label{related-work}}
 
-Table~\ref{tab:why-not-existing} summarizes the main distinction from
-existing mechanisms. The short answer to ``why not just RLS plus
-short-lived credentials plus audit logs?'' is that those mechanisms can
-implement important pieces of SessionBound, but they do not by
-themselves define the approved task as the unit of database execution.
+SessionBound is a task-session contract, while prior systems are
+identity-, policy-, product-, operation-, or audit-centered. The short
+answer to ``why not just RLS plus short-lived credentials plus audit
+logs?'' is that those mechanisms can implement important pieces of
+SessionBound, but they do not by themselves define the approved task as
+the unit of database execution.
 RLS scopes rows, but does not define a task-session object. Short-lived
 credentials expire, but do not constrain SQL shape or cumulative
 disclosure. Safe views reduce surface area, but do not bind approval,
@@ -1797,44 +1779,6 @@ SessionBound's claim is the composition: a business approval is compiled
 into a short-lived session whose safe views, denied fields, row scope,
 SQL surface, budget vector, drift checks, and receipts are bound
 together.
-
-\begin{table*}[!t]
-\centering
-\scriptsize
-\setlength{\tabcolsep}{3pt}
-\caption{Why SessionBound is not just an existing access-control or auditing mechanism. The mechanisms listed here are complementary implementation building blocks; SessionBound adds the task-bound database-session contract around them.}
-\label{tab:why-not-existing}
-\begin{tabular}{@{}
-  >{\raggedright\arraybackslash}p{0.19\textwidth}
-  >{\raggedright\arraybackslash}p{0.22\textwidth}
-  >{\raggedright\arraybackslash}p{0.29\textwidth}
-  >{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
-\toprule
-Mechanism & What it provides & Why it is insufficient alone & SessionBound role \\
-\midrule
-RLS / VPD / DDS & Predicates and context-aware policy near data &
-Strong data-plane enforcement, but not a task object that binds approval,
-TTL, safe-view versioning, SQL surface, cumulative budgets, and receipts &
-Uses database enforcement inside a task-session contract \\
-ABAC / XACML / purpose policy & Expressive policy over attributes and
-purpose & Captures standing rules, but not one approved exploratory SQL
-workspace with per-session exposure accounting & Compiles approved task
-attributes into runtime state \\
-JIT credentials / OAuth / delegation & Scoped or time-bounded authority &
-Expiry and delegation do not constrain arbitrary SQL shape or cumulative
-disclosure after a credential is issued & Binds credentials to a task
-token checked at execution \\
-PAuth / Data Product MCP / Zanzibar & Task-operation checks, governed data
-products, and relationship permissions & Authorizes operations, products,
-or relationships rather than a multi-query database session & Supplies
-complementary inputs before issuing a task token \\
-Audit / DP / DLP & After-the-fact records, statistical privacy, or leakage
-detection & Logs do not prevent release; DP has different statistical
-goals; DLP is not a task-session contract & Emits decision receipts and
-accounts budget before release \\
-\bottomrule
-\end{tabular}
-\end{table*}
 
 ABAC, XACML, capabilities, and purpose-aware access control provide
 standing authorization abstractions over attributes, authority objects,
@@ -1868,49 +1812,26 @@ its disclosure budgets are operational accounting, not formal DP.
 \section{Limitations}\label{limitations}}
 
 SessionBound is a research prototype and reference architecture, not a
-formal SQL safety proof. Its main limitations are:
-
-\begin{itemize}
-\tightlist
-\item
-  the prototype targets a single PostgreSQL database and demo signing
-  should be replaced with KMS/JWKS-backed signing and production
-  credential lifecycle management;
-\item
-  disclosure budgets are operational authority accounting, not formal
-  differential privacy or complete semantic inference control;
-\item
-  minimum-group policy mitigates direct small-group aggregate release,
-  but arbitrary semantic inference across multiple allowed answers
-  remains out of scope;
-\item
-  high-risk payload aggregation functions are conservatively blocked,
-  and safe views require production migration, review, and re-approval
-  workflows;
-\item
-  current performance results include microbenchmarks, overhead
-  ablations, and a 1k/10k/100k native end-to-end diagnostic scale
-  benchmark, but not an optimized or broad production workload study;
-\item
-  evaluated native paths persist allowed receipts and hook/API denial
-  receipts through a same-database autonomous audit channel; external
-  audit retention and WORM anchoring remain production infrastructure
-  outside this demo;
-\item
-  cross-database federation, malicious DBAs, and compromised hosts are
-  out of scope. Future work also includes richer aggregate leakage
-  controls, multi-query reconstruction-risk checks, optional DP, and
-  planner/executor optimization.
-\end{itemize}
+formal SQL safety proof. The prototype targets one PostgreSQL database;
+production deployments need KMS/JWKS signing, credential lifecycle
+management, migration review for safe views, external audit retention,
+and WORM anchoring. Disclosure budgets are operational authority
+accounting, not differential privacy or complete semantic inference
+control. Minimum-group policy mitigates direct small-group aggregate
+release, but arbitrary inference across multiple allowed answers remains
+out of scope, and high-risk payload aggregation is conservatively
+blocked. The performance results include microbenchmarks, overhead
+ablations, concurrency smoke tests, and 1k/10k/100k diagnostic scale
+benchmarks, but not optimized broad production workloads. Federation,
+malicious DBAs, and compromised hosts are out of scope.
 
 \hypertarget{conclusion}{%
 \section{Conclusion}\label{conclusion}}
 
 SessionBound turns enterprise task approval into budgeted database
-sessions for AI agents. It is complementary to OAuth, delegation, PAuth,
-Data Product MCP, Oracle DDS, Zanzibar, RLS/VPD, and differential
-privacy: those mechanisms provide important pieces, while SessionBound
-binds approval, credential identity, safe-view versioning, SQL surface,
+sessions for AI agents. It complements OAuth, delegation, PAuth, Data
+Product MCP, Oracle DDS, Zanzibar, RLS/VPD, and differential privacy by
+binding approval, credential identity, safe-view versioning, SQL surface,
 budgets, and receipts into one database-session contract:
 
 \begin{verbatim}
@@ -1918,12 +1839,11 @@ The agent can try. The database decides.
 \end{verbatim}
 
 The implementation lesson is clear: structural parse/analyze guarding is
-sub-millisecond, but both current accounting-complete paths become
-multi-second at 100k rows. The production path is therefore not to
-weaken the task-bound contract, but to optimize result accounting,
-backend state caching, and PostgreSQL executor integration. The
-contribution is the task-bound session contract, not a perfect SQL
-safety proof.
+sub-millisecond, while current accounting-complete paths become
+multi-second at 100k rows. The production path is to optimize result
+accounting, backend state caching, and PostgreSQL executor integration
+without weakening the task-bound contract. The contribution is the
+contract, not a perfect SQL safety proof.
 
 {\scriptsize
 \bibliographystyle{IEEEtran}
