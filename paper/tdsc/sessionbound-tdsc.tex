@@ -233,6 +233,13 @@ denial decisions.
 For compatibility with the existing demo implementation, the PostgreSQL
 prototype currently keeps the SQL schema name \texttt{taskbound}.
 
+The novelty is not any single primitive. It is the binding of task
+approval, credential identity, safe-view versioning, SQL surface,
+cumulative disclosure budget, and receipt semantics into one
+database-execution session object: enterprise task approval is compiled
+into an execution-time database session contract rather than scattered
+across separate credentials, views, policies, and audit logs.
+
 \hypertarget{contributions}{%
 \subsection{Contributions}\label{contributions}}
 
