@@ -1184,10 +1184,47 @@ native_finish_query(NativeQueryState *state)
 static void
 native_record_state_denial(NativeQueryState *state, const char *reason)
 {
+	Oid argtypes[9] = {TEXTOID, TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, BOOLOID, BOOLOID};
+	Datum values[9];
+	char nulls[9] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
+	int nids;
+	Datum *elems;
+	ArrayType *array;
+	ListCell *lc;
+	int i = 0;
+
 	if (state == NULL || state->denied_recorded)
 		return;
 
-	record_denied_receipt(state->source_text, reason);
+	if (state->task_id == NULL || state->task_id[0] == '\0')
+		return;
+
+	nids = list_length(state->new_expense_ids);
+	elems = nids > 0 ? palloc(sizeof(Datum) * nids) : NULL;
+	foreach(lc, state->new_expense_ids)
+	{
+		elems[i++] = CStringGetTextDatum((char *) lfirst(lc));
+	}
+	array = nids > 0
+				? construct_array(elems, nids, TEXTOID, -1, false, TYPALIGN_INT)
+				: construct_empty_array(TEXTOID);
+
+	values[0] = CStringGetTextDatum(state->task_id);
+	values[1] = CStringGetTextDatum(state->budget_account);
+	values[2] = CStringGetTextDatum(state->source_text != NULL ? state->source_text : "");
+	values[3] = CStringGetTextDatum(reason != NULL ? reason : "query denied");
+	values[4] = Int64GetDatum((int64) state->rows_returned);
+	values[5] = PointerGetDatum(array);
+	values[6] = Int32GetDatum(state->max_unique_expense_rows);
+	values[7] = BoolGetDatum(state->budget_accounting_enabled);
+	values[8] = BoolGetDatum(state->receipts_enabled);
+
+	spi_call_void(
+		"SELECT taskbound.native_partial_denied_receipt($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+		9,
+		argtypes,
+		values,
+		nulls);
 	state->denied_recorded = true;
 }
 
@@ -1203,26 +1240,39 @@ native_observe_slot(NativeQueryState *state, TupleTableSlot *slot)
 	if (state == NULL || slot == NULL)
 		return;
 
-	state->rows_returned++;
-
 	if (!state->budget_accounting_enabled)
+	{
+		state->rows_returned++;
 		return;
+	}
 
 	desc = slot->tts_tupleDescriptor;
 	if (desc == NULL)
+	{
+		state->rows_returned++;
 		return;
+	}
 
 	attnum = SPI_fnumber(desc, "expense_id");
 	if (attnum <= 0)
+	{
+		state->rows_returned++;
 		return;
+	}
 
 	value = slot_getattr(slot, attnum, &isnull);
 	if (isnull)
+	{
+		state->rows_returned++;
 		return;
+	}
 
 	row_id = TextDatumGetCString(value);
 	if (row_id_hash_contains(state, row_id))
+	{
+		state->rows_returned++;
 		return;
+	}
 
 	if (state->unique_seen_count + 1 > (uint64) state->max_unique_expense_rows)
 	{
@@ -1236,6 +1286,7 @@ native_observe_slot(NativeQueryState *state, TupleTableSlot *slot)
 	state->unique_seen_count++;
 	state->unique_new_count++;
 	state->new_expense_ids = lappend(state->new_expense_ids, MemoryContextStrdup(state->context, row_id));
+	state->rows_returned++;
 }
 
 static void

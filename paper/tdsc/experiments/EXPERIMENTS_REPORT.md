@@ -13,9 +13,10 @@ RLS+Safe View+Short Credential+Audit, and SessionBound configurations.
 | Performance baselines | 7 modes x 5 query patterns | `../raw_results/overhead_breakdown_20260708_205527.json` |
 | Credential-token and schema drift edge cases | 11 tests | `../raw_results/credential_token_1783515640.json` |
 | Adversarial SQL | 140/140 expected classifications passed | `../raw_results/adversarial_sql_20260708_235742.json` |
-| Hook/direct DB enforcement | 18/18 cases passed | `../raw_results/sessionbound_guard_hook_20260708_205325.json` |
+| Hook/direct DB enforcement | 18/18 cases passed | `../raw_results/sessionbound_guard_hook_20260709_015110.json` |
 | Hook-only structural microbenchmark | 6/6 checks passed | `../raw_results/hook_microbenchmark_20260708_205831.json` |
 | Native end-to-end scale | 1k/10k with 100 measured iterations; 100k with 30 measured iterations | `../raw_results/native_end_to_end_20260709_013634.json` |
+| Native partial-budget accounting | 1/1 prefix-denial case passed | `../raw_results/native_partial_budget_20260709_014913.json` |
 | Historical wrapper scale sweep | 1k, 10k, and 100k scoped rows | `../raw_results/scale_1783515366.json` |
 | Concurrency smoke test | 1, 5, and 20 concurrent sessions | `raw_results/concurrency_1783221968.json` |
 
@@ -42,4 +43,6 @@ hook/executor p50 is 6.18--6.30 s across SELECT/JOIN/GROUP BY/CTE/window
 query shapes. The 1k and 10k scale targets use 100 measured iterations per
 mode/pattern; the 100k target uses 30 measured iterations. The hook-only
 microbenchmark separates this accounting bottleneck from native structural
-guard cost.
+guard cost. The native partial-budget test validates that an over-budget
+direct safe-view SELECT records the accepted prefix in state and in a denial
+receipt before rejecting the over-budget tuple.

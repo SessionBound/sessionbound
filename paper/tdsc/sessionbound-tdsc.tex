@@ -878,19 +878,20 @@ aggregates.
 
 \noindent\textbf{Proposition 3 (Monotonic budget accounting).}
 Let budgets be ordered componentwise by \(\preceq\), and let
-\(\Delta\) be the nonnegative budget charge for released rows and
-business entities. For any allowed query,
+\(\Delta\) be the nonnegative budget charge instantiated by the
+prototype semantics in Table~\ref{tab:budget-charge}. For any allowed query,
 \(decide(q,S)=allow(result,S')\) implies
 \(0 \preceq B' \preceq B\), where \(B'\) is the budget component of
 \(S'\). If a wrapper query's materialized candidate result is not
 covered by the remaining disclosure budget, the wrapper path denies the
 query before returning result rows. In the native streaming path, each
-tuple is checked and debited before that tuple is forwarded; if adding a
-tuple would exceed the budget, the runtime emits a denial and errors
-before forwarding that tuple. Thus no tuple is intentionally released
-without the corresponding nonnegative debit, but native streaming is not
-an all-or-nothing guarantee for earlier tuples in a query that later
-exceeds budget.
+tuple is checked against the in-memory entity budget before that tuple is
+forwarded; if adding a tuple would exceed the budget, the runtime
+persists the already accepted prefix and emits a denial receipt before
+raising an error and before forwarding the over-budget tuple. Thus no
+tuple is intentionally released without the corresponding nonnegative
+debit, but native streaming is not an all-or-nothing guarantee for
+earlier tuples in a query that later exceeds budget.
 
 \emph{Argument.} The runtime treats budget dimensions as nonnegative
 counters. Query-count budget is reserved before execution. The wrapper
@@ -902,7 +903,10 @@ it to the client-side receiver. Both paths subtract only nonnegative
 charges and record the resulting state in an allow receipt. Therefore
 the remaining budget cannot increase across an allowed transition; an
 over-budget transition reaches a denial state at the applicable
-materialization or tuple-forwarding boundary.
+materialization or tuple-forwarding boundary. In the native path, the
+destination receiver finalizes charges on normal completion and records a
+partial-denial prefix if execution aborts after some tuples have passed
+the budget check.
 
 \noindent\textbf{Proposition 4 (Receipt-chain tamper evidence under
 trusted DB assumptions).}
@@ -1046,6 +1050,31 @@ wrapper path checks group cardinality before releasing rows. Aggregate
 queries over a scoped set are allowed only when the configured entity
 cardinality meets the policy threshold. Denied small-group queries emit
 denial receipts and do not release disclosure rows.
+
+Table~\ref{tab:budget-charge} gives the exact prototype charge
+semantics used for \(\Delta\). It is intentionally operational: it
+counts released tuples and stable business identifiers, not information
+theoretic leakage.
+
+\begin{table}[!t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Prototype budget-charge semantics.}
+\label{tab:budget-charge}
+\begin{tabular}{@{}p{0.34\linewidth}p{0.58\linewidth}@{}}
+\toprule
+Budget dimension & Prototype charge \\
+\midrule
+\texttt{query\_count} & Wrapper path: one debit on allowed completion. Native path: one debit reserved before executor run. Preflight and policy denials emit denial receipts without result/entity debit in the current prototype. \\
+\texttt{result\_rows} & Number of tuples released to the client and recorded in state/receipts. Join multiplicity is visible here, so duplicate output tuples increase this counter. \\
+\texttt{unique\_entities} & New distinct \texttt{expense\_id} values in released detail tuples for the same \texttt{budget\_account}; duplicate join rows and repeated queries over a seen \texttt{expense\_id} do not add entity charge. \\
+\texttt{aggregate\_group} & Aggregate rows are allowed only when the configured entity cardinality is at least \texttt{min\_group\_size}; the prototype does not charge every hidden group member as a released detail entity. \\
+payload aggregation & High-risk payload aggregation functions such as \texttt{json\_agg}, \texttt{array\_agg}, and \texttt{string\_agg} are denied unless a future template explicitly allows them. \\
+over-budget native streaming & The over-budget tuple is not forwarded; the accepted prefix is charged and recorded in a denial receipt with prefix rows, new entities, and remaining budget. \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 Budget vectors are not mutual-information bounds. They provide
 operational containment, auditability, and a governance lever for
@@ -1349,16 +1378,19 @@ reproduction entrypoints are \texttt{ast\_validation\_eval.py},
 \texttt{sessionbound\_guard\_hook\_eval.py},
 \texttt{overhead\_breakdown.py}, \texttt{hook\_microbenchmark.py},
 \texttt{rollback\_audit\_eval.py}, and
-\texttt{native\_end\_to\_end\_benchmark.py}. Exact command lines and
+\texttt{native\_end\_to\_end\_benchmark.py}. A targeted
+\texttt{native\_partial\_budget\_eval.py} script validates native
+over-budget prefix accounting. Exact command lines and
 environment variables are recorded in the artifact README and changelog.
 
 The latest raw files cited in the paper are
 \texttt{ast\_validation\_20260708\_205921.json},
 \texttt{adversarial\_sql\_20260708\_235742.json},
-\texttt{sessionbound\_guard\_hook\_20260708\_205325.json},
+\texttt{sessionbound\_guard\_hook\_20260709\_015110.json},
 \texttt{hook\_microbenchmark\_20260708\_205831.json},
-\texttt{overhead\_breakdown\_20260708\_205527.json}, and
-\texttt{native\_end\_to\_end\_20260709\_013634.json/csv}. Scripts write
+\texttt{overhead\_breakdown\_20260708\_205527.json},
+\texttt{native\_end\_to\_end\_20260709\_013634.json/csv}, and
+\texttt{native\_partial\_budget\_20260709\_014913.json}. Scripts write
 timestamps, git commit, iteration counts, error counts, and measured
 latencies into the raw result files; the tables below are derived from
 those files rather than hand-entered experimental claims.

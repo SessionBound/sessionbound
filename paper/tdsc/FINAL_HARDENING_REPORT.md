@@ -50,7 +50,7 @@
   `paper/tdsc/raw_results/ast_validation_20260708_205921.json`.
 - SDK query surface: native SDK smoke passed on 2026-07-08.
 - PostgreSQL hook enforcement: 18 / 18 passed; latest raw result:
-  `paper/tdsc/raw_results/sessionbound_guard_hook_20260708_205325.json`.
+  `paper/tdsc/raw_results/sessionbound_guard_hook_20260709_015110.json`.
 - Hook-only microbenchmark: 6 / 6 passed; latest raw result:
   `paper/tdsc/raw_results/hook_microbenchmark_20260708_205831.json`.
 - Rollback audit: 2 / 2 passed; latest raw result:
@@ -73,6 +73,10 @@
   6176.94--6298.30 ms across SELECT/JOIN/GROUP BY/CTE/window query shapes;
   latest raw result:
   `paper/tdsc/raw_results/native_end_to_end_20260709_013634.json`.
+- Native partial-budget accounting: 1 / 1 prefix-denial case passed; the
+  accepted native prefix was recorded as 2 rows and 2 unique expenses before
+  the over-budget tuple was denied; latest raw result:
+  `paper/tdsc/raw_results/native_partial_budget_20260709_014913.json`.
 - Manuscript audits: no stale draft-language, placeholder, Codex, or prior
   author-name matches in the final manuscript and bibliography sweep.
 

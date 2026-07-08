@@ -84,7 +84,7 @@ PostgreSQL hook enforcement:
   including approved safe-view OIDs from `taskbound.safe_view_registry`.
 - Script: `paper/tdsc/scripts/sessionbound_guard_hook_eval.py`
 - Latest raw result:
-  `paper/tdsc/raw_results/sessionbound_guard_hook_20260708_205325.json`
+  `paper/tdsc/raw_results/sessionbound_guard_hook_20260709_015110.json`
 - Result: 18 / 18 cases passed, including native bound safe-view SELECT,
   prepared EXECUTE, cursor/FETCH, COPY(SELECT), EXPLAIN, blocked
   EXPLAIN ANALYZE, direct entity group-by denial, and HAVING denial.

@@ -11,7 +11,7 @@
 - Evaluation script: `paper/tdsc/scripts/sessionbound_guard_hook_eval.py`
 - Hook-only microbenchmark script: `paper/tdsc/scripts/hook_microbenchmark.py`
 - Rollback audit script: `paper/tdsc/scripts/rollback_audit_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/sessionbound_guard_hook_20260708_205325.json`
+- Latest raw result: `paper/tdsc/raw_results/sessionbound_guard_hook_20260709_015110.json`
 - Latest hook-only microbenchmark result:
   `paper/tdsc/raw_results/hook_microbenchmark_20260708_205831.json`
 - Latest rollback audit result: `paper/tdsc/raw_results/rollback_audit_20260708_205904.json`

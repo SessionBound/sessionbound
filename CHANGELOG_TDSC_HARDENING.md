@@ -19,9 +19,12 @@ Date: 2026-07-08
   - hook-only structural microbenchmark.
 - Rewrote Proposition 3 to match implemented budget semantics:
   - wrapper path materializes and checks candidate results before release;
-  - native path checks/debits each outgoing tuple before forwarding it;
+  - native path checks each outgoing tuple before forwarding it and records the
+    accepted prefix on denial;
   - native streaming is not claimed to be all-or-nothing for earlier tuples in
     a query that later exceeds budget.
+- Added `paper/tdsc/scripts/native_partial_budget_eval.py`; latest raw result
+  is `paper/tdsc/raw_results/native_partial_budget_20260709_014913.json`.
 
 ## Security Suite Hardening
 

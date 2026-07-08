@@ -292,6 +292,110 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION taskbound.native_partial_denied_receipt(
+  v_task_id text,
+  v_budget_account text,
+  sql_text text,
+  reason text,
+  v_rows_returned bigint,
+  v_new_expense_ids text[],
+  v_max_rows int,
+  v_budget_accounting_enabled boolean,
+  v_receipts_enabled boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+DECLARE
+  v_conn text := taskbound.audit_connection_name();
+  v_connections text[];
+  v_ids_expr text;
+  v_unique_added bigint := 0;
+  v_unique_after bigint;
+  v_remaining_sql text := 'NULL';
+BEGIN
+  SELECT public.dblink_get_connections() INTO v_connections;
+  IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
+    PERFORM public.dblink_connect(v_conn, 'dbname=' || current_database());
+  END IF;
+
+  IF COALESCE(v_budget_accounting_enabled, true) THEN
+    IF COALESCE(cardinality(v_new_expense_ids), 0) = 0 THEN
+      v_ids_expr := 'ARRAY[]::text[]';
+    ELSE
+      SELECT 'ARRAY[' || string_agg(format('%L', row_id), ',') || ']::text[]'
+      INTO v_ids_expr
+      FROM unnest(v_new_expense_ids) AS u(row_id);
+    END IF;
+
+    SELECT unique_added, unique_after
+    INTO v_unique_added, v_unique_after
+    FROM public.dblink(
+      v_conn,
+      format(
+        $sql$
+        WITH before_count AS (
+          SELECT count(*)::bigint AS n
+          FROM taskbound.task_rows_seen
+          WHERE budget_account = %L
+            AND row_kind = 'expense'
+        ),
+        input AS (
+          SELECT DISTINCT row_id
+          FROM unnest(%s) AS u(row_id)
+          WHERE row_id IS NOT NULL AND row_id <> ''
+        ),
+        ins AS (
+          INSERT INTO taskbound.task_rows_seen (budget_account, row_kind, row_id)
+          SELECT %L, 'expense', row_id
+          FROM input
+          ON CONFLICT DO NOTHING
+          RETURNING 1
+        ),
+        after_count AS (
+          SELECT (SELECT n FROM before_count) + (SELECT count(*)::bigint FROM ins) AS n
+        ),
+        updated AS (
+          UPDATE taskbound.task_execution_state
+          SET returned_rows = returned_rows + %s,
+              unique_expense_rows = (SELECT n FROM after_count)
+          WHERE task_id = %L
+          RETURNING 1
+        )
+        SELECT
+          (SELECT count(*)::bigint FROM ins) AS unique_added,
+          (SELECT n FROM after_count) AS unique_after
+        $sql$,
+        v_budget_account,
+        v_ids_expr,
+        v_budget_account,
+        GREATEST(COALESCE(v_rows_returned, 0), 0),
+        v_task_id
+      )
+    ) AS t(unique_added bigint, unique_after bigint);
+
+    v_remaining_sql := (COALESCE(v_max_rows, 0) - COALESCE(v_unique_after, 0))::text;
+  END IF;
+
+  IF COALESCE(v_receipts_enabled, true) THEN
+    PERFORM taskbound.audit_exec(format(
+      'INSERT INTO taskbound.task_query_receipts ' ||
+      '(task_id, budget_account, query_digest, decision, reason, rows_returned, unique_rows_added, remaining_unique_row_budget) ' ||
+      'VALUES (%L, %L, encode(public.digest(%L, ''sha256''), ''hex''), ''denied'', %L, %s, %s, %s)',
+      v_task_id,
+      v_budget_account,
+      COALESCE(sql_text, ''),
+      COALESCE(reason, 'query denied'),
+      GREATEST(COALESCE(v_rows_returned, 0), 0),
+      GREATEST(COALESCE(v_unique_added, 0), 0),
+      v_remaining_sql
+    ));
+  END IF;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION taskbound.enforce_min_group_policy(
   sql_text text,
   rows jsonb[],

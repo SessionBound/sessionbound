@@ -368,6 +368,7 @@ GRANT EXECUTE ON FUNCTION taskbound.native_denied_receipt(text, text, text, text
 GRANT EXECUTE ON FUNCTION taskbound.native_reserve_query(text, text, text, int, boolean, boolean) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.native_seen_expense_rows(text) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.native_finish_query(text, text, text, bigint, text[], int, boolean, boolean) TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.native_partial_denied_receipt(text, text, text, text, bigint, text[], int, boolean, boolean) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.run(text) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.command(text, jsonb) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.inspect_task_state() TO agent_runtime;

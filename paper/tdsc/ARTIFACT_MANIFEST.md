@@ -77,6 +77,9 @@ Core validated claims in the TDSC candidate:
   `paper/tdsc/raw_results/scale_1783515366.json`
 - Native end-to-end scale raw result:
   `paper/tdsc/raw_results/native_end_to_end_20260709_013634.json`
+- Native partial-budget script: `paper/tdsc/scripts/native_partial_budget_eval.py`
+- Native partial-budget raw result:
+  `paper/tdsc/raw_results/native_partial_budget_20260709_014913.json`
 - Credential-token and schema drift raw result:
   `paper/tdsc/raw_results/credential_token_1783515640.json`
 - Security baseline raw result:
