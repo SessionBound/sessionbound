@@ -89,6 +89,15 @@ PostgreSQL hook enforcement:
 - Status: native database-resident structural enforcement and executor
   accounting path; API AST preflight remains defense in depth.
 
+Rollback audit:
+
+- Script: `paper/tdsc/scripts/rollback_audit_eval.py`
+- Latest raw result:
+  `paper/tdsc/raw_results/rollback_audit_20260708_141120.json`
+- Result: 2 / 2 cases passed.
+- Status: evaluated bound-runtime allowed receipts/accounting and raw-schema
+  denial receipts persist after agent-side `BEGIN ... ROLLBACK`.
+
 Adversarial SQL:
 
 - Script: `paper/tdsc/scripts/adversarial_sql_eval.py`

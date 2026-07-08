@@ -225,7 +225,8 @@ not depend on the agent correctly interpreting the task. It does not
 trust mutable session variables set by the agent. Instead, it validates
 a signed task token, exposes only registered safe views, rejects raw
 table access and denied fields, tracks query and disclosure budgets, and
-records receipts for allowed and denied attempts.
+records receipts for evaluated allowed executions and bound-runtime
+denial decisions.
 
 For compatibility with the existing demo implementation, the PostgreSQL
 prototype currently keeps the SQL schema name \texttt{taskbound}.
@@ -1200,7 +1201,8 @@ The current prototype includes:
 \item
   query and disclosure budget state;
 \item
-  receipts for allowed and denied attempts;
+  receipts for evaluated allowed executions and bound-runtime denial
+  decisions;
 \item
   controlled commands for high-value workflow actions;
 \item
@@ -1232,8 +1234,8 @@ executor hooks. Trusted SUSET GUCs populated by
 approved safe-view OIDs. The executor path wraps the destination
 receiver to count rows and disclosed \texttt{expense\_id} values before
 forwarding tuples. Receipt and budget updates use an autonomous
-same-database audit channel, so allowed and denied receipts survive
-agent transaction rollback.
+same-database audit channel, so receipts for evaluated allowed executions
+and hook/API denials survive agent transaction rollback.
 
 The hook rejects non-\texttt{SELECT} statements, raw
 \texttt{app\_data} relations, catalog access, recursive CTEs,
@@ -1860,8 +1862,11 @@ following limitations:
   not be generalized to production workloads or an optimized
   planner/executor-hook implementation;
 \item
-  denial receipts, credential brokerage, key management, and audit
-  retention require production infrastructure outside this demo;
+  evaluated native paths persist allowed receipts and hook/API denial
+  receipts through a same-database autonomous audit channel, including
+  across agent transaction rollback; external audit retention, lifecycle
+  cleanup, credential brokerage, and key management remain production
+  infrastructure outside this demo;
 \item
   cross-database enforcement, malicious DBAs, and compromised hosts are
   out of scope.

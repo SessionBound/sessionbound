@@ -21,7 +21,7 @@ It enforces:
 - read/write operation policy;
 - query budget;
 - disclosure budget;
-- receipts for allowed and denied attempts.
+- receipts for evaluated allowed executions and bound-runtime denial decisions.
 
 ## SQL Entry Point
 

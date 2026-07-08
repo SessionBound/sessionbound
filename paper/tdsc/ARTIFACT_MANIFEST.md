@@ -31,6 +31,9 @@ Core validated claims in the TDSC candidate:
 - PostgreSQL native hook/executor surface: 16 / 16 cases passed, covering
   bound native SELECT, prepared statements, cursor/FETCH, COPY(SELECT),
   EXPLAIN, fail-closed denials, and trusted-GUC protection;
+- rollback-surviving audit: 2 / 2 cases passed, showing that evaluated
+  bound-runtime allowed receipts/accounting and raw-schema denial receipts
+  persist after `BEGIN ... ROLLBACK`;
 - adversarial SQL suite: 28 cases, with 22 blocked cases, 5 allowed safe-view
   analytical cases, and 1 known limitation;
 - default-seed overhead: full SessionBound p50 latency is 14.6--18.6 ms across
@@ -52,6 +55,9 @@ Core validated claims in the TDSC candidate:
 - AST validation report: `paper/tdsc/AST_VALIDATION.md`
 - SDK query surface report: `paper/tdsc/SDK_QUERY_SURFACE.md`
 - PostgreSQL hook report: `paper/tdsc/POSTGRES_HOOK_ENFORCEMENT.md`
+- Rollback audit script: `paper/tdsc/scripts/rollback_audit_eval.py`
+- Rollback audit raw result:
+  `paper/tdsc/raw_results/rollback_audit_20260708_141120.json`
 - Overhead breakdown report: `paper/tdsc/OVERHEAD_BREAKDOWN.md`
 - Security invariants companion: `paper/tdsc/SECURITY_INVARIANTS.md`
 

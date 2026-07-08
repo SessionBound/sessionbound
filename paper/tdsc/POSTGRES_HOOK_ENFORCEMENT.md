@@ -9,12 +9,16 @@
   `public.sessionbound_guard_check(sql_text)`
 - Trusted context: SUSET GUCs set by `taskbound.bind_task(...)`
 - Evaluation script: `paper/tdsc/scripts/sessionbound_guard_hook_eval.py`
+- Rollback audit script: `paper/tdsc/scripts/rollback_audit_eval.py`
 - Latest raw result: `paper/tdsc/raw_results/sessionbound_guard_hook_20260708_122824.json`
+- Latest rollback audit result: `paper/tdsc/raw_results/rollback_audit_20260708_141120.json`
 - Result: 16 / 16 cases passed
+- Rollback audit result: 2 / 2 cases passed
 
 The hardening prototype now includes both API-layer AST validation and a native
 PostgreSQL hook/executor path for structural SQL enforcement, result
-accounting, and rollback-surviving receipts.
+accounting, and rollback-surviving allowed and denial receipts in the evaluated
+bound runtime path.
 
 ## Design
 
@@ -43,7 +47,8 @@ and function use. The utility hook covers prepared statements, cursors/FETCH,
 query budget, wrap the destination receiver, count returned rows, observe
 disclosed `expense_id` values before forwarding tuples, and emit receipts.
 Receipt and budget updates use an autonomous same-database audit channel, so
-allowed and denied receipts survive rollback of the agent transaction.
+receipts for evaluated allowed executions and hook/API denials survive rollback
+of the agent transaction.
 
 ## Enforced Query-Shape Policy
 
@@ -74,7 +79,8 @@ The hook rejects:
 | `UNION`, catalog access, recursive CTE | agent credential native SQL surface | 3 / 3 blocked |
 | Runtime helper abuse and `EXPLAIN ANALYZE` | agent credential direct DB connection | 2 / 2 blocked |
 | Non-`SELECT`, raw schema, payload aggregation, unapproved safe-view OID | superuser trusted-GUC hook check, no API preflight | 4 / 4 blocked |
-| Total | mixed direct database paths | 16 / 16 passed |
+| Hook enforcement subtotal | mixed direct database paths | 16 / 16 passed |
+| Rollback-surviving audit | bound native allowed SELECT and raw-schema denial inside ROLLBACK | 2 / 2 persisted |
 
 The hook evaluation intentionally bypasses the `/agent-query` API preflight for
 the agent cases by connecting directly as the generated runtime credential, then
@@ -84,6 +90,22 @@ unbound or out-of-registry access fails closed, and raw application tables remai
 ungranted for `SELECT`.
 The hook-only cases use trusted superuser setup to exercise the extension path
 without the API validator.
+
+## Rollback Audit Reproduction
+
+Run:
+
+```bash
+python paper/tdsc/scripts/rollback_audit_eval.py --base-url http://localhost:8000 --output-dir paper/tdsc/raw_results
+```
+
+The script creates two fresh credential/task pairs. It executes an allowed
+native safe-view `SELECT` inside `BEGIN ... ROLLBACK`, then verifies that
+`taskbound.inspect_task_state()` and `taskbound.receipts()` still show the
+allowed accounting update and receipt. It separately executes a denied raw
+`app_data` query inside `BEGIN ... ROLLBACK`, then verifies that a `denied`
+receipt with reason `raw application schema access is not allowed` remains
+visible after rollback.
 
 ## Boundary
 

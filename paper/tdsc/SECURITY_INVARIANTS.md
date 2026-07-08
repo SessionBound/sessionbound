@@ -27,15 +27,18 @@ decide(q, S) -> allow(result, S') or deny(reason, receipt, S')
 ```
 
 The prototype implements this through `taskbound.bind_task(...)`, API-layer AST
-preflight, the experimental `sessionbound_guard` PostgreSQL hook path,
-`taskbound.run(...)`, safe views, budget state, and query receipts.
+preflight, the experimental `sessionbound_guard` PostgreSQL hook/executor path,
+native safe-view `SELECT`, the compatibility `taskbound.run(...)` wrapper, safe
+views, budget state, and query receipts.
 
 ## Invariants
 
 I1. No execution without active task binding.
 
-`taskbound.run(sql)` calls `taskbound.require_payload()` and fails if no
-task is bound to the current backend.
+Native safe-view `SELECT` checks trusted task GUCs installed by
+`taskbound.bind_task(...)`; the compatibility `taskbound.run(sql)` path calls
+`taskbound.require_payload()`. Both paths fail if no task is bound to the
+current backend.
 
 I2. Bound token must match the session credential, actor, audience, expiry,
 nonce/jti-equivalent token digest, and revocation state.
@@ -134,9 +137,11 @@ a Byzantine storage guarantee against malicious DBAs or compromised hosts.
 The hardening prototype now includes AST-level API preflight plus an
 experimental PostgreSQL `post_parse_analyze_hook` extension path before dynamic
 execution. The generated runtime credential can connect directly to PostgreSQL,
-but it has no bare `SELECT` grant on raw tables or safe views; approved SQL over
-safe views is exposed through `TaskboundSession.query(sql)` and executed through
-`taskbound.run(...)`, where budgets and receipts are applied. A production
-implementation that exposes native agent `SELECT` syntax must harden this path
-into always-on planner/executor integration, optimized result accounting before
-client release, receipt emission, and out-of-transaction denial logging.
+but it has no bare `SELECT` grant on raw tables; approved SQL over safe views is
+exposed through `TaskboundSession.query(sql)` and native safe-view `SELECT`,
+where trusted GUCs, approved safe-view OIDs, executor accounting, and receipts
+are applied. Evaluated allowed receipts and hook/API denial receipts are emitted
+through a rollback-surviving same-database audit channel. Production deployments
+still need always-on planner/executor integration, optimized result accounting
+before client release, external audit retention/WORM storage, credential
+lifecycle cleanup, and hardened key management.

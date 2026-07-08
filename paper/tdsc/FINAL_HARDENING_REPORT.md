@@ -27,6 +27,9 @@
   and approved safe-view OID checks; 16 / 16 hook evaluation cases passed,
   including prepared statements, cursor/FETCH, COPY(SELECT), EXPLAIN, and
   blocked EXPLAIN ANALYZE.
+- Rollback audit status: implemented as an artifact script; 2 / 2 cases passed,
+  showing that evaluated bound-runtime allowed receipts/accounting and
+  raw-schema denial receipts survive rollback of the agent transaction.
 - Adversarial SQL suite status: implemented; 28 / 28 expected classifications
   passed.
 - Overhead breakdown status: implemented; latest supported modes ran with zero
@@ -46,6 +49,8 @@
 - SDK query surface: native SDK smoke passed on 2026-07-08.
 - PostgreSQL hook enforcement: 16 / 16 passed; latest raw result:
   `paper/tdsc/raw_results/sessionbound_guard_hook_20260708_122824.json`.
+- Rollback audit: 2 / 2 passed; latest raw result:
+  `paper/tdsc/raw_results/rollback_audit_20260708_141120.json`.
 - Adversarial SQL: 22 blocked, 5 allowed but accounted, 1 known limitation;
   latest raw result:
   `paper/tdsc/raw_results/adversarial_sql_20260707_182701.json`.
@@ -60,8 +65,8 @@
 ## Known Remaining Gaps
 
 - The native hook path is still a research prototype: disclosure accounting is
-  demo-specific (`expense_id`) and the autonomous audit channel uses same-DB
-  `dblink`.
+  demo-specific (`expense_id`) and the rollback-surviving audit channel uses
+  same-DB `dblink` rather than external WORM storage or managed audit retention.
 - Small-group aggregate inference remains a known limitation.
 - The budget vector does not provide formal differential privacy guarantees.
 - The old PL/pgSQL wrapper baseline remains too slow for production-scale

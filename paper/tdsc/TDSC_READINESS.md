@@ -12,19 +12,23 @@ stronger than the prior draft.
   manuscript path.
 - Added `sqlglot==30.12.0` and `app/sql_ast_validator.py`.
 - Integrated AST preflight in `/query`, `/agent-query`, and `/agent-question`
-  before `taskbound.run(...)`.
-- Recorded API-layer preflight denial receipts through `taskbound.fail_receipt`.
+  before native SDK SQL execution; `taskbound.run(...)` remains as a
+  compatibility wrapper.
+- Recorded API-layer preflight denial receipts through `taskbound.fail_receipt`;
+  in the current hardening prototype these are written through the same
+  rollback-surviving audit channel as native hook denial receipts.
 - Added the `sessionbound_guard` PostgreSQL C extension, loaded through
   `shared_preload_libraries`, with a `post_parse_analyze_hook` path for
   structural SQL enforcement before dynamic execution.
-- Added `TaskboundSession.query(sql)` as the native-feeling agent SDK surface
-  that wraps `taskbound.run(sql)`.
+- Added `TaskboundSession.query(sql)` as the native safe-view SQL agent SDK
+  surface under PostgreSQL hook/executor accounting.
 - Added AST validation script and raw results.
 - Added SDK query surface script and raw results.
 - Added hook enforcement script and raw results.
-- Added a direct bare safe-view `SELECT` negative case showing that generated
-  runtime credentials cannot bypass `taskbound.run(...)` accounting through
-  ordinary view privileges.
+- Added direct bare safe-view `SELECT`, prepared statement, cursor/FETCH,
+  COPY(SELECT), and EXPLAIN cases showing that generated runtime credentials
+  remain guarded by native hook/executor accounting outside `taskbound.run(...)`.
+- Added rollback audit script and raw result for allowed and denied receipts.
 - Added 28-case adversarial SQL suite and raw results.
 - Added overhead breakdown script with raw JSON/CSV outputs.
 - Expanded related work to 29 verified references.
@@ -35,8 +39,10 @@ stronger than the prior draft.
 ## Evidence
 
 - AST validation: 17 / 17 cases passed.
-- SDK query surface: 2 / 2 cases passed.
-- PostgreSQL hook enforcement: 11 / 11 cases passed.
+- SDK query surface: native query, bound bare SELECT accounting, and unbound
+  fail-closed behavior passed.
+- PostgreSQL hook enforcement: 16 / 16 cases passed.
+- Rollback audit: 2 / 2 cases passed.
 - Adversarial SQL: 28 / 28 expected classifications passed.
 - Adversarial classifications: 22 blocked, 5 allowed but accounted, 1 known
   limitation.
@@ -55,8 +61,9 @@ stronger than the prior draft.
 - RLS-only was not measured in the hardening overhead breakdown because the current
   prototype does not define RLS policies in the active runtime path.
 - Production claims require hardened signing/key management, credential
-  lifecycle cleanup, out-of-transaction denial logging, and operational
-  migration/reapproval workflows.
+  lifecycle cleanup, external audit retention/WORM storage, and operational
+  migration/reapproval workflows. The evaluated bound runtime path already
+  persists API/hook denial receipts outside aborting agent transactions.
 
 ## Recommendation
 

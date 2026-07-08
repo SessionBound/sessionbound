@@ -4,8 +4,9 @@
 
 - Implementation: `app/sql_ast_validator.py`
 - Parser: `sqlglot==30.12.0`
-- Runtime integration: API-layer preflight after token binding and before the
-  SDK-backed query path calls `taskbound.run(...)`
+- Runtime integration: API-layer preflight after token binding and before
+  native SDK SQL execution; `taskbound.run(...)` remains as a compatibility
+  wrapper
 - Database hook companion: `postgres/sessionbound_guard/`
 - Evaluation script: `paper/tdsc/scripts/ast_validation_eval.py`
 - Latest raw result: `paper/tdsc/raw_results/ast_validation_20260707_182706.json`
@@ -64,9 +65,9 @@ The prototype denies:
 
 ## Integration Notes
 
-The API binds the task token first. If AST preflight denies a query, the API
-records a denial receipt through `taskbound.fail_receipt(...)` and does not
-invoke native SQL execution.
+The API binds the task token first. If AST preflight denies a query in this
+bound API path, the API records a rollback-surviving denial receipt through
+`taskbound.fail_receipt(...)` and does not invoke native SQL execution.
 
 Acceptable wording for the paper:
 
@@ -76,5 +77,6 @@ hook/executor path for structural SQL enforcement. Runtime credentials can issue
 native `SELECT` over registered safe views only after a valid task binding; raw
 table access, private runtime helpers, unsafe utility statements, and unbound
 safe-view access fail closed. `TaskboundSession.query(sql)` is accounted through
-executor hooks and receipts are emitted through a rollback-surviving audit path.
+executor hooks, and evaluated allowed receipts plus hook/API denial receipts are
+emitted through a rollback-surviving audit path.
 ```

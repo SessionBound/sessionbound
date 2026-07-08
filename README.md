@@ -85,7 +85,8 @@ In the prototype, the SDK submits that SQL through `TaskboundSession.query(sql)`
 which executes native safe-view `SELECT` on a task-bound PostgreSQL session.
 PostgreSQL hooks validate the approved safe-view OIDs, executor accounting
 counts returned rows and disclosed `expense_id` values before forwarding tuples,
-and receipts are written through a rollback-surviving audit channel.
+and evaluated bound-runtime allowed receipts and hook/API denial receipts are
+written through a rollback-surviving audit channel.
 
 But the database rejects access outside the task:
 
@@ -227,7 +228,7 @@ paper/arxiv-v1/            Earlier arXiv v1 manuscript, validation, and packagin
   parser/analyzer, planner, or executor integration.
 - Complex single-database `SELECT` queries are supported for the demo, including joins, CTEs, subqueries, and window functions.
 - Unique-row accounting tracks detail rows that include `expense_id`.
-- Denied queries are surfaced as database errors. Native hook denials and allowed query receipts are written through an autonomous audit channel so they survive rollback of the agent transaction.
+- Denied queries are surfaced as database errors. In the evaluated bound runtime path, native hook/API denial receipts and allowed query receipts are written through an autonomous audit channel so they survive rollback of the agent transaction.
 - HMAC keys are stored in the demo database for convenience.
 - The Credential Broker is implemented inside the demo FastAPI service and uses the admin database URL.
 - Cross-database federation is intentionally out of scope for this prototype.

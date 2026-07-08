@@ -26,7 +26,8 @@ The SDK executes that SQL directly on the bound PostgreSQL session. The runtime
 credential has `SELECT` on registered safe views, but every native statement is
 guarded by trusted task GUCs, approved safe-view OIDs, executor accounting, and
 receipt emission. Raw application tables remain ungranted for `SELECT`; schema
-resolution is permitted so the hook can fail closed and emit a denial receipt.
+resolution is permitted so the hook can fail closed and emit a rollback-surviving
+denial receipt in the evaluated bound runtime path.
 
 This gives agents a native `query(sql)` interface while preserving the budget
 and receipt chain inside the database runtime. `taskbound.run(sql_text)` remains
