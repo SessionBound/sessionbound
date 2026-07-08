@@ -52,6 +52,7 @@ DECLARE
   v_budget_accounting_enabled boolean;
   v_max_queries int;
   v_max_rows int;
+  v_min_group_size int;
 BEGIN
   p := payload_text::jsonb;
   SELECT signing_keys.secret INTO secret
@@ -79,6 +80,7 @@ BEGIN
   v_budget_accounting_enabled := COALESCE((p #>> ARRAY['runtime_options', 'budget_accounting_enabled'])::boolean, true);
   v_max_queries := COALESCE((p #>> ARRAY['budgets', 'max_queries'])::int, 100);
   v_max_rows := COALESCE((p #>> ARRAY['budgets', 'max_unique_expense_rows'])::int, 1000000);
+  v_min_group_size := COALESCE((p #>> ARRAY['aggregate_policy', 'min_group_size'])::int, 5);
   v_session_user := session_user;
   SELECT backend_start INTO v_backend_start
   FROM pg_catalog.pg_stat_activity
@@ -99,6 +101,10 @@ BEGIN
     IF p->>'view_definition_hash' <> v_expected_snapshot->>'view_definition_hash' THEN
       RAISE EXCEPTION 'task token safe-view definition hash is stale; re-approval is required';
     END IF;
+    IF p ? 'exposed_column_hash'
+       AND p->>'exposed_column_hash' <> v_expected_snapshot->>'exposed_column_hash' THEN
+      RAISE EXCEPTION 'task token exposed-column hash is stale; re-approval is required';
+    END IF;
   END IF;
 
   DELETE FROM taskbound.active_sessions a
@@ -114,8 +120,7 @@ BEGIN
   WHERE backend_pid = pg_backend_pid();
 
   IF v_existing_task IS NOT NULL AND v_existing_task <> v_task_id THEN
-    DELETE FROM taskbound.active_sessions
-    WHERE backend_pid = pg_backend_pid();
+    RAISE EXCEPTION 'database session is already bound to another active task; unbind before rebinding';
   END IF;
 
   IF v_credential_id IS NOT NULL THEN
@@ -193,6 +198,7 @@ BEGIN
   PERFORM set_config('sessionbound_guard.allowed_view_oids', v_allowed_view_oids, false);
   PERFORM set_config('sessionbound_guard.max_queries', v_max_queries::text, false);
   PERFORM set_config('sessionbound_guard.max_unique_expense_rows', v_max_rows::text, false);
+  PERFORM set_config('sessionbound_guard.min_group_size', v_min_group_size::text, false);
   PERFORM set_config('sessionbound_guard.receipts_enabled', CASE WHEN v_receipts_enabled THEN 'on' ELSE 'off' END, false);
   PERFORM set_config('sessionbound_guard.budget_accounting_enabled', CASE WHEN v_budget_accounting_enabled THEN 'on' ELSE 'off' END, false);
   PERFORM set_config('sessionbound_guard.enabled', 'off', false);
@@ -224,6 +230,7 @@ BEGIN
   PERFORM set_config('sessionbound_guard.allowed_view_oids', '', false);
   PERFORM set_config('sessionbound_guard.max_queries', '0', false);
   PERFORM set_config('sessionbound_guard.max_unique_expense_rows', '0', false);
+  PERFORM set_config('sessionbound_guard.min_group_size', '5', false);
   PERFORM set_config('sessionbound_guard.receipts_enabled', 'off', false);
   PERFORM set_config('sessionbound_guard.budget_accounting_enabled', 'off', false);
   PERFORM set_config('sessionbound_guard.enabled', 'off', false);
@@ -267,7 +274,20 @@ BEGIN
       r.database_object,
       r.registry_version,
       r.policy_version,
-      encode(public.digest(COALESCE(pg_catalog.pg_get_viewdef(r.database_object::regclass, true), ''), 'sha256'), 'hex') AS definition_hash
+      encode(public.digest(COALESCE(pg_catalog.pg_get_viewdef(r.database_object::regclass, true), ''), 'sha256'), 'hex') AS definition_hash,
+      (
+        SELECT encode(
+          public.digest(
+            COALESCE(string_agg(a.attname || ':' || a.atttypid::regtype::text, '|' ORDER BY a.attnum), ''),
+            'sha256'
+          ),
+          'hex'
+        )
+        FROM pg_catalog.pg_attribute a
+        WHERE a.attrelid = r.database_object::regclass
+          AND a.attnum > 0
+          AND NOT a.attisdropped
+      ) AS exposed_column_hash
     FROM taskbound.safe_view_registry r
     WHERE r.view_name = ANY(COALESCE(view_names, ARRAY[]::text[]))
   ),
@@ -283,13 +303,17 @@ BEGIN
       'view_definition_hash', encode(
         public.digest(COALESCE(string_agg(view_name || ':' || definition_hash, '|' ORDER BY view_name), ''), 'sha256'
       ), 'hex'),
+      'exposed_column_hash', encode(
+        public.digest(COALESCE(string_agg(view_name || ':' || exposed_column_hash, '|' ORDER BY view_name), ''), 'sha256'
+      ), 'hex'),
       'views', COALESCE(
         jsonb_object_agg(
           view_name,
           jsonb_build_object(
             'policy_version', policy_version,
             'registry_version', registry_version,
-            'view_definition_hash', definition_hash
+            'view_definition_hash', definition_hash,
+            'exposed_column_hash', exposed_column_hash
           )
         ),
         '{}'::jsonb

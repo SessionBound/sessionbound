@@ -16,6 +16,7 @@
 #include "nodes/nodes.h"
 #include "nodes/parsenodes.h"
 #include "parser/analyze.h"
+#include "parser/parsetree.h"
 #include "tcop/dest.h"
 #include "tcop/utility.h"
 #include "utils/array.h"
@@ -107,6 +108,7 @@ static bool guard_receipts_enabled = true;
 static bool guard_budget_accounting_enabled = true;
 static int guard_max_queries = 0;
 static int guard_max_unique_expense_rows = 0;
+static int guard_min_group_size = 5;
 static char *guard_task_id = NULL;
 static char *guard_budget_account = NULL;
 static char *guard_allowed_view_oids = NULL;
@@ -132,6 +134,7 @@ static void sessionbound_guard_ExecutorRun(QueryDesc *queryDesc,
 static void sessionbound_guard_ExecutorFinish(QueryDesc *queryDesc);
 static void sessionbound_guard_ExecutorEnd(QueryDesc *queryDesc);
 static void guard_check_query(Query *query, GuardContext *ctx);
+static void guard_check_group_policy(Query *query);
 static bool guard_expr_walker(Node *node, void *context);
 static bool relation_scan_walker(Node *node, void *context);
 
@@ -258,6 +261,15 @@ name_is_sensitive(const char *name)
 }
 
 static bool
+name_is_direct_entity_identifier(const char *name)
+{
+	if (name == NULL)
+		return false;
+	return pg_strcasecmp(name, "employee_id") == 0 ||
+		   pg_strcasecmp(name, "expense_id") == 0;
+}
+
+static bool
 function_is_payload_aggregation(const char *name)
 {
 	if (name == NULL)
@@ -332,6 +344,74 @@ parse_allowed_oids(const char *raw)
 	return oids;
 }
 
+static TargetEntry *
+find_target_entry_by_sortgroupref(List *target_list, Index ressortgroupref)
+{
+	ListCell *lc;
+
+	foreach(lc, target_list)
+	{
+		TargetEntry *tle = (TargetEntry *) lfirst(lc);
+		if (tle != NULL && tle->ressortgroupref == ressortgroupref)
+			return tle;
+	}
+	return NULL;
+}
+
+static bool
+target_entry_is_direct_entity_group(Query *query, TargetEntry *tle)
+{
+	Var *var;
+	RangeTblEntry *rte;
+	char *attname = NULL;
+
+	if (tle == NULL)
+		return false;
+
+	if (name_is_direct_entity_identifier(tle->resname))
+		return true;
+
+	if (tle->expr == NULL || !IsA(tle->expr, Var))
+		return false;
+
+	var = (Var *) tle->expr;
+	if (var->varattno <= 0 || var->varno <= 0)
+		return false;
+	if (query == NULL || var->varno > list_length(query->rtable))
+		return false;
+
+	rte = rt_fetch(var->varno, query->rtable);
+	if (rte == NULL || rte->eref == NULL || var->varattno > list_length(rte->eref->colnames))
+		return false;
+
+	attname = strVal(list_nth(rte->eref->colnames, var->varattno - 1));
+	return name_is_direct_entity_identifier(attname);
+}
+
+static void
+guard_check_group_policy(Query *query)
+{
+	ListCell *lc;
+
+	if (query == NULL)
+		return;
+
+	if (query->havingQual != NULL)
+		guard_deny("minimum group-size policy denies HAVING predicates");
+
+	foreach(lc, query->groupClause)
+	{
+		SortGroupClause *sgc = (SortGroupClause *) lfirst(lc);
+		TargetEntry *tle;
+
+		if (sgc == NULL)
+			continue;
+		tle = find_target_entry_by_sortgroupref(query->targetList, sgc->tleSortGroupRef);
+		if (target_entry_is_direct_entity_group(query, tle))
+			guard_deny("minimum group-size policy denies grouping by sensitive entity identifiers");
+	}
+}
+
 static void
 guard_check_function(Oid funcid)
 {
@@ -379,7 +459,6 @@ relation_is_guarded(Oid relid)
 		return true;
 
 	return pg_strcasecmp(namespace_name, "taskbound") == 0 ||
-		   pg_strcasecmp(namespace_name, "app_data") == 0 ||
 		   pg_strcasecmp(namespace_name, "pg_catalog") == 0 ||
 		   pg_strcasecmp(namespace_name, "information_schema") == 0;
 }
@@ -567,6 +646,8 @@ guard_check_query(Query *query, GuardContext *ctx)
 
 	if (query->setOperations != NULL)
 		guard_deny("UNION, INTERSECT, and EXCEPT are not allowed");
+
+	guard_check_group_policy(query);
 
 	foreach(lc, query->cteList)
 	{
@@ -1447,6 +1528,20 @@ _PG_init(void)
 		&guard_max_unique_expense_rows,
 		0,
 		0,
+		INT_MAX,
+		PGC_SUSET,
+		GUC_NOT_IN_SAMPLE,
+		NULL,
+		NULL,
+		NULL);
+
+	DefineCustomIntVariable(
+		"sessionbound_guard.min_group_size",
+		"Minimum distinct entity count required for aggregate group release.",
+		NULL,
+		&guard_min_group_size,
+		5,
+		1,
 		INT_MAX,
 		PGC_SUSET,
 		GUC_NOT_IN_SAMPLE,

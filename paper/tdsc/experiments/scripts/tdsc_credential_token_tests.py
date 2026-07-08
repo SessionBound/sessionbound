@@ -18,8 +18,9 @@ import psycopg
 BASE_URL = os.environ.get("TDSC_BASE_URL", "http://127.0.0.1:8000")
 OUT_DIR = Path(os.environ.get("TDSC_OUT_DIR", "paper/tdsc/experiments/raw_results"))
 DB_HOST = os.environ.get("TDSC_DB_HOST", "postgres")
+DB_PORT = os.environ.get("TDSC_DB_PORT", "5432")
 DB_NAME = os.environ.get("TDSC_DB_NAME", "travel")
-ADMIN_DSN = f"postgresql://postgres:postgres@{DB_HOST}:5432/{DB_NAME}"
+ADMIN_DSN = f"postgresql://postgres:postgres@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 SECRET = os.environ.get("TASKBOUND_SECRET", "dev-secret-change-me").encode("utf-8")
 
 
@@ -251,6 +252,17 @@ def main() -> None:
         "result": hash_mismatch,
     })
 
+    column_hash_payload = dict(task_a["payload"])
+    column_hash_payload["task_id"] = f"tdsc_column_hash_mismatch_{run_id}"
+    column_hash_payload["exposed_column_hash"] = "0" * 64
+    column_hash_mismatch = query(cred_a, task_from_payload(column_hash_payload))
+    tests.append({
+        "name": "exposed_column_hash_claim_mismatch",
+        "expected_security_property": "Denied when the signed token's exposed_column_hash does not match the runtime safe-view snapshot.",
+        "observed": "Allowed" if column_hash_mismatch.get("ok") else "Denied",
+        "result": column_hash_mismatch,
+    })
+
     revoke_task(task_a["payload"]["task_id"])
     revoked = query(cred_a, task_a)
     tests.append({
@@ -262,7 +274,7 @@ def main() -> None:
 
     # Direct same-session rebind test: bind two credential-valid tasks over one backend session.
     task_c = issue_task(f"tdsc_cred_task_c_{run_id}", cred_a["credential_id"])
-    dsn = f"postgresql://{cred_a['db_user']}:{cred_a['db_password']}@{DB_HOST}:5432/{DB_NAME}"
+    dsn = f"postgresql://{cred_a['db_user']}:{cred_a['db_password']}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     with psycopg.connect(dsn) as conn:
         conn.autocommit = True
         with conn.cursor() as cur:

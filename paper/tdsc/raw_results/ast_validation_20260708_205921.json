@@ -1,0 +1,884 @@
+{
+  "records": [
+    {
+      "actual": "allowed",
+      "expected": "allowed",
+      "name": "select_safe_view",
+      "passed": true,
+      "result": {
+        "allowed": true,
+        "flags": [],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "amount",
+            "employee_name",
+            "expense_id"
+          ],
+          "referenced_relations": [
+            "expenses"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": []
+      },
+      "sql": "SELECT expense_id, employee_name, amount FROM expenses ORDER BY amount DESC LIMIT 3"
+    },
+    {
+      "actual": "allowed",
+      "expected": "allowed",
+      "name": "join_safe_views",
+      "passed": true,
+      "result": {
+        "allowed": true,
+        "flags": [],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 1,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "d.department_id",
+            "d.department_name",
+            "e.department_id",
+            "e.expense_id"
+          ],
+          "referenced_relations": [
+            "departments",
+            "expenses"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": []
+      },
+      "sql": "SELECT e.expense_id, d.department_name FROM expenses e JOIN departments d ON e.department_id = d.department_id LIMIT 5"
+    },
+    {
+      "actual": "allowed",
+      "expected": "allowed",
+      "name": "group_by",
+      "passed": true,
+      "result": {
+        "allowed": true,
+        "flags": [],
+        "metadata": {
+          "aggregate_functions": [
+            "count",
+            "sum"
+          ],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [
+            "count",
+            "sum"
+          ],
+          "group_by_columns": [
+            "department_name"
+          ],
+          "has_group_by": true,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "amount",
+            "department_name",
+            "employee_id"
+          ],
+          "referenced_relations": [
+            "expenses"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": []
+      },
+      "sql": "SELECT department_name, count(DISTINCT employee_id) AS employee_count, count(*) AS n, sum(amount) AS total FROM expenses GROUP BY department_name"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "group_by_sensitive_entity",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "small_group_direct_entity_group_by"
+        ],
+        "metadata": {
+          "aggregate_functions": [
+            "count"
+          ],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [
+            "count"
+          ],
+          "group_by_columns": [
+            "department_id",
+            "employee_id"
+          ],
+          "has_group_by": true,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "department_id",
+            "employee_id"
+          ],
+          "referenced_relations": [
+            "expenses"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "GROUP BY employee_id is denied by the minimum group-size policy"
+        ]
+      },
+      "sql": "SELECT department_id, employee_id, count(*) AS n FROM expenses GROUP BY department_id, employee_id"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "group_by_expense_id",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "small_group_direct_entity_group_by"
+        ],
+        "metadata": {
+          "aggregate_functions": [
+            "count"
+          ],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [
+            "count"
+          ],
+          "group_by_columns": [
+            "expense_id"
+          ],
+          "has_group_by": true,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "expense_id"
+          ],
+          "referenced_relations": [
+            "expenses"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "GROUP BY expense_id is denied by the minimum group-size policy"
+        ]
+      },
+      "sql": "SELECT expense_id, count(*) AS n FROM expenses GROUP BY expense_id"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "having_small_group_probe",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "small_group_having"
+        ],
+        "metadata": {
+          "aggregate_functions": [
+            "count"
+          ],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [
+            "count"
+          ],
+          "group_by_columns": [
+            "department_name"
+          ],
+          "has_group_by": true,
+          "has_having": true,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "department_name"
+          ],
+          "referenced_relations": [
+            "expenses"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "HAVING clauses are denied by the minimum group-size policy unless a task template explicitly allows them"
+        ]
+      },
+      "sql": "SELECT department_name, count(*) AS n FROM expenses GROUP BY department_name HAVING count(*) < 5"
+    },
+    {
+      "actual": "allowed",
+      "expected": "allowed",
+      "name": "cte",
+      "passed": true,
+      "result": {
+        "allowed": true,
+        "flags": [],
+        "metadata": {
+          "aggregate_functions": [
+            "count"
+          ],
+          "catalog_access": false,
+          "ctes": [
+            "high"
+          ],
+          "function_calls": [
+            "count"
+          ],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "amount",
+            "expense_id"
+          ],
+          "referenced_relations": [
+            "expenses",
+            "high"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": []
+      },
+      "sql": "WITH high AS (SELECT expense_id, amount FROM expenses WHERE amount > 1000) SELECT count(*) FROM high"
+    },
+    {
+      "actual": "allowed",
+      "expected": "allowed",
+      "name": "window_function",
+      "passed": true,
+      "result": {
+        "allowed": true,
+        "flags": [],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [
+            "row_number"
+          ],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "amount",
+            "department_name",
+            "expense_id"
+          ],
+          "referenced_relations": [
+            "expenses"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": []
+      },
+      "sql": "SELECT expense_id, row_number() OVER (PARTITION BY department_name ORDER BY amount DESC) AS rn FROM expenses"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "raw_schema",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "raw_or_catalog_schema",
+          "raw_schema_reference"
+        ],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [],
+          "referenced_relations": [
+            "app_data.expenses"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "direct access to schema app_data is not allowed",
+          "schema-qualified relation app_data.expenses is outside the safe-view registry"
+        ]
+      },
+      "sql": "SELECT * FROM app_data.expenses"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "catalog_schema",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "catalog_access",
+          "raw_or_catalog_schema",
+          "raw_schema_reference",
+          "unapproved_relation"
+        ],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": true,
+          "ctes": [],
+          "function_calls": [],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [],
+          "referenced_relations": [
+            "pg_catalog.pg_tables"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "catalog relation pg_tables is not allowed",
+          "direct access to schema pg_catalog is not allowed",
+          "relation pg_tables is not in the approved safe-view registry",
+          "schema-qualified relation pg_catalog.pg_tables is outside the safe-view registry"
+        ]
+      },
+      "sql": "SELECT * FROM pg_catalog.pg_tables"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "bare_catalog_view",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "catalog_access",
+          "unapproved_relation"
+        ],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": true,
+          "ctes": [],
+          "function_calls": [],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "schemaname",
+            "tablename"
+          ],
+          "referenced_relations": [
+            "pg_tables"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "catalog relation pg_tables is not allowed",
+          "relation pg_tables is not in the approved safe-view registry"
+        ]
+      },
+      "sql": "SELECT schemaname, tablename FROM pg_tables"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "mutation_delete",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "non_select_statement"
+        ],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "delete"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "expense_month"
+          ],
+          "referenced_relations": [
+            "expenses"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "statement type Delete is not allowed"
+        ]
+      },
+      "sql": "DELETE FROM expenses WHERE expense_month = '2026-06'"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "copy",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "blocked_lexical_form",
+          "non_select_statement"
+        ],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "copy"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [],
+          "referenced_relations": [
+            "expenses"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "COPY is not allowed",
+          "statement type Copy is not allowed"
+        ]
+      },
+      "sql": "COPY expenses TO STDOUT"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "create_function",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "blocked_lexical_form",
+          "non_select_statement",
+          "unapproved_relation"
+        ],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "create"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [],
+          "referenced_relations": [
+            "leak"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "CREATE FUNCTION is not allowed",
+          "relation leak is not in the approved safe-view registry",
+          "statement type Create is not allowed"
+        ]
+      },
+      "sql": "CREATE FUNCTION leak() RETURNS text AS $$ SELECT 'x' $$ LANGUAGE SQL"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "do_block",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "blocked_lexical_form",
+          "multiple_statements",
+          "non_select_statement"
+        ],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "command"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [],
+          "referenced_relations": [],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "DO blocks are not allowed",
+          "multiple SQL statements are not allowed",
+          "statement type Command is not allowed"
+        ]
+      },
+      "sql": "DO $$ BEGIN RAISE NOTICE 'x'; END $$"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "payload_array_agg",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "payload_aggregation"
+        ],
+        "metadata": {
+          "aggregate_functions": [
+            "array_agg"
+          ],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [
+            "array_agg"
+          ],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "expense_id"
+          ],
+          "referenced_relations": [
+            "expenses"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "payload aggregation function array_agg is not allowed"
+        ]
+      },
+      "sql": "SELECT array_agg(expense_id) FROM expenses"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "recursive_cte",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "recursive_cte",
+          "set_operation"
+        ],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": false,
+          "ctes": [
+            "r"
+          ],
+          "function_calls": [],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": true,
+          "referenced_columns": [
+            "n"
+          ],
+          "referenced_relations": [
+            "r"
+          ],
+          "set_operations": [
+            "UNION"
+          ],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "UNION, INTERSECT, and EXCEPT query shapes are not allowed",
+          "recursive CTEs are not allowed"
+        ]
+      },
+      "sql": "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 10) SELECT * FROM r"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "union_stacking",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "set_operation"
+        ],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "union"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "employee_id",
+            "expense_id"
+          ],
+          "referenced_relations": [
+            "employees",
+            "expenses"
+          ],
+          "set_operations": [
+            "UNION"
+          ],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "UNION, INTERSECT, and EXCEPT query shapes are not allowed"
+        ]
+      },
+      "sql": "SELECT expense_id FROM expenses UNION SELECT employee_id FROM employees"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "unknown_function",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "unknown_function"
+        ],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [
+            "custom_leak"
+          ],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "employee_name"
+          ],
+          "referenced_relations": [
+            "employees"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "unknown function custom_leak is not allowed"
+        ]
+      },
+      "sql": "SELECT custom_leak(employee_name) FROM employees"
+    },
+    {
+      "actual": "blocked",
+      "expected": "blocked",
+      "name": "denied_column_alias",
+      "passed": true,
+      "result": {
+        "allowed": false,
+        "flags": [
+          "denied_column_alias"
+        ],
+        "metadata": {
+          "aggregate_functions": [],
+          "catalog_access": false,
+          "ctes": [],
+          "function_calls": [],
+          "group_by_columns": [],
+          "has_group_by": false,
+          "has_having": false,
+          "joins": 0,
+          "min_group_size": 5,
+          "operation_types": [
+            "select"
+          ],
+          "parser_available": true,
+          "recursive_cte": false,
+          "referenced_columns": [
+            "amount"
+          ],
+          "referenced_relations": [
+            "expenses"
+          ],
+          "set_operations": [],
+          "subqueries": 0
+        },
+        "parser": "sqlglot 30.12.0",
+        "reasons": [
+          "alias salary matches a denied field"
+        ]
+      },
+      "sql": "SELECT amount AS salary FROM expenses"
+    }
+  ],
+  "run": {
+    "case_count": 20,
+    "commit": "6594452",
+    "failed": 0,
+    "passed": 20,
+    "timestamp": "2026-07-08T12:59:21Z"
+  }
+}

@@ -241,8 +241,10 @@ def run_eval(base_url: str) -> dict[str, Any]:
         "group_by",
         "allowed",
         "allowed",
-        "SELECT department_name, COUNT(*) AS n, SUM(amount) AS total "
-        "FROM expenses GROUP BY department_name ORDER BY total DESC",
+        "SELECT department_name, COUNT(DISTINCT employee_id) AS employee_count, "
+        "COUNT(*) AS n, SUM(amount) AS total "
+        "FROM expenses WHERE department_id = 'dep_sales' "
+        "GROUP BY department_name ORDER BY total DESC",
     )
     record_query(
         "window_function",

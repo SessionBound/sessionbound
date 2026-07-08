@@ -317,6 +317,12 @@ TASK_TEMPLATES: dict[str, dict[str, Any]] = {
             "max_queries": 5,
             "max_unique_expense_rows": 4,
         },
+        "aggregate_policy": {
+            "min_group_size": 5,
+            "entity_id": "employee_id",
+            "direct_entity_group_by": "deny",
+            "unverifiable_group_by": "deny",
+        },
         "max_budgets": {
             "max_queries": 100,
             "max_unique_expense_rows": 5000,
@@ -350,6 +356,12 @@ TASK_TEMPLATES: dict[str, dict[str, Any]] = {
             "max_queries": 12,
             "max_unique_expense_rows": 500,
         },
+        "aggregate_policy": {
+            "min_group_size": 5,
+            "entity_id": "employee_id",
+            "direct_entity_group_by": "deny",
+            "unverifiable_group_by": "deny",
+        },
         "max_budgets": {
             "max_queries": 50,
             "max_unique_expense_rows": 2000,
@@ -381,6 +393,12 @@ TASK_TEMPLATES: dict[str, dict[str, Any]] = {
         "default_budgets": {
             "max_queries": 10,
             "max_unique_expense_rows": 300,
+        },
+        "aggregate_policy": {
+            "min_group_size": 5,
+            "entity_id": "employee_id",
+            "direct_entity_group_by": "deny",
+            "unverifiable_group_by": "deny",
         },
         "max_budgets": {
             "max_queries": 40,
@@ -579,6 +597,7 @@ def build_task_from_template(
         "denied_columns": template.get("denied_columns", []),
         "row_scope": scope,
         "budgets": budgets,
+        "aggregate_policy": dict(template.get("aggregate_policy", {})),
         "delegation": template.get(
             "delegation",
             {

@@ -137,6 +137,22 @@ HOOK_ONLY_CASES: list[dict[str, str]] = [
         "sql": "SELECT department_id FROM departments",
         "expected_reason": "relation is outside the approved safe-view registry",
     },
+    {
+        "id": "HH05",
+        "name": "hook_blocks_group_by_sensitive_entity",
+        "allowed_views": "all",
+        "expected": "Blocked",
+        "sql": "SELECT department_id, employee_id, count(*) FROM expenses GROUP BY department_id, employee_id",
+        "expected_reason": "minimum group-size policy denies grouping by sensitive entity identifiers",
+    },
+    {
+        "id": "HH06",
+        "name": "hook_blocks_having_small_group_probe",
+        "allowed_views": "all",
+        "expected": "Blocked",
+        "sql": "SELECT department_id, count(*) FROM expenses GROUP BY department_id HAVING count(*) < 5",
+        "expected_reason": "minimum group-size policy denies HAVING predicates",
+    },
 ]
 
 

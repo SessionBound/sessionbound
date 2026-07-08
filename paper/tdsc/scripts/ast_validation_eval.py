@@ -20,6 +20,12 @@ from sql_ast_validator import validate_sql_structure  # noqa: E402
 
 ALLOWED_VIEWS = ["expenses", "departments", "employees", "approval_events", "ledger_entries"]
 DENIED_COLUMNS = ["employees.bank_account", "employees.phone", "employees.salary"]
+AGGREGATE_POLICY = {
+    "min_group_size": 5,
+    "entity_id": "employee_id",
+    "direct_entity_group_by": "deny",
+    "unverifiable_group_by": "deny",
+}
 
 
 CASES: list[dict[str, str]] = [
@@ -36,7 +42,22 @@ CASES: list[dict[str, str]] = [
     {
         "name": "group_by",
         "expected": "allowed",
-        "sql": "SELECT department_name, count(*) AS n, sum(amount) AS total FROM expenses GROUP BY department_name",
+        "sql": "SELECT department_name, count(DISTINCT employee_id) AS employee_count, count(*) AS n, sum(amount) AS total FROM expenses GROUP BY department_name",
+    },
+    {
+        "name": "group_by_sensitive_entity",
+        "expected": "blocked",
+        "sql": "SELECT department_id, employee_id, count(*) AS n FROM expenses GROUP BY department_id, employee_id",
+    },
+    {
+        "name": "group_by_expense_id",
+        "expected": "blocked",
+        "sql": "SELECT expense_id, count(*) AS n FROM expenses GROUP BY expense_id",
+    },
+    {
+        "name": "having_small_group_probe",
+        "expected": "blocked",
+        "sql": "SELECT department_name, count(*) AS n FROM expenses GROUP BY department_name HAVING count(*) < 5",
     },
     {
         "name": "cte",
@@ -131,6 +152,7 @@ def run_eval() -> dict[str, Any]:
             case["sql"],
             allowed_views=ALLOWED_VIEWS,
             denied_columns=DENIED_COLUMNS,
+            aggregate_policy=AGGREGATE_POLICY,
         )
         actual = "allowed" if result.allowed else "blocked"
         records.append(

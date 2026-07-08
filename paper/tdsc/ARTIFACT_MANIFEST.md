@@ -5,15 +5,16 @@ SessionBound submission candidate.
 
 ## Canonical Version
 
-- Artifact tag: `tdsc-submission-2026-07-07`
-- Submission branch: `tdsc-hardening`
+- Artifact tag: `high-standard-tdsc-pdsc-revision-2026-07-08`
+- Submission branch: `high-standard-tdsc-pdsc-revision`
 - Manuscript source: `paper/tdsc/sessionbound-tdsc.tex`
 - Manuscript PDF: `paper/tdsc/sessionbound-tdsc.pdf`
 - Build command: `cd paper/tdsc && make`
-- Page count after native SELECT update: 15 pages
+- Page count after high-standard revision: 14 pages
 
-The Git tag is the stable artifact anchor. The `main` branch may continue to
-evolve after submission work.
+No immutable Git tag has been created for this revision yet. The manuscript and
+raw results in this branch are the current submission-candidate artifact set;
+create a tag only after the final PDF and metadata pass.
 
 ## Claim Contract
 
@@ -28,22 +29,26 @@ Core validated claims in the TDSC candidate:
   `TaskboundSession.query(sql)` executes ordinary safe-view SQL through
   PostgreSQL hook/executor accounting, bound direct safe-view `SELECT` is
   accounted, and unbound safe-view access fails closed;
-- PostgreSQL native hook/executor surface: 16 / 16 cases passed, covering
+- PostgreSQL native hook/executor surface: 18 / 18 cases passed, covering
   bound native SELECT, prepared statements, cursor/FETCH, COPY(SELECT),
-  EXPLAIN, fail-closed denials, and trusted-GUC protection;
+  EXPLAIN, fail-closed denials, trusted-GUC protection, and conservative
+  aggregate-shape denials;
 - rollback-surviving audit: 2 / 2 cases passed, showing that evaluated
   bound-runtime allowed receipts/accounting and raw-schema denial receipts
   persist after `BEGIN ... ROLLBACK`;
-- adversarial SQL suite: 28 cases, with 22 blocked cases, 5 allowed safe-view
-  analytical cases, and 1 known limitation;
-- default-seed overhead: full SessionBound p50 latency is 14.6--18.6 ms across
-  representative query patterns;
+- adversarial SQL suite: 34 cases, with 27 blocked cases, 7 allowed safe-view
+  analytical cases, and no direct small-group aggregate release in the tested
+  suite;
+- strong baseline: RLS + Safe View + Short Credential + Audit is implemented
+  and measured alongside raw, role-only, safe-view-only, and SessionBound modes;
+- default-seed overhead: full SessionBound wrapper-reference p50 latency is
+  17.4--18.6 ms across representative query patterns; the RLS+safe-view+audit
+  baseline is 0.98--1.12 ms p50;
 - hook-only structural guard microbenchmark: `sessionbound_guard_check`
-  p50 was 0.130--0.169 ms across SELECT/JOIN/GROUP BY/CTE-window checks,
-  with raw-schema and UNION denials verified;
-- 100k synthetic scale sweep: the historical PL/pgSQL wrapper path reaches
-  multi-second latency; the new native path should be rebenchmarked before
-  replacing the published performance table;
+  p50 was 0.125--0.138 ms across SELECT/JOIN/GROUP BY/CTE-window checks,
+  with raw-schema, UNION, direct-entity group-by, and HAVING denials verified;
+- 100k synthetic scale sweep: the wrapper reference path reaches 6.17--6.37 s
+  p50; native executor-accounting scale behavior remains to be measured;
 - security guarantees are limited to the stated prototype SQL fragment and do
   not claim arbitrary semantic inference prevention or differential privacy.
 
@@ -60,11 +65,19 @@ Core validated claims in the TDSC candidate:
 - PostgreSQL hook report: `paper/tdsc/POSTGRES_HOOK_ENFORCEMENT.md`
 - Hook-only microbenchmark script: `paper/tdsc/scripts/hook_microbenchmark.py`
 - Hook-only microbenchmark raw result:
-  `paper/tdsc/raw_results/hook_microbenchmark_20260708_181304.json`
+  `paper/tdsc/raw_results/hook_microbenchmark_20260708_205831.json`
 - Rollback audit script: `paper/tdsc/scripts/rollback_audit_eval.py`
 - Rollback audit raw result:
-  `paper/tdsc/raw_results/rollback_audit_20260708_141120.json`
+  `paper/tdsc/raw_results/rollback_audit_20260708_205904.json`
 - Overhead breakdown report: `paper/tdsc/OVERHEAD_BREAKDOWN.md`
+- Overhead breakdown raw result:
+  `paper/tdsc/raw_results/overhead_breakdown_20260708_205527.json`
+- Scale sweep raw result:
+  `paper/tdsc/raw_results/scale_1783515366.json`
+- Credential-token and schema drift raw result:
+  `paper/tdsc/raw_results/credential_token_1783515640.json`
+- Security baseline raw result:
+  `paper/tdsc/raw_results/security_baseline_1783515117.json`
 - Security invariants companion: `paper/tdsc/SECURITY_INVARIANTS.md`
 
 ## Relationship to arXiv v1

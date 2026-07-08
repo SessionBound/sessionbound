@@ -6,8 +6,8 @@ completed.
 
 ## Canonical Artifact
 
-- Artifact tag: `tdsc-submission-2026-07-07`
-- Working branch: `tdsc-hardening`
+- Artifact tag: `high-standard-tdsc-pdsc-revision-2026-07-08`
+- Working branch: `high-standard-tdsc-pdsc-revision`
 - Manifest: `paper/tdsc/ARTIFACT_MANIFEST.md`
 - Manuscript source: `paper/tdsc/sessionbound-tdsc.tex`
 - Manuscript PDF: `paper/tdsc/sessionbound-tdsc.pdf`
@@ -24,15 +24,18 @@ is prepared from the TDSC text.
 - Reframed the Introduction as the paper's own claim rather than a plan
   for a future version.
 - Added measured security and performance baselines for raw PostgreSQL,
-  role-only, RLS-only, safe-view-only, and full SessionBound.
-- Added experiment reports and raw-result references under
+  role-only, safe-view-only, RLS+Safe View+Short Credential+Audit, and
+  SessionBound variants.
+- Added minimum-group aggregate policy in the API preflight and wrapper runtime,
+  with conservative native hook shape checks.
+- Added experiment reports and raw-result references under `raw_results/` and
   `experiments/`.
 - Implemented and measured strict credential-token binding:
   credential-id matching, actor matching, audience validation,
   cross-credential replay rejection, expiration, revocation, and
   same-session rebind rejection.
-- Implemented and measured safe-view drift invalidation using registry
-  version, policy version, and view-definition hash checks.
+- Implemented and measured safe-view drift invalidation using registry version,
+  policy version, view-definition hash, and exposed-column hash checks.
 - Added receipt/budget ablation and a 1k/10k/100k scoped-row scale sweep.
 - Switched the manuscript entrypoint to `\documentclass[journal]{IEEEtran}`.
 - Added IEEE keywords.
@@ -50,11 +53,10 @@ is prepared from the TDSC text.
   requirements, open-access choice, and submission metadata.
 - Confirm the current CAS / Chinese Academy of Sciences journal
   partition using the author's institution-approved list.
-- Treat current performance as a prototype limitation even though the
-  experimental parse/analyze hook path is now implemented. The 100k scale sweep
-  shows multi-second Full SessionBound p50 in the current PL/pgSQL
+- Treat current performance as a prototype limitation. The 100k scale sweep
+  shows multi-second Full SessionBound p50 in the accounting-complete wrapper
   implementation, so production-scale claims still require lower-level
-  planner/executor integration and runtime optimization. The hook-only
+  executor-accounting integration and runtime optimization. The hook-only
   microbenchmark shows structural guard checks are not the multi-second
   bottleneck, but it is not a native executor-accounting scale benchmark.
 - Re-run layout review after the official IEEE/TDSC template and

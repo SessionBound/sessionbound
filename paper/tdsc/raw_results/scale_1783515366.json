@@ -1,0 +1,397 @@
+{
+  "run_id": "1783515366",
+  "warmup": 3,
+  "measured": 5,
+  "targets": {
+    "1000": {
+      "setup": {
+        "target_rows": 1000,
+        "existing_rows_before_insert": 112,
+        "inserted_rows": 888,
+        "actual_rows": 1000
+      },
+      "baselines": {
+        "Raw PostgreSQL": {
+          "aggregate_by_category": {
+            "p50_ms": 0.8566479996261478,
+            "p95_ms": 0.9803039997677843,
+            "mean_ms": 0.8740389997910825,
+            "stddev_ms": 0.06240492666245802,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 0.0
+          },
+          "topk_order": {
+            "p50_ms": 0.42597299989211024,
+            "p95_ms": 0.6130980000307318,
+            "mean_ms": 0.45637100010935683,
+            "stddev_ms": 0.09394354158718571,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 0.0
+          }
+        },
+        "Role-only": {
+          "aggregate_by_category": {
+            "p50_ms": 0.8804549997876165,
+            "p95_ms": 1.0569680002845416,
+            "mean_ms": 0.9215785999913351,
+            "stddev_ms": 0.0812056842864804,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 2.779087813414428
+          },
+          "topk_order": {
+            "p50_ms": 0.4070630002388498,
+            "p95_ms": 0.5263120001472998,
+            "mean_ms": 0.42070120016433066,
+            "stddev_ms": 0.08163677042197326,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": -4.4392484166954125
+          }
+        },
+        "Safe-view-only": {
+          "aggregate_by_category": {
+            "p50_ms": 1.0155770000892517,
+            "p95_ms": 1.5304519997698662,
+            "mean_ms": 1.111476799906086,
+            "stddev_ms": 0.2189172187201398,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 18.5524276636918
+          },
+          "topk_order": {
+            "p50_ms": 0.641529999938939,
+            "p95_ms": 0.8107969997581677,
+            "mean_ms": 0.6396527998731472,
+            "stddev_ms": 0.13039564791243488,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 50.60344202600275
+          }
+        },
+        "RLS + Safe View + Short Credential + Audit": {
+          "aggregate_by_category": {
+            "p50_ms": 1.9968880001215439,
+            "p95_ms": 3.085563000240654,
+            "mean_ms": 2.2365630000422243,
+            "stddev_ms": 0.4433195763964446,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 133.10484598026395
+          },
+          "topk_order": {
+            "p50_ms": 1.4615430000048946,
+            "p95_ms": 2.0732469997710723,
+            "mean_ms": 1.6470097999444988,
+            "stddev_ms": 0.2701099252939875,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 243.10695757127138
+          }
+        },
+        "Full SessionBound": {
+          "aggregate_by_category": {
+            "p50_ms": 79.03477400031989,
+            "p95_ms": 110.52329999984067,
+            "mean_ms": 84.05440099995758,
+            "stddev_ms": 13.724471723035197,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 9126.050143677645
+          },
+          "topk_order": {
+            "p50_ms": 72.62566999997944,
+            "p95_ms": 76.34767799982001,
+            "mean_ms": 73.05900239998664,
+            "stddev_ms": 1.8827215910545443,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 16949.359940271792
+          }
+        }
+      }
+    },
+    "10000": {
+      "setup": {
+        "target_rows": 10000,
+        "existing_rows_before_insert": 112,
+        "inserted_rows": 9888,
+        "actual_rows": 10000
+      },
+      "baselines": {
+        "Raw PostgreSQL": {
+          "aggregate_by_category": {
+            "p50_ms": 5.391443000007712,
+            "p95_ms": 5.534353999792074,
+            "mean_ms": 5.40923059988927,
+            "stddev_ms": 0.10351539762485695,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 0.0
+          },
+          "topk_order": {
+            "p50_ms": 2.0163969998066023,
+            "p95_ms": 2.1766600002592895,
+            "mean_ms": 2.0127934000811365,
+            "stddev_ms": 0.11190217518777722,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 0.0
+          }
+        },
+        "Role-only": {
+          "aggregate_by_category": {
+            "p50_ms": 5.673033999755717,
+            "p95_ms": 5.800982999971893,
+            "mean_ms": 5.614859799970873,
+            "stddev_ms": 0.14648934214361617,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 5.222924544460584
+          },
+          "topk_order": {
+            "p50_ms": 1.9210370001019328,
+            "p95_ms": 2.100734999658016,
+            "mean_ms": 1.9344015999195108,
+            "stddev_ms": 0.08803506148681127,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": -4.729227414731111
+          }
+        },
+        "Safe-view-only": {
+          "aggregate_by_category": {
+            "p50_ms": 6.596998000077292,
+            "p95_ms": 6.981722000091395,
+            "mean_ms": 6.574788000034459,
+            "stddev_ms": 0.27922138060344354,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 22.360525745479563
+          },
+          "topk_order": {
+            "p50_ms": 2.862792000087211,
+            "p95_ms": 3.0360379996636766,
+            "mean_ms": 2.8757411999322358,
+            "stddev_ms": 0.1183871451962167,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 41.9756129552756
+          }
+        },
+        "RLS + Safe View + Short Credential + Audit": {
+          "aggregate_by_category": {
+            "p50_ms": 7.492502999866701,
+            "p95_ms": 7.780435999848123,
+            "mean_ms": 7.518815399907908,
+            "stddev_ms": 0.1421854716855195,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 38.97027196347961
+          },
+          "topk_order": {
+            "p50_ms": 3.65463100024499,
+            "p95_ms": 4.2002089999186865,
+            "mean_ms": 3.8020308000341174,
+            "stddev_ms": 0.2327163152192807,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 81.24560791329857
+          }
+        },
+        "Full SessionBound": {
+          "aggregate_by_category": {
+            "p50_ms": 618.9503270002206,
+            "p95_ms": 634.8609819997364,
+            "mean_ms": 620.5206318000819,
+            "stddev_ms": 9.45635059169106,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 11380.235013137211
+          },
+          "topk_order": {
+            "p50_ms": 660.2511500000219,
+            "p95_ms": 667.283977000352,
+            "mean_ms": 652.3424876000718,
+            "stddev_ms": 17.015002661255448,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 32644.104958663807
+          }
+        }
+      }
+    },
+    "100000": {
+      "setup": {
+        "target_rows": 100000,
+        "existing_rows_before_insert": 112,
+        "inserted_rows": 99888,
+        "actual_rows": 100000
+      },
+      "baselines": {
+        "Raw PostgreSQL": {
+          "aggregate_by_category": {
+            "p50_ms": 68.8062990002436,
+            "p95_ms": 68.95223099991199,
+            "mean_ms": 68.1511842000873,
+            "stddev_ms": 0.9239158094403639,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 0.0
+          },
+          "topk_order": {
+            "p50_ms": 13.822874000197771,
+            "p95_ms": 14.077894000365632,
+            "mean_ms": 13.743967600112228,
+            "stddev_ms": 0.25216656249793434,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 0.0
+          }
+        },
+        "Role-only": {
+          "aggregate_by_category": {
+            "p50_ms": 67.01030199974412,
+            "p95_ms": 72.58235700010118,
+            "mean_ms": 68.72396639992076,
+            "stddev_ms": 2.4845633422171294,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": -2.6102217770688765
+          },
+          "topk_order": {
+            "p50_ms": 13.65681900006166,
+            "p95_ms": 14.196124000136479,
+            "mean_ms": 13.692165200063755,
+            "stddev_ms": 0.28015731766888885,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": -1.2013058943728763
+          }
+        },
+        "Safe-view-only": {
+          "aggregate_by_category": {
+            "p50_ms": 82.31442699980107,
+            "p95_ms": 87.9143719998865,
+            "mean_ms": 79.90801799987821,
+            "stddev_ms": 5.633553300748622,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 19.632109553675676
+          },
+          "topk_order": {
+            "p50_ms": 30.698423000103503,
+            "p95_ms": 32.613521000257606,
+            "mean_ms": 30.49780900009864,
+            "stddev_ms": 1.4288976418478356,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 122.08422792296511
+          }
+        },
+        "RLS + Safe View + Short Credential + Audit": {
+          "aggregate_by_category": {
+            "p50_ms": 74.86870899992937,
+            "p95_ms": 77.84546199991382,
+            "mean_ms": 75.30531900001733,
+            "stddev_ms": 1.4890529793322742,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 8.810835763255202
+          },
+          "topk_order": {
+            "p50_ms": 19.929534000311833,
+            "p95_ms": 26.66929799988793,
+            "mean_ms": 21.01212720008334,
+            "stddev_ms": 2.9097561291632883,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 44.1779328960583
+          }
+        },
+        "Full SessionBound": {
+          "aggregate_by_category": {
+            "p50_ms": 6365.203353000197,
+            "p95_ms": 6479.997597999954,
+            "mean_ms": 6371.8404062001355,
+            "stddev_ms": 73.60484106345167,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 9150.902091068236
+          },
+          "topk_order": {
+            "p50_ms": 6169.549631999871,
+            "p95_ms": 6275.436862999868,
+            "mean_ms": 6167.711632400005,
+            "stddev_ms": 67.3743860273763,
+            "rows_returned": 10,
+            "measurements": 5,
+            "errors": 0,
+            "error_samples": [],
+            "overhead_vs_raw_pct": 44532.90074055222
+          }
+        }
+      }
+    }
+  }
+}

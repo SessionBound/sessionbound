@@ -1,27 +1,29 @@
 # Scale and Concurrency Results
 
-Scale raw file: `raw_results/scale_1783224892.json`.
-Concurrency raw file: `raw_results/concurrency_1783221968.json`.
+Scale raw file: `../raw_results/scale_1783515366.json`.
+Concurrency raw file: `raw_results/concurrency_1783221968.json` (historical
+smoke test retained for context only).
 
 The scale sweep temporarily inserted synthetic `scale_bench_*` expense
 rows for the June 2026 Sales scope and cleaned them after each target.
 The final database was restored to zero `scale_bench_*` rows.
 
-| Target scoped rows | Pattern | Raw p50 ms | Safe-view-only p50 ms | RLS-only p50 ms | Full SessionBound p50 ms |
+| Target scoped rows | Pattern | Raw p50 ms | Safe-view-only p50 ms | RLS+Safe View+Audit p50 ms | Full SessionBound p50 ms |
 |---:|---|---:|---:|---:|---:|
-| 1,000 | aggregate_by_category | 0.41 | 0.60 | 0.39 | 84.41 |
-| 1,000 | topk_order | 0.40 | 0.53 | 0.43 | 82.44 |
-| 10,000 | aggregate_by_category | 2.70 | 3.76 | 2.38 | 688.66 |
-| 10,000 | topk_order | 2.54 | 3.32 | 2.39 | 661.62 |
-| 100,000 | aggregate_by_category | 14.77 | 29.96 | 15.08 | 6742.55 |
-| 100,000 | topk_order | 15.62 | 32.39 | 14.61 | 6965.09 |
+| 1,000 | aggregate_by_category | 0.86 | 1.02 | 2.00 | 79.03 |
+| 1,000 | topk_order | 0.43 | 0.64 | 1.46 | 72.63 |
+| 10,000 | aggregate_by_category | 5.39 | 6.60 | 7.49 | 618.95 |
+| 10,000 | topk_order | 2.02 | 2.86 | 3.65 | 660.25 |
+| 100,000 | aggregate_by_category | 68.81 | 82.31 | 74.87 | 6365.20 |
+| 100,000 | topk_order | 13.82 | 30.70 | 19.93 | 6169.55 |
 
 The 100k result exposes substantial scale-sensitive overhead in the
-current PL/pgSQL prototype and safe-view shape. It should be read as a
+accounting-complete wrapper reference path. It should be read as a
 reference-runtime limitation, not as a production throughput claim. The current
 TDSC hardening workspace adds a separate hook-only microbenchmark at
-`paper/tdsc/raw_results/hook_microbenchmark_20260708_181304.json`, which shows
-that native structural guard checks are not the multi-second bottleneck.
+`../raw_results/hook_microbenchmark_20260708_205831.json`, which shows that
+native structural guard checks are not the multi-second bottleneck. Native
+executor-accounting scale behavior remains to be measured.
 
 | Concurrent sessions | Successful sessions | Failed sessions | Error rate | Query p50 ms | Query p95 ms | Session p50 ms |
 |---:|---:|---:|---:|---:|---:|---:|

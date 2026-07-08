@@ -24,23 +24,28 @@ sys.path.insert(0, str(REPO_ROOT / "app"))
 from task_registry import build_task_from_template  # noqa: E402
 
 
-ADMIN_DSN = "postgresql://postgres:postgres@postgres:5432/travel"
-APP_DSN = "postgresql://agent_app:agentpass@postgres:5432/travel"
-READONLY_ROLE = "tdsc_readonly"
-READONLY_PASSWORD = "tdsc_readonly_pass"
-READONLY_DSN = f"postgresql://{READONLY_ROLE}:{READONLY_PASSWORD}@postgres:5432/travel"
+DB_HOST = os.environ.get("TDSC_DB_HOST", "postgres")
+DB_PORT = os.environ.get("TDSC_DB_PORT", "5432")
+DB_NAME = os.environ.get("TDSC_DB_NAME", "travel")
+ADMIN_DSN = f"postgresql://postgres:postgres@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+APP_DSN = f"postgresql://agent_app:agentpass@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+ROLE_ONLY_DSN = f"postgresql://tdsc_role_only:tdsc_role_only_pass@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+SAFE_VIEW_ONLY_DSN = f"postgresql://tdsc_safe_view_only:tdsc_safe_view_only_pass@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+RLS_SAFE_AUDIT_DSN = f"postgresql://tdsc_rls_safe_audit:tdsc_rls_safe_audit_pass@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+SQL_DIR = REPO_ROOT / "paper/tdsc/experiments/sql"
 
 WARMUP_ITERATIONS = 10
 MEASUREMENT_ITERATIONS = 100
 
 PATTERNS: dict[str, dict[str, str]] = {
     "Q1 SELECT": {
-        "safe": "SELECT expense_id, employee_name, amount FROM expenses ORDER BY amount DESC LIMIT 10",
+        "safe": "SELECT expense_id, employee_name, amount FROM expenses WHERE department_id = 'dep_sales' ORDER BY amount DESC LIMIT 10",
         "raw": """
             SELECT e.expense_id, emp.employee_name, e.amount
             FROM app_data.expenses e
             JOIN app_data.employees emp ON emp.employee_id = e.employee_id
             WHERE e.tenant_id = 'company_a' AND e.expense_month = '2026-06'
+              AND e.department_id = 'dep_sales'
             ORDER BY e.amount DESC
             LIMIT 10
         """,
@@ -50,6 +55,7 @@ PATTERNS: dict[str, dict[str, str]] = {
             SELECT e.expense_id, e.amount, d.department_name
             FROM expenses e
             JOIN departments d ON e.department_id = d.department_id
+            WHERE e.department_id = 'dep_sales'
             ORDER BY e.amount DESC
             LIMIT 10
         """,
@@ -58,22 +64,27 @@ PATTERNS: dict[str, dict[str, str]] = {
             FROM app_data.expenses e
             JOIN app_data.departments d ON d.department_id = e.department_id
             WHERE e.tenant_id = 'company_a' AND e.expense_month = '2026-06'
+              AND e.department_id = 'dep_sales'
             ORDER BY e.amount DESC
             LIMIT 10
         """,
     },
     "Q3 GROUP BY": {
         "safe": """
-            SELECT department_name, count(*) AS expense_count, sum(amount) AS total_amount
+            SELECT department_name, count(DISTINCT employee_id) AS employee_count,
+                   count(*) AS expense_count, sum(amount) AS total_amount
             FROM expenses
+            WHERE department_id = 'dep_sales'
             GROUP BY department_name
             ORDER BY total_amount DESC
         """,
         "raw": """
-            SELECT d.department_name, count(*) AS expense_count, sum(e.amount) AS total_amount
+            SELECT d.department_name, count(DISTINCT e.employee_id) AS employee_count,
+                   count(*) AS expense_count, sum(e.amount) AS total_amount
             FROM app_data.expenses e
             JOIN app_data.departments d ON d.department_id = e.department_id
             WHERE e.tenant_id = 'company_a' AND e.expense_month = '2026-06'
+              AND e.department_id = 'dep_sales'
             GROUP BY d.department_name
             ORDER BY total_amount DESC
         """,
@@ -81,25 +92,28 @@ PATTERNS: dict[str, dict[str, str]] = {
     "Q4 CTE": {
         "safe": """
             WITH high AS (
-              SELECT expense_id, department_name, amount
+              SELECT expense_id, department_name, employee_id, amount
               FROM expenses
-              WHERE amount > 1000
+              WHERE amount > 1000 AND department_id = 'dep_sales'
             )
-            SELECT department_name, count(*) AS high_count, avg(amount) AS average_amount
+            SELECT department_name, count(DISTINCT employee_id) AS employee_count,
+                   count(*) AS high_count, avg(amount) AS average_amount
             FROM high
             GROUP BY department_name
             ORDER BY high_count DESC
         """,
         "raw": """
             WITH high AS (
-              SELECT e.expense_id, d.department_name, e.amount
+              SELECT e.expense_id, d.department_name, e.employee_id, e.amount
               FROM app_data.expenses e
               JOIN app_data.departments d ON d.department_id = e.department_id
               WHERE e.tenant_id = 'company_a'
                 AND e.expense_month = '2026-06'
+                AND e.department_id = 'dep_sales'
                 AND e.amount > 1000
             )
-            SELECT department_name, count(*) AS high_count, avg(amount) AS average_amount
+            SELECT department_name, count(DISTINCT employee_id) AS employee_count,
+                   count(*) AS high_count, avg(amount) AS average_amount
             FROM high
             GROUP BY department_name
             ORDER BY high_count DESC
@@ -110,6 +124,7 @@ PATTERNS: dict[str, dict[str, str]] = {
             SELECT expense_id, department_name, amount,
                    row_number() OVER (PARTITION BY department_name ORDER BY amount DESC) AS rn
             FROM expenses
+            WHERE department_id = 'dep_sales'
             ORDER BY amount DESC
             LIMIT 20
         """,
@@ -119,6 +134,7 @@ PATTERNS: dict[str, dict[str, str]] = {
             FROM app_data.expenses e
             JOIN app_data.departments d ON d.department_id = e.department_id
             WHERE e.tenant_id = 'company_a' AND e.expense_month = '2026-06'
+              AND e.department_id = 'dep_sales'
             ORDER BY e.amount DESC
             LIMIT 20
         """,
@@ -139,25 +155,16 @@ def git_commit() -> str:
         return "unknown"
 
 
-def setup_readonly_role() -> None:
+def apply_sql_file(cur: Any, path: Path) -> None:
+    cur.execute(path.read_text(encoding="utf-8"))
+
+
+def setup_baselines() -> None:
     with psycopg.connect(ADMIN_DSN, autocommit=True) as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (READONLY_ROLE,))
-            if cur.fetchone():
-                cur.execute(psql.SQL("DROP OWNED BY {}").format(psql.Identifier(READONLY_ROLE)))
-                cur.execute(psql.SQL("DROP ROLE {}").format(psql.Identifier(READONLY_ROLE)))
-            cur.execute(
-                psql.SQL("CREATE ROLE {} LOGIN PASSWORD {}").format(
-                    psql.Identifier(READONLY_ROLE),
-                    psql.Literal(READONLY_PASSWORD),
-                )
-            )
-            cur.execute(psql.SQL("GRANT USAGE ON SCHEMA app_data TO {}").format(psql.Identifier(READONLY_ROLE)))
-            cur.execute(
-                psql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA app_data TO {}").format(
-                    psql.Identifier(READONLY_ROLE)
-                )
-            )
+            apply_sql_file(cur, SQL_DIR / "role_only_baseline.sql")
+            apply_sql_file(cur, SQL_DIR / "safe_view_only_baseline.sql")
+            apply_sql_file(cur, SQL_DIR / "rls_safe_view_short_credential_audit_baseline.sql")
 
 
 def task_token(task_id: str, runtime_options: dict[str, bool] | None = None) -> tuple[str, str]:
@@ -207,6 +214,8 @@ def measure_direct(
     iterations: int,
     pattern_name: str,
     phase: str,
+    search_path: str | None = None,
+    audit: bool = False,
 ) -> dict[str, Any]:
     latencies: list[float] = []
     errors: list[str] = []
@@ -221,10 +230,22 @@ def measure_direct(
                 cur.execute("SELECT taskbound.bind_task(%s, %s)", (payload_text, signature))
                 if mode == "M2 Safe-view-only":
                     cur.execute("SET search_path TO taskbound, public")
+            elif search_path:
+                cur.execute(psql.SQL("SET search_path TO {}, public").format(psql.Identifier(search_path)))
             for _ in range(iterations):
                 started = time.perf_counter_ns()
                 try:
                     rows = execute_sql(cur, sql_text, mode)
+                    if audit:
+                        cur.execute(
+                            "SELECT tdsc_rls_audit.log_query(%s, %s, %s, %s)",
+                            (
+                                "tdsc_rls_safe_audit",
+                                f"{pattern_name}:{phase}",
+                                sql_text,
+                                len(rows),
+                            ),
+                        )
                     elapsed = (time.perf_counter_ns() - started) / 1_000_000
                     latencies.append(elapsed)
                     rows_returned = len(rows)
@@ -240,53 +261,62 @@ def measure_direct(
 
 
 def run_mode(pattern_name: str, mode: str, query: dict[str, str]) -> dict[str, Any]:
-    unsupported = {
-        "M3 RLS-only": "Not supported by current prototype.",
-    }
-    if mode in unsupported:
-        return {
-            "mode": mode,
-            "pattern": pattern_name,
-            "supported": False,
-            "reason": unsupported[mode],
-        }
-
     config = {
         "M0 Raw PostgreSQL": {
             "dsn": ADMIN_DSN,
             "sql": query["raw"],
             "bind_task": False,
             "runtime_options": None,
+            "search_path": None,
+            "audit": False,
         },
         "M1 Role-only read-only credential": {
-            "dsn": READONLY_DSN,
+            "dsn": ROLE_ONLY_DSN,
             "sql": query["raw"],
             "bind_task": False,
             "runtime_options": None,
+            "search_path": None,
+            "audit": False,
         },
         "M2 Safe-view-only": {
-            "dsn": ADMIN_DSN,
+            "dsn": SAFE_VIEW_ONLY_DSN,
             "sql": query["safe"],
-            "bind_task": True,
-            "runtime_options": {"receipts_enabled": False, "budget_accounting_enabled": False},
+            "bind_task": False,
+            "runtime_options": None,
+            "search_path": "tdsc_safe_view_only",
+            "audit": False,
+        },
+        "M3 RLS + Safe View + Short Credential + Audit": {
+            "dsn": RLS_SAFE_AUDIT_DSN,
+            "sql": query["safe"],
+            "bind_task": False,
+            "runtime_options": None,
+            "search_path": "tdsc_rls_safe_view",
+            "audit": True,
         },
         "M4 SessionBound without receipts": {
             "dsn": APP_DSN,
             "sql": query["safe"],
             "bind_task": True,
             "runtime_options": {"receipts_enabled": False},
+            "search_path": None,
+            "audit": False,
         },
         "M5 SessionBound without budget updates": {
             "dsn": APP_DSN,
             "sql": query["safe"],
             "bind_task": True,
             "runtime_options": {"budget_accounting_enabled": False},
+            "search_path": None,
+            "audit": False,
         },
         "M6 SessionBound full": {
             "dsn": APP_DSN,
             "sql": query["safe"],
             "bind_task": True,
             "runtime_options": None,
+            "search_path": None,
+            "audit": False,
         },
     }[mode]
 
@@ -299,6 +329,8 @@ def run_mode(pattern_name: str, mode: str, query: dict[str, str]) -> dict[str, A
         iterations=WARMUP_ITERATIONS,
         pattern_name=pattern_name,
         phase="warmup",
+        search_path=config["search_path"],
+        audit=config["audit"],
     )
     measurement = measure_direct(
         dsn=config["dsn"],
@@ -309,6 +341,8 @@ def run_mode(pattern_name: str, mode: str, query: dict[str, str]) -> dict[str, A
         iterations=MEASUREMENT_ITERATIONS,
         pattern_name=pattern_name,
         phase="measurement",
+        search_path=config["search_path"],
+        audit=config["audit"],
     )
     return {
         "mode": mode,
@@ -346,13 +380,13 @@ def main() -> int:
     args = parser.parse_args()
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    setup_readonly_role()
+    setup_baselines()
 
     modes = [
         "M0 Raw PostgreSQL",
         "M1 Role-only read-only credential",
         "M2 Safe-view-only",
-        "M3 RLS-only",
+        "M3 RLS + Safe View + Short Credential + Audit",
         "M4 SessionBound without receipts",
         "M5 SessionBound without budget updates",
         "M6 SessionBound full",
@@ -372,7 +406,7 @@ def main() -> int:
             "notes": [
                 "Measurements use direct PostgreSQL connections from the compose network.",
                 "HTTP, model calls, and API-layer AST parsing are excluded from this overhead breakdown.",
-                "M3 RLS-only is recorded as unsupported because the prototype does not define PostgreSQL RLS policies.",
+                "M3 applies PostgreSQL RLS over raw tables, field-limited safe views, a short-lived read-only role, and a basic query audit insert.",
             ],
         },
         "records": records,

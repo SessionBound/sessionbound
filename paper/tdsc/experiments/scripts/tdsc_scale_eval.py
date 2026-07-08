@@ -17,8 +17,9 @@ import psycopg
 BASE_URL = os.environ.get("TDSC_BASE_URL", "http://127.0.0.1:8000")
 OUT_DIR = Path(os.environ.get("TDSC_OUT_DIR", "paper/tdsc/experiments/raw_results"))
 DB_HOST = os.environ.get("TDSC_DB_HOST", "postgres")
+DB_PORT = os.environ.get("TDSC_DB_PORT", "5432")
 DB_NAME = os.environ.get("TDSC_DB_NAME", "travel")
-ADMIN_DSN = f"postgresql://postgres:postgres@{DB_HOST}:5432/{DB_NAME}"
+ADMIN_DSN = f"postgresql://postgres:postgres@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 WARMUP = int(os.environ.get("TDSC_SCALE_WARMUP", "3"))
 MEASURED = int(os.environ.get("TDSC_SCALE_MEASURED", "5"))
 TARGET_ROWS = [int(x) for x in os.environ.get("TDSC_SCALE_ROWS", "1000,10000,100000").split(",")]
@@ -31,13 +32,19 @@ class Baseline:
     name: str
     dsn: str | None
     mode: str
+    schema: str | None = None
 
 
 BASELINES = [
     Baseline("Raw PostgreSQL", ADMIN_DSN, "raw"),
-    Baseline("Role-only", f"postgresql://tdsc_role_only:tdsc_role_only_pass@{DB_HOST}:5432/{DB_NAME}", "raw"),
-    Baseline("Safe-view-only", f"postgresql://tdsc_safe_view_only:tdsc_safe_view_only_pass@{DB_HOST}:5432/{DB_NAME}", "safe"),
-    Baseline("RLS-only", f"postgresql://tdsc_rls_only:tdsc_rls_only_pass@{DB_HOST}:5432/{DB_NAME}", "raw"),
+    Baseline("Role-only", f"postgresql://tdsc_role_only:tdsc_role_only_pass@{DB_HOST}:{DB_PORT}/{DB_NAME}", "raw"),
+    Baseline("Safe-view-only", f"postgresql://tdsc_safe_view_only:tdsc_safe_view_only_pass@{DB_HOST}:{DB_PORT}/{DB_NAME}", "safe", "tdsc_safe_view_only"),
+    Baseline(
+        "RLS + Safe View + Short Credential + Audit",
+        f"postgresql://tdsc_rls_safe_audit:tdsc_rls_safe_audit_pass@{DB_HOST}:{DB_PORT}/{DB_NAME}",
+        "safe",
+        "tdsc_rls_safe_view",
+    ),
     Baseline("Full SessionBound", None, "sessionbound"),
 ]
 
@@ -45,7 +52,8 @@ BASELINES = [
 PATTERNS = {
     "aggregate_by_category": {
         "raw": """
-            SELECT category, count(*) AS n, sum(amount) AS total
+            SELECT category, count(DISTINCT employee_id) AS employee_count,
+                   count(*) AS n, sum(amount) AS total
             FROM app_data.expenses
             WHERE tenant_id='company_a'
               AND expense_month='2026-06'
@@ -54,13 +62,15 @@ PATTERNS = {
             ORDER BY total DESC
         """,
         "safe": """
-            SELECT category, count(*) AS n, sum(amount) AS total
-            FROM tdsc_safe_view_only.expenses
+            SELECT category, count(DISTINCT employee_id) AS employee_count,
+                   count(*) AS n, sum(amount) AS total
+            FROM {schema}.expenses
             GROUP BY category
             ORDER BY total DESC
         """,
         "sb": """
-            SELECT category, count(*) AS n, sum(amount) AS total
+            SELECT category, count(DISTINCT employee_id) AS employee_count,
+                   count(*) AS n, sum(amount) AS total
             FROM expenses
             GROUP BY category
             ORDER BY total DESC
@@ -78,7 +88,7 @@ PATTERNS = {
         """,
         "safe": """
             SELECT expense_id, employee_id, amount
-            FROM tdsc_safe_view_only.expenses
+            FROM {schema}.expenses
             ORDER BY amount DESC
             LIMIT 10
         """,
@@ -110,7 +120,7 @@ def apply_baseline_sql() -> None:
             for path in [
                 SQL_DIR / "role_only_baseline.sql",
                 SQL_DIR / "safe_view_only_baseline.sql",
-                SQL_DIR / "rls_baseline.sql",
+                SQL_DIR / "rls_safe_view_short_credential_audit_baseline.sql",
             ]:
                 cur.execute(path.read_text(encoding="utf-8"))
 
@@ -134,10 +144,16 @@ def prepare_scale(target_rows: int) -> dict[str, int]:
                   employee_id, tenant_id, department_id, employee_name,
                   employee_level, phone, bank_account, salary
                 )
-                VALUES (
-                  'emp_scale_bench', 'company_a', 'dep_sales',
-                  'Scale Benchmark', 'L4', '13899999999', '6222-scale', 30000
-                )
+                SELECT
+                  'emp_scale_bench_' || lpad(gs::text, 2, '0'),
+                  'company_a',
+                  'dep_sales',
+                  'Scale Benchmark ' || lpad(gs::text, 2, '0'),
+                  'L4',
+                  '13899' || lpad(gs::text, 6, '0'),
+                  '6222-scale-' || lpad(gs::text, 2, '0'),
+                  30000
+                FROM generate_series(1, 50) AS gs
                 ON CONFLICT (employee_id) DO NOTHING
                 """
             )
@@ -162,7 +178,7 @@ def prepare_scale(target_rows: int) -> dict[str, int]:
                 SELECT
                   'scale_bench_' || %s || '_' || gs::text,
                   'company_a',
-                  'emp_scale_bench',
+                  'emp_scale_bench_' || lpad((((gs - 1) %% 50) + 1)::text, 2, '0'),
                   'dep_sales',
                   '2026-06',
                   (ARRAY['flight','hotel','taxi','meal','train','conference','equipment','mobile','client_event','software'])[((gs - 1) %% 10) + 1],
@@ -224,7 +240,7 @@ def connect_for_baseline(baseline: Baseline, max_queries: int):
         conn.autocommit = True
         return conn
     credential, task = open_session(max_queries=max_queries)
-    dsn = f"postgresql://{credential['db_user']}:{credential['db_password']}@{DB_HOST}:5432/{DB_NAME}"
+    dsn = f"postgresql://{credential['db_user']}:{credential['db_password']}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     conn = psycopg.connect(dsn)
     conn.autocommit = True
     with conn.cursor() as cur:
@@ -237,7 +253,7 @@ def sql_for(baseline: Baseline, pattern: dict[str, str]) -> tuple[str, tuple[Any
     if baseline.mode == "sessionbound":
         return "SELECT * FROM taskbound.run(%s)", (pattern["sb"],)
     if baseline.mode == "safe":
-        return pattern["safe"], ()
+        return pattern["safe"].format(schema=baseline.schema), ()
     return pattern["raw"], ()
 
 
@@ -252,7 +268,13 @@ def percentile(values: list[float], p: float) -> float | None:
 def run_once(cur, baseline: Baseline, pattern: dict[str, str]) -> int:
     sql_text, params = sql_for(baseline, pattern)
     cur.execute(sql_text, params)
-    return len(cur.fetchall()) if cur.description is not None else 0
+    rows = cur.fetchall() if cur.description is not None else []
+    if baseline.name == "RLS + Safe View + Short Credential + Audit":
+        cur.execute(
+            "SELECT tdsc_rls_audit.log_query(%s, %s, %s, %s)",
+            ("tdsc_rls_safe_audit", "scale", sql_text, len(rows)),
+        )
+    return len(rows)
 
 
 def summarize(latencies: list[float], rows: int, errors: list[str]) -> dict[str, Any]:

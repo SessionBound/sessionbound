@@ -62,6 +62,18 @@ PAYLOAD_AGGREGATION_FUNCTIONS = {
     "xmlagg",
 }
 
+DEFAULT_AGGREGATE_POLICY = {
+    "min_group_size": 5,
+    "entity_id": "employee_id",
+    "direct_entity_group_by": "deny",
+    "unverifiable_group_by": "deny",
+}
+
+DIRECT_ENTITY_GROUP_COLUMNS = {
+    "employee_id",
+    "expense_id",
+}
+
 SQLGLOT_PAYLOAD_AGGREGATION_ALIASES = {
     "group_concat",
     "json_array_agg",
@@ -185,6 +197,16 @@ def _denied_column_names(denied_columns: list[str] | None) -> set[str]:
     return names
 
 
+def _aggregate_policy(aggregate_policy: dict[str, Any] | None) -> dict[str, Any]:
+    policy = dict(DEFAULT_AGGREGATE_POLICY)
+    policy.update(aggregate_policy or {})
+    try:
+        policy["min_group_size"] = max(1, int(policy.get("min_group_size", 5)))
+    except (TypeError, ValueError):
+        policy["min_group_size"] = 5
+    return policy
+
+
 def _statement_kind(root: Any) -> str:
     if root is None:
         return "unknown"
@@ -203,14 +225,18 @@ def validate_sql_structure(
     *,
     allowed_views: list[str] | None = None,
     denied_columns: list[str] | None = None,
+    aggregate_policy: dict[str, Any] | None = None,
 ) -> SQLValidationResult:
     allowed_view_names = {_norm(view) for view in allowed_views or []}
     denied_names = _denied_column_names(denied_columns)
+    min_group_policy = _aggregate_policy(aggregate_policy)
     reasons: list[str] = []
     flags: list[str] = []
     referenced_relations: list[str] = []
     referenced_columns: list[str] = []
     function_calls: list[str] = []
+    aggregate_functions: list[str] = []
+    group_by_columns: list[str] = []
     ctes: list[str] = []
     statement_kinds: list[str] = []
 
@@ -218,6 +244,11 @@ def validate_sql_structure(
         "referenced_relations": [],
         "referenced_columns": [],
         "function_calls": [],
+        "aggregate_functions": [],
+        "group_by_columns": [],
+        "has_group_by": False,
+        "has_having": False,
+        "min_group_size": min_group_policy["min_group_size"],
         "ctes": [],
         "recursive_cte": False,
         "subqueries": 0,
@@ -300,6 +331,28 @@ def validate_sql_structure(
 
         cte_names = set(ctes)
 
+        group_node = root.args.get("group")
+        if group_node is not None:
+            metadata["has_group_by"] = True
+            for group_expr in getattr(group_node, "expressions", []) or []:
+                group_sql = group_expr.sql(dialect="postgres")
+                group_by_columns.append(group_sql)
+                if isinstance(group_expr, exp.Column):
+                    group_name = _norm(group_expr.name)
+                    if group_name in DIRECT_ENTITY_GROUP_COLUMNS:
+                        reasons.append(
+                            f"GROUP BY {group_name} is denied by the minimum group-size policy"
+                        )
+                        flags.append("small_group_direct_entity_group_by")
+
+        having_node = root.args.get("having")
+        if having_node is not None:
+            metadata["has_having"] = True
+            reasons.append(
+                "HAVING clauses are denied by the minimum group-size policy unless a task template explicitly allows them"
+            )
+            flags.append("small_group_having")
+
         for table in root.find_all(exp.Table):
             table_name = _norm(table.name)
             db_name = _norm(getattr(table, "db", ""))
@@ -361,12 +414,19 @@ def validate_sql_structure(
                 reasons.append(f"unknown function {function_name} is not allowed")
                 flags.append("unknown_function")
 
+        for agg in root.find_all(exp.AggFunc):
+            aggregate_name = _function_name(agg)
+            if aggregate_name:
+                aggregate_functions.append(aggregate_name)
+
         metadata["subqueries"] += sum(1 for _ in root.find_all(exp.Subquery))
         metadata["joins"] += sum(1 for _ in root.find_all(exp.Join))
 
     metadata["referenced_relations"] = _dedupe(referenced_relations)
     metadata["referenced_columns"] = _dedupe(referenced_columns)
     metadata["function_calls"] = _dedupe(function_calls)
+    metadata["aggregate_functions"] = _dedupe(aggregate_functions)
+    metadata["group_by_columns"] = _dedupe(group_by_columns)
     metadata["ctes"] = _dedupe(ctes)
     metadata["operation_types"] = _dedupe(statement_kinds)
     metadata["set_operations"] = _dedupe(metadata["set_operations"])

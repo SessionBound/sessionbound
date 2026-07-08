@@ -292,6 +292,135 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION taskbound.enforce_min_group_policy(
+  sql_text text,
+  rows jsonb[],
+  v_min_group_size int
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, pg_temp
+AS $$
+DECLARE
+  lowered text := lower(COALESCE(sql_text, ''));
+  row_json jsonb;
+  entity_count bigint;
+  group_count bigint;
+  has_aggregate boolean;
+  has_group_by boolean;
+  has_having boolean;
+  has_where boolean;
+  min_k int := GREATEST(COALESCE(v_min_group_size, 5), 1);
+BEGIN
+  has_aggregate := lowered ~ '\m(count|sum|avg|min|max)[[:space:]]*\(';
+  has_group_by := lowered ~ '\mgroup[[:space:]]+by\M';
+  has_having := lowered ~ '\mhaving\M';
+  has_where := lowered ~ '\mwhere\M';
+
+  IF NOT has_aggregate AND NOT has_group_by THEN
+    RETURN;
+  END IF;
+
+  IF has_having THEN
+    RAISE EXCEPTION 'minimum group-size policy denied HAVING predicates';
+  END IF;
+
+  IF lowered ~ '\mgroup[[:space:]]+by[[:space:][:alnum:]_.,"]*\m(employee_id|expense_id)\M' THEN
+    RAISE EXCEPTION 'minimum group-size policy denied grouping by sensitive entity identifiers';
+  END IF;
+
+  IF NOT has_group_by THEN
+    IF lowered ~ '\mwhere\M.*\m(employee_id|expense_id)\M' THEN
+      RAISE EXCEPTION 'minimum group-size policy denied aggregate filtering on sensitive entity identifiers';
+    END IF;
+
+    SELECT count(DISTINCT employee_id)
+    INTO group_count
+    FROM taskbound.expenses;
+
+    IF COALESCE(group_count, 0) < min_k THEN
+      RAISE EXCEPTION 'minimum group-size policy denied aggregate over % distinct employee_id values; required %',
+        COALESCE(group_count, 0), min_k;
+    END IF;
+    RETURN;
+  END IF;
+
+  FOREACH row_json IN ARRAY COALESCE(rows, ARRAY[]::jsonb[]) LOOP
+    IF row_json ? 'employee_id' OR row_json ? 'expense_id' THEN
+      RAISE EXCEPTION 'minimum group-size policy denied entity-identifying aggregate output';
+    END IF;
+
+    entity_count := NULL;
+    BEGIN
+      IF row_json ? 'employee_count' THEN
+        entity_count := (row_json->>'employee_count')::numeric::bigint;
+      ELSIF row_json ? 'entity_count' THEN
+        entity_count := (row_json->>'entity_count')::numeric::bigint;
+      ELSIF row_json ? 'distinct_employee_count' THEN
+        entity_count := (row_json->>'distinct_employee_count')::numeric::bigint;
+      ELSIF row_json ? 'employees_in_group' THEN
+        entity_count := (row_json->>'employees_in_group')::numeric::bigint;
+      ELSIF row_json ? 'distinct_employees' THEN
+        entity_count := (row_json->>'distinct_employees')::numeric::bigint;
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      entity_count := NULL;
+    END;
+
+    IF entity_count IS NOT NULL THEN
+      IF entity_count < min_k THEN
+        RAISE EXCEPTION 'minimum group-size policy denied output group with % distinct employee_id values; required %',
+          entity_count, min_k;
+      END IF;
+      CONTINUE;
+    END IF;
+
+    IF has_where THEN
+      RAISE EXCEPTION 'minimum group-size policy could not verify filtered GROUP BY cardinality';
+    END IF;
+
+    group_count := NULL;
+    IF row_json ? 'department_id' THEN
+      SELECT count(DISTINCT employee_id) INTO group_count
+      FROM taskbound.expenses
+      WHERE department_id = row_json->>'department_id';
+    ELSIF row_json ? 'department_name' THEN
+      SELECT count(DISTINCT employee_id) INTO group_count
+      FROM taskbound.expenses
+      WHERE department_name = row_json->>'department_name';
+    ELSIF row_json ? 'category' THEN
+      SELECT count(DISTINCT employee_id) INTO group_count
+      FROM taskbound.expenses
+      WHERE category = row_json->>'category';
+    ELSIF row_json ? 'merchant' THEN
+      SELECT count(DISTINCT employee_id) INTO group_count
+      FROM taskbound.expenses
+      WHERE merchant = row_json->>'merchant';
+    ELSIF row_json ? 'city' THEN
+      SELECT count(DISTINCT employee_id) INTO group_count
+      FROM taskbound.expenses
+      WHERE city = row_json->>'city';
+    ELSIF row_json ? 'status' THEN
+      SELECT count(DISTINCT employee_id) INTO group_count
+      FROM taskbound.expenses
+      WHERE status = row_json->>'status';
+    ELSIF row_json ? 'employee_level' THEN
+      SELECT count(DISTINCT employee_id) INTO group_count
+      FROM taskbound.expenses
+      WHERE employee_level = row_json->>'employee_level';
+    ELSE
+      RAISE EXCEPTION 'minimum group-size policy could not verify GROUP BY cardinality';
+    END IF;
+
+    IF COALESCE(group_count, 0) < min_k THEN
+      RAISE EXCEPTION 'minimum group-size policy denied output group with % distinct employee_id values; required %',
+        COALESCE(group_count, 0), min_k;
+    END IF;
+  END LOOP;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION taskbound.run(sql_text text)
 RETURNS SETOF jsonb
 LANGUAGE plpgsql
@@ -314,6 +443,7 @@ DECLARE
   v_budget_account text;
   v_receipts_enabled boolean;
   v_budget_accounting_enabled boolean;
+  v_min_group_size int;
   receipt uuid;
 BEGIN
   p := taskbound.require_payload();
@@ -321,6 +451,7 @@ BEGIN
   v_budget_account := COALESCE(p->>'budget_account', v_task_id);
   v_receipts_enabled := COALESCE((p #>> ARRAY['runtime_options', 'receipts_enabled'])::boolean, true);
   v_budget_accounting_enabled := COALESCE((p #>> ARRAY['runtime_options', 'budget_accounting_enabled'])::boolean, true);
+  v_min_group_size := COALESCE((p #>> ARRAY['aggregate_policy', 'min_group_size'])::int, 5);
   lowered := lower(sql_text);
 
   IF regexp_replace(sql_text, ';\s*$', '') ~ ';' THEN
@@ -362,6 +493,13 @@ BEGIN
     PERFORM taskbound.fail_receipt(sql_text, 'payload aggregation function is not allowed for this task');
     RAISE EXCEPTION 'SessionBoundDB denied query: payload aggregation function is not allowed for this task.';
   END IF;
+
+  BEGIN
+    PERFORM taskbound.enforce_min_group_policy(sql_text, ARRAY[]::jsonb[], v_min_group_size);
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM taskbound.fail_receipt(sql_text, SQLERRM);
+    RAISE EXCEPTION 'SessionBoundDB denied query: %', SQLERRM;
+  END;
 
   SELECT revoked INTO STRICT row_item
   FROM taskbound.task_execution_state
@@ -405,6 +543,13 @@ BEGIN
         ON CONFLICT DO NOTHING;
       END IF;
     END LOOP;
+  EXCEPTION WHEN OTHERS THEN
+    PERFORM taskbound.fail_receipt(sql_text, SQLERRM);
+    RAISE EXCEPTION 'SessionBoundDB denied query: %', SQLERRM;
+  END;
+
+  BEGIN
+    PERFORM taskbound.enforce_min_group_policy(sql_text, rows, v_min_group_size);
   EXCEPTION WHEN OTHERS THEN
     PERFORM taskbound.fail_receipt(sql_text, SQLERRM);
     RAISE EXCEPTION 'SessionBoundDB denied query: %', SQLERRM;

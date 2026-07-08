@@ -10,6 +10,8 @@ services:
       POSTGRES_DB: travel
     volumes:
       - ./db:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "15432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d travel"]
       interval: 5s

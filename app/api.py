@@ -49,6 +49,7 @@ class CreateTaskRequest(BaseModel):
     department_id: str | None = None
     scope: dict[str, Any] | None = None
     budgets: dict[str, int] | None = None
+    aggregate_policy: dict[str, Any] | None = None
     max_queries: int = Field(default=5, ge=1, le=100)
     max_rows: int = Field(default=4, ge=1, le=5000)
 
@@ -161,6 +162,7 @@ def fetch_safe_view_registry_claims(allowed_views: list[str]) -> dict[str, Any]:
         "safe_view_registry": snapshot,
         "safe_view_registry_version": snapshot["safe_view_registry_version"],
         "view_definition_hash": snapshot["view_definition_hash"],
+        "exposed_column_hash": snapshot["exposed_column_hash"],
     }
 
 
@@ -281,6 +283,7 @@ def ast_preflight(
             sql_text,
             allowed_views=payload.get("allowed_views", []),
             denied_columns=payload.get("denied_columns", []),
+            aggregate_policy=payload.get("aggregate_policy", {}),
         )
     if not result.allowed:
         try:
@@ -1020,6 +1023,8 @@ def create_task(req: CreateTaskRequest):
             runtime_claims["credential_id"] = req.credential_id
         if req.runtime_options:
             runtime_claims["runtime_options"] = req.runtime_options
+        if req.aggregate_policy:
+            runtime_claims["aggregate_policy"] = req.aggregate_policy
         payload, payload_text, signature = build_task_from_template(
             task_id=req.task_id,
             task_type=req.task_type,
@@ -1223,7 +1228,7 @@ def query(req: QueryRequest):
                         "state": state,
                         "receipts": receipts,
                     }
-                rows = session.query(req.sql)
+                rows = session.query_via_runtime(req.sql)
                 state = session.inspect_state()
                 receipts = session.receipts()
                 return {
@@ -1274,7 +1279,7 @@ def agent_query(req: AgentQueryRequest):
                         "state": state,
                         "receipts": receipts,
                     }
-                rows = session.query(req.sql)
+                rows = session.query_via_runtime(req.sql)
                 state = session.inspect_state()
                 receipts = session.receipts()
                 return {
@@ -1368,7 +1373,7 @@ def agent_question(req: AgentQuestionRequest):
                         "state": state,
                         "receipts": receipts,
                     }
-                rows = session.query(sql_text)
+                rows = session.query_via_runtime(sql_text)
                 state = session.inspect_state()
                 receipts = session.receipts()
                 return {

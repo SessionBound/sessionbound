@@ -2,18 +2,20 @@
 
 ## Status
 
-Recommendation: not ready for final TDSC submission yet, but materially
-stronger than the prior draft.
+Recommendation: substantially stronger than the prior draft, but still requiring
+final PDF/layout review and optional native executor-accounting scale work
+before formal upload.
 
 ## Completed
 
-- Created the hardening branch and consolidated `paper/tdsc/` workspace.
+- Created the high-standard revision branch and consolidated `paper/tdsc/`
+  workspace.
 - Captured baseline environment, Docker startup, PostgreSQL version, and current
   manuscript path.
 - Added `sqlglot==30.12.0` and `app/sql_ast_validator.py`.
-- Integrated AST preflight in `/query`, `/agent-query`, and `/agent-question`
-  before native SDK SQL execution; `taskbound.run(...)` remains as a
-  compatibility wrapper.
+- Integrated AST preflight in `/query`, `/agent-query`, and `/agent-question`;
+  these API paths now use the accounting-complete `taskbound.run(...)`
+  reference path.
 - Recorded API-layer preflight denial receipts through `taskbound.fail_receipt`;
   in the current hardening prototype these are written through the same
   rollback-surviving audit channel as native hook denial receipts.
@@ -30,7 +32,10 @@ stronger than the prior draft.
   COPY(SELECT), and EXPLAIN cases showing that generated runtime credentials
   remain guarded by native hook/executor accounting outside `taskbound.run(...)`.
 - Added rollback audit script and raw result for allowed and denied receipts.
-- Added 28-case adversarial SQL suite and raw results.
+- Added 34-case adversarial SQL suite and raw results, including minimum-group
+  aggregate checks.
+- Added a strongest-practical RLS + Safe View + Short Credential + Audit
+  baseline and remeasured overhead/security comparisons.
 - Added overhead breakdown script with raw JSON/CSV outputs.
 - Expanded related work to 29 verified references.
 - Updated the active TDSC manuscript in `paper/tdsc/sessionbound-tdsc.tex`
@@ -39,32 +44,34 @@ stronger than the prior draft.
 
 ## Evidence
 
-- AST validation: 17 / 17 cases passed.
+- AST validation: 20 / 20 cases passed.
 - SDK query surface: native query, bound bare SELECT accounting, and unbound
   fail-closed behavior passed.
-- PostgreSQL hook enforcement: 16 / 16 cases passed.
+- PostgreSQL hook enforcement: 18 / 18 cases passed.
 - Hook-only microbenchmark: 6 / 6 checks passed; allowed structural guard checks
-  were 0.130--0.169 ms p50.
+  were 0.125--0.138 ms p50.
 - Rollback audit: 2 / 2 cases passed.
-- Adversarial SQL: 28 / 28 expected classifications passed.
-- Adversarial classifications: 22 blocked, 5 allowed but accounted, 1 known
-  limitation.
+- Adversarial SQL: 34 / 34 expected classifications passed.
+- Adversarial classifications: 27 blocked, 7 allowed but accounted, no direct
+  small-group aggregate release in the tested suite.
 - Canonical validation: 24 / 24 scenarios passed.
 - Overhead: supported modes completed with zero errors.
 - Related work: 29 verified bibliography entries, all cited.
 
 ## Remaining Blockers
 
-- The PostgreSQL hook path is experimental parse/analyze enforcement, not yet
-  production-grade planner/executor enforcement.
-- Small-group aggregate inference remains a known limitation.
+- The PostgreSQL hook path includes experimental parse/analyze enforcement and
+  executor accounting, but not a formal production-grade SQL safety proof.
+- Minimum-group policy mitigates direct small-group aggregate release; arbitrary
+  semantic inference across multiple allowed answers remains out of scope.
 - Disclosure budgets are operational controls, not formal differential privacy.
 - The PL/pgSQL reference runtime has high scale-sensitive overhead in prior
   100k-row tests. The hook-only microbenchmark narrows the bottleneck away from
   structural parse/analyze guarding, but native executor-accounting scale still
   needs measurement.
-- RLS-only was not measured in the hardening overhead breakdown because the current
-  prototype does not define RLS policies in the active runtime path.
+- The RLS + Safe View + Short Credential + Audit baseline is implemented and
+  measured, but it intentionally lacks task-token binding, cumulative disclosure
+  budget, receipt hash chain, and safe-view drift invalidation.
 - Production claims require hardened signing/key management, credential
   lifecycle cleanup, external audit retention/WORM storage, and operational
   migration/reapproval workflows. The evaluated bound runtime path already

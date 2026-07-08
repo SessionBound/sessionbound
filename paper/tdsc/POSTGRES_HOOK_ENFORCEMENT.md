@@ -11,13 +11,13 @@
 - Evaluation script: `paper/tdsc/scripts/sessionbound_guard_hook_eval.py`
 - Hook-only microbenchmark script: `paper/tdsc/scripts/hook_microbenchmark.py`
 - Rollback audit script: `paper/tdsc/scripts/rollback_audit_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/sessionbound_guard_hook_20260708_122824.json`
+- Latest raw result: `paper/tdsc/raw_results/sessionbound_guard_hook_20260708_205325.json`
 - Latest hook-only microbenchmark result:
-  `paper/tdsc/raw_results/hook_microbenchmark_20260708_181304.json`
-- Latest rollback audit result: `paper/tdsc/raw_results/rollback_audit_20260708_141120.json`
-- Result: 16 / 16 cases passed
+  `paper/tdsc/raw_results/hook_microbenchmark_20260708_205831.json`
+- Latest rollback audit result: `paper/tdsc/raw_results/rollback_audit_20260708_205904.json`
+- Result: 18 / 18 cases passed
 - Hook-only microbenchmark result: 6 / 6 checks passed; allowed structural
-  checks p50 = 0.130--0.169 ms
+  checks p50 = 0.125--0.138 ms
 - Rollback audit result: 2 / 2 cases passed
 
 The hardening prototype now includes both API-layer AST validation and a native
@@ -39,6 +39,7 @@ registers a `post_parse_analyze_hook` and defines trusted custom GUCs:
 - `sessionbound_guard.max_unique_expense_rows`
 - `sessionbound_guard.receipts_enabled`
 - `sessionbound_guard.budget_accounting_enabled`
+- `sessionbound_guard.min_group_size`
 
 The GUCs are `PGC_SUSET`, so ordinary agent roles cannot set or tamper with
 them. During `taskbound.bind_task(...)`, the database computes approved safe
@@ -72,6 +73,13 @@ The hook rejects:
   task;
 - non-view relations even if their OIDs were mistakenly listed;
 - sensitive output aliases such as `salary`, `bank_account`, and `phone`.
+- direct grouping by sensitive entity identifiers such as `employee_id` and
+  `expense_id`;
+- `HAVING` clauses used to probe small groups.
+
+The native hook path enforces minimum-group protection conservatively at the SQL
+shape level. The wrapper/API reference path additionally checks realized group
+cardinality before release.
 
 ## Evaluation Summary
 
@@ -84,7 +92,8 @@ The hook rejects:
 | `UNION`, catalog access, recursive CTE | agent credential native SQL surface | 3 / 3 blocked |
 | Runtime helper abuse and `EXPLAIN ANALYZE` | agent credential direct DB connection | 2 / 2 blocked |
 | Non-`SELECT`, raw schema, payload aggregation, unapproved safe-view OID | superuser trusted-GUC hook check, no API preflight | 4 / 4 blocked |
-| Hook enforcement subtotal | mixed direct database paths | 16 / 16 passed |
+| Minimum-group shape denials | direct entity group-by and HAVING probes | 2 / 2 blocked |
+| Hook enforcement subtotal | mixed direct database paths | 18 / 18 passed |
 | Rollback-surviving audit | bound native allowed SELECT and raw-schema denial inside ROLLBACK | 2 / 2 persisted |
 
 The hook evaluation intentionally bypasses the `/agent-query` API preflight for
@@ -125,10 +134,11 @@ through PostgreSQL parse/analyze and the `sessionbound_guard` structural checks.
 It does not execute result rows and does not measure executor row accounting,
 receipt insertion, or PL/pgSQL result materialization. In the latest run, 20
 warmup and 200 measured iterations per allowed case produced p50 values of
-0.138 ms for SELECT, 0.169 ms for JOIN, 0.139 ms for GROUP BY, and 0.130 ms for
-CTE/window SQL. Raw-schema and UNION denial checks also passed. This supports
-the performance interpretation that the historical 100k multi-second result is
-not caused by the structural parse/analyze guard alone.
+0.125 ms for SELECT, 0.131 ms for JOIN, 0.131 ms for GROUP BY, and 0.138 ms for
+CTE/window SQL. Raw-schema, UNION, direct entity group-by, and HAVING-denial
+checks also passed. This supports the performance interpretation that the 100k
+multi-second wrapper result is not caused by the structural parse/analyze guard
+alone.
 
 ## Boundary
 

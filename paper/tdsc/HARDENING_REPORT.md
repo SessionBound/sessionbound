@@ -2,19 +2,19 @@
 
 ## Baseline State
 
-- Date: 2026-07-07T14:30:06+08:00
-- Branch at run time: `tdsc-hardening`
-- Commit at latest hook run time: `5dbece5`
+- Date: 2026-07-08
+- Branch at run time: `high-standard-tdsc-pdsc-revision`
+- Commit at latest hook run time: current branch working tree
 - Docker Compose: `Docker Compose version v2.40.3-desktop.1`
 - Python: `Python 3.13.5`
 - PostgreSQL: `PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1)`
 - Current TDSC manuscript path: `paper/tdsc/sessionbound-tdsc.tex`
 - Current TDSC PDF path: `paper/tdsc/sessionbound-tdsc.pdf`
 
-Initial `git status --short --branch`:
+Initial branch setup:
 
 ```text
-## hardening branch
+## high-standard-tdsc-pdsc-revision
 ```
 
 ## Docker Startup
@@ -50,14 +50,16 @@ PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by g
 - The repository now uses `paper/tdsc/` as the single active TDSC workspace.
 - This hardening sprint records outputs and updates the current TDSC manuscript
   in that consolidated folder.
+- This report has been updated to the 2026-07-08 high-standard revision; older
+  raw result files in the repository are historical unless listed below.
 
 ## Experiment Results
 
 AST validation:
 
 - Script: `paper/tdsc/scripts/ast_validation_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260707_182706.json`
-- Result: 17 / 17 cases passed
+- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260708_205921.json`
+- Result: 20 / 20 cases passed
 - Status: implemented as API-layer AST preflight before the SDK executes native
   safe-view SQL
 
@@ -82,10 +84,10 @@ PostgreSQL hook enforcement:
   including approved safe-view OIDs from `taskbound.safe_view_registry`.
 - Script: `paper/tdsc/scripts/sessionbound_guard_hook_eval.py`
 - Latest raw result:
-  `paper/tdsc/raw_results/sessionbound_guard_hook_20260708_122824.json`
-- Result: 16 / 16 cases passed, including native bound safe-view SELECT,
-  prepared EXECUTE, cursor/FETCH, COPY(SELECT), EXPLAIN, and blocked
-  EXPLAIN ANALYZE.
+  `paper/tdsc/raw_results/sessionbound_guard_hook_20260708_205325.json`
+- Result: 18 / 18 cases passed, including native bound safe-view SELECT,
+  prepared EXECUTE, cursor/FETCH, COPY(SELECT), EXPLAIN, blocked
+  EXPLAIN ANALYZE, direct entity group-by denial, and HAVING denial.
 - Status: native database-resident structural enforcement and executor
   accounting path; API AST preflight remains defense in depth.
 
@@ -93,17 +95,18 @@ Hook-only microbenchmark:
 
 - Script: `paper/tdsc/scripts/hook_microbenchmark.py`
 - Latest raw result:
-  `paper/tdsc/raw_results/hook_microbenchmark_20260708_181304.json`
+  `paper/tdsc/raw_results/hook_microbenchmark_20260708_205831.json`
 - Result: 6 / 6 checks passed.
-- Main finding: allowed structural guard checks were 0.130--0.169 ms p50,
-  while raw-schema and UNION denial checks passed. This isolates parse/analyze
-  structural guarding from wrapper-era row materialization/accounting.
+- Main finding: allowed structural guard checks were 0.125--0.138 ms p50,
+  while raw-schema, UNION, direct entity group-by, and HAVING denial checks
+  passed. This isolates parse/analyze structural guarding from wrapper
+  row materialization/accounting.
 
 Rollback audit:
 
 - Script: `paper/tdsc/scripts/rollback_audit_eval.py`
 - Latest raw result:
-  `paper/tdsc/raw_results/rollback_audit_20260708_141120.json`
+  `paper/tdsc/raw_results/rollback_audit_20260708_205904.json`
 - Result: 2 / 2 cases passed.
 - Status: evaluated bound-runtime allowed receipts/accounting and raw-schema
   denial receipts persist after agent-side `BEGIN ... ROLLBACK`.
@@ -111,25 +114,38 @@ Rollback audit:
 Adversarial SQL:
 
 - Script: `paper/tdsc/scripts/adversarial_sql_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260707_182701.json`
-- Result: 28 / 28 expected classifications passed
-- Classification counts: 22 blocked, 5 allowed but accounted, 1 known limitation
+- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260708_210059.json`
+- Result: 34 / 34 expected classifications passed
+- Classification counts: 27 blocked, 7 allowed but accounted, 0 known
+  limitations in the tested direct-release suite
 
 Overhead breakdown:
 
 - Script: `paper/tdsc/scripts/overhead_breakdown.py`
-- Latest raw JSON: `paper/tdsc/raw_results/overhead_breakdown_20260707_084853.json`
-- Latest raw CSV: `paper/tdsc/raw_results/overhead_breakdown_20260707_084853.csv`
+- Latest raw JSON: `paper/tdsc/raw_results/overhead_breakdown_20260708_205527.json`
+- Latest raw CSV: `paper/tdsc/raw_results/overhead_breakdown_20260708_205527.csv`
 - Result: 0 errors across supported modes
-- Main finding: safe-view/session-claim evaluation dominates the measured
-  small-dataset overhead; receipts and budget updates do not dominate. The 100k
-  scale sweep remains a PL/pgSQL wrapper limitation, not a production-ready
-  native-hook throughput claim.
+- Main finding: raw/role/safe-view modes are sub-millisecond, the
+  RLS+Safe View+Short Credential+Audit baseline is 0.976--1.119 ms p50, and
+  the full SessionBound wrapper reference path is 17.397--18.616 ms p50.
+  Receipt and budget switches do not dominate. The 100k scale sweep remains a
+  wrapper-reference limitation, not a production-ready native-hook throughput
+  claim.
+
+RLS + Safe View + Short Credential + Audit:
+
+- SQL setup:
+  `paper/tdsc/experiments/sql/rls_safe_view_short_credential_audit_baseline.sql`
+- Security baseline raw result:
+  `paper/tdsc/raw_results/security_baseline_1783515117.json`
+- Status: measured as a strong baseline that includes row scope, field-limited
+  safe views, read-only grants, short-lived credential, and basic audit logging,
+  but no SessionBound task token, cumulative disclosure budget, receipt hash
+  chain, or drift-bound token invalidation.
 
 Canonical validation:
 
 - Command: `python3 scripts/sessionbound_agent_eval.py --base-url http://localhost:8000`
 - Result: 24 / 24 scenarios passed
-- Output: `paper/tdsc/evaluation/eval_runs/sessionbound_agent_eval_1783484902.json` and `.md`
-  generated by the existing script; these are not part of the committed
-  artifact set.
+- Output: `paper/tdsc/raw_results/sessionbound_agent_eval_1783515659.json` and
+  `.md`.

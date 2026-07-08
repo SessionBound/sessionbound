@@ -1,0 +1,115 @@
+{
+  "records": [
+    {
+      "id": "SDK01",
+      "name": "sdk_query_uses_native_select",
+      "expected": "Allowed",
+      "actual": "Allowed",
+      "passed": true,
+      "evidence": {
+        "bound": {
+          "bound": true,
+          "purpose": "monthly_travel_expense_anomaly_review",
+          "task_id": "task_sdk_query_1783515556",
+          "credential_id": null,
+          "budget_account": "task_sdk_query_1783515556"
+        },
+        "rows": [
+          {
+            "expense_id": "exp_296",
+            "amount": "17200.00"
+          },
+          {
+            "expense_id": "exp_259",
+            "amount": "16550.00"
+          }
+        ],
+        "state": [
+          {
+            "task_id": "task_sdk_query_1783515556",
+            "budget_account": "task_sdk_query_1783515556",
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 2,
+            "unique_rows_added": 2,
+            "remaining_unique_row_budget": 3,
+            "reason": null,
+            "created_at": "2026-07-08 12:59:16.854023+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SDK02",
+      "name": "bound_bare_safe_view_select_is_native_accounted",
+      "expected": "Allowed",
+      "actual": "Allowed",
+      "passed": true,
+      "evidence": {
+        "select": {
+          "ok": true,
+          "rows": [
+            [
+              "exp_001",
+              "1880.00"
+            ]
+          ]
+        },
+        "state": [
+          {
+            "task_id": "task_sdk_query_1783515556",
+            "budget_account": "task_sdk_query_1783515556",
+            "query_count": 2,
+            "returned_rows": 3,
+            "unique_expense_rows": 3,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 1,
+            "unique_rows_added": 1,
+            "remaining_unique_row_budget": 2,
+            "reason": null,
+            "created_at": "2026-07-08 12:59:16.861857+00:00"
+          },
+          {
+            "decision": "allowed",
+            "rows_returned": 2,
+            "unique_rows_added": 2,
+            "remaining_unique_row_budget": 3,
+            "reason": null,
+            "created_at": "2026-07-08 12:59:16.854023+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SDK03",
+      "name": "unbound_safe_view_select_fails_closed",
+      "expected": "Blocked",
+      "actual": "Blocked",
+      "passed": true,
+      "evidence": {
+        "ok": false,
+        "error": "SessionBound guard denied query: no trusted task binding is active"
+      }
+    }
+  ],
+  "run": {
+    "case_count": 3,
+    "passed": 3,
+    "failed": 0,
+    "database_url": "postgresql://agent_app:***@localhost:15432/travel",
+    "commit": "6594452",
+    "timestamp": "2026-07-08T12:59:16.866939Z"
+  }
+}

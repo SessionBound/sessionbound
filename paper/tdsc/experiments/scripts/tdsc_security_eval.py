@@ -17,7 +17,11 @@ import psycopg
 BASE_URL = os.environ.get("TDSC_BASE_URL", "http://127.0.0.1:8000")
 OUT_DIR = Path(os.environ.get("TDSC_OUT_DIR", "paper/tdsc/experiments/raw_results"))
 DB_HOST = os.environ.get("TDSC_DB_HOST", "postgres")
+DB_PORT = os.environ.get("TDSC_DB_PORT", "5432")
 DB_NAME = os.environ.get("TDSC_DB_NAME", "travel")
+ADMIN_DSN = f"postgresql://postgres:postgres@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+SCRIPT_DIR = Path(__file__).resolve().parent
+SQL_DIR = SCRIPT_DIR.parent / "sql"
 
 
 @dataclass(frozen=True)
@@ -26,13 +30,19 @@ class Baseline:
     dsn: str | None
     query_schema: str
     mode: str = "db"
+    audit: bool = False
 
 
 BASELINES = [
-    Baseline("Raw PostgreSQL", f"postgresql://postgres:postgres@{DB_HOST}:5432/{DB_NAME}", "app_data"),
-    Baseline("Role-only", f"postgresql://tdsc_role_only:tdsc_role_only_pass@{DB_HOST}:5432/{DB_NAME}", "app_data"),
-    Baseline("Safe-view-only", f"postgresql://tdsc_safe_view_only:tdsc_safe_view_only_pass@{DB_HOST}:5432/{DB_NAME}", "tdsc_safe_view_only"),
-    Baseline("RLS-only", f"postgresql://tdsc_rls_only:tdsc_rls_only_pass@{DB_HOST}:5432/{DB_NAME}", "app_data"),
+    Baseline("Raw PostgreSQL", f"postgresql://postgres:postgres@{DB_HOST}:{DB_PORT}/{DB_NAME}", "app_data"),
+    Baseline("Role-only", f"postgresql://tdsc_role_only:tdsc_role_only_pass@{DB_HOST}:{DB_PORT}/{DB_NAME}", "app_data"),
+    Baseline("Safe-view-only", f"postgresql://tdsc_safe_view_only:tdsc_safe_view_only_pass@{DB_HOST}:{DB_PORT}/{DB_NAME}", "tdsc_safe_view_only"),
+    Baseline(
+        "RLS + Safe View + Short Credential + Audit",
+        f"postgresql://tdsc_rls_safe_audit:tdsc_rls_safe_audit_pass@{DB_HOST}:{DB_PORT}/{DB_NAME}",
+        "tdsc_rls_safe_view",
+        audit=True,
+    ),
     Baseline("Full SessionBound", None, "taskbound", mode="sessionbound"),
 ]
 
@@ -108,6 +118,11 @@ def run_db_query(baseline: Baseline, sql_text: str, *, rollback: bool = False) -
             rows: list[Any] = []
             if cur.description is not None:
                 rows = cur.fetchall()
+            if baseline.audit and not rollback:
+                cur.execute(
+                    "SELECT tdsc_rls_audit.log_query(%s, %s, %s, %s)",
+                    ("tdsc_rls_safe_audit", "security", sql_text, len(rows)),
+                )
             if rollback:
                 conn.rollback()
             return {"ok": True, "row_count": len(rows), "preview": [list(r) for r in rows[:3]]}
@@ -121,7 +136,7 @@ def run_db_query(baseline: Baseline, sql_text: str, *, rollback: bool = False) -
 
 def q(baseline: Baseline, safe_sql: str, raw_sql: str | None = None, *, rollback: bool = False) -> dict[str, Any]:
     if baseline.mode == "sessionbound":
-        return sessionbound_query(safe_sql)
+        return sessionbound_query(safe_sql.replace("taskbound.", ""))
     sql_text = safe_sql if baseline.query_schema != "app_data" else (raw_sql or safe_sql)
     return run_db_query(baseline, sql_text, rollback=rollback)
 
@@ -130,9 +145,22 @@ def allowed(result: dict[str, Any]) -> str:
     return "Allowed" if result.get("ok") else "Denied"
 
 
+def apply_baseline_sql() -> None:
+    with psycopg.connect(ADMIN_DSN) as conn:
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            for path in [
+                SQL_DIR / "role_only_baseline.sql",
+                SQL_DIR / "safe_view_only_baseline.sql",
+                SQL_DIR / "rls_safe_view_short_credential_audit_baseline.sql",
+            ]:
+                cur.execute(path.read_text(encoding="utf-8"))
+
+
 def main() -> None:
     run_id = str(int(time.time()))
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    apply_baseline_sql()
     results: dict[str, Any] = {"run_id": run_id, "base_url": BASE_URL, "baselines": []}
 
     for baseline in BASELINES:
@@ -219,6 +247,7 @@ def main() -> None:
             "Payload aggregation blocking": "Yes" if not checks["json_agg_payload"].get("ok") else "No",
             "Credential-token binding": "Yes" if baseline.mode == "sessionbound" else "No",
             "Receipts": "Yes" if checks["receipts"].get("ok") else "No",
+            "Basic audit log": "Yes" if baseline.audit else "No",
             "Schema drift token invalidation": "Not tested",
         }
 
