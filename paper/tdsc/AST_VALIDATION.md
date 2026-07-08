@@ -66,17 +66,15 @@ The prototype denies:
 
 The API binds the task token first. If AST preflight denies a query, the API
 records a denial receipt through `taskbound.fail_receipt(...)` and does not
-invoke `taskbound.run(...)`.
+invoke native SQL execution.
 
 Acceptable wording for the paper:
 
 ```text
-The hardening prototype includes both API-layer AST validation and an
-experimental PostgreSQL hook path for structural SQL enforcement. The database
-also enforces no raw schema grants and no bare safe-view `SELECT` grants for
-runtime credentials; approved safe-view SQL is exposed to agents through
-`TaskboundSession.query(sql)` and accounted through `taskbound.run(...)`. A
-production implementation that exposes native agent `SELECT` syntax should
-harden this path into planner/executor-level accounting, receipt emission before
-client release, and out-of-transaction denial logging.
+The hardening prototype includes both API-layer AST validation and a PostgreSQL
+hook/executor path for structural SQL enforcement. Runtime credentials can issue
+native `SELECT` over registered safe views only after a valid task binding; raw
+table access, private runtime helpers, unsafe utility statements, and unbound
+safe-view access fail closed. `TaskboundSession.query(sql)` is accounted through
+executor hooks and receipts are emitted through a rollback-surviving audit path.
 ```

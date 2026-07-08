@@ -10,7 +10,7 @@ SessionBound submission candidate.
 - Manuscript source: `paper/tdsc/sessionbound-tdsc.tex`
 - Manuscript PDF: `paper/tdsc/sessionbound-tdsc.pdf`
 - Build command: `cd paper/tdsc && make`
-- Page count after compression pass: 14 pages
+- Page count after native SELECT update: 15 pages
 
 The Git tag is the stable artifact anchor. The `main` branch may continue to
 evolve after submission work.
@@ -24,15 +24,20 @@ text when checking current claims.
 Core validated claims in the TDSC candidate:
 
 - canonical functional validation: 24 / 24 scenarios passed;
-- SDK query surface: 2 / 2 cases passed, showing that
-  `TaskboundSession.query(sql)` wraps ordinary safe-view SQL through the
-  accounting runtime while bare safe-view `SELECT` remains ungranted;
+- SDK query surface: native smoke passed, showing that
+  `TaskboundSession.query(sql)` executes ordinary safe-view SQL through
+  PostgreSQL hook/executor accounting, bound direct safe-view `SELECT` is
+  accounted, and unbound safe-view access fails closed;
+- PostgreSQL native hook/executor surface: 16 / 16 cases passed, covering
+  bound native SELECT, prepared statements, cursor/FETCH, COPY(SELECT),
+  EXPLAIN, fail-closed denials, and trusted-GUC protection;
 - adversarial SQL suite: 28 cases, with 22 blocked cases, 5 allowed safe-view
   analytical cases, and 1 known limitation;
 - default-seed overhead: full SessionBound p50 latency is 14.6--18.6 ms across
   representative query patterns;
-- 100k synthetic scale sweep: the PL/pgSQL wrapper path reaches multi-second
-  latency, motivating planner- or executor-hook enforcement for production;
+- 100k synthetic scale sweep: the historical PL/pgSQL wrapper path reaches
+  multi-second latency; the new native path should be rebenchmarked before
+  replacing the published performance table;
 - security guarantees are limited to the stated prototype SQL fragment and do
   not claim arbitrary semantic inference prevention or differential privacy.
 

@@ -1,3 +1,61 @@
+CREATE OR REPLACE FUNCTION taskbound.audit_connection_name()
+RETURNS text
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT 'sessionbound_audit_' || pg_backend_pid()::text
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.audit_exec(sql_text text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+DECLARE
+  v_conn text := taskbound.audit_connection_name();
+  v_connections text[];
+BEGIN
+  SELECT public.dblink_get_connections() INTO v_connections;
+  IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
+    PERFORM public.dblink_connect(v_conn, 'dbname=' || current_database());
+  END IF;
+  PERFORM public.dblink_exec(v_conn, sql_text);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.native_denied_receipt(
+  v_task_id text,
+  v_budget_account text,
+  sql_text text,
+  reason text,
+  v_receipts_enabled boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+BEGIN
+  IF NOT COALESCE(v_receipts_enabled, true) THEN
+    RETURN;
+  END IF;
+  IF COALESCE(v_task_id, '') = '' THEN
+    RETURN;
+  END IF;
+
+  PERFORM taskbound.audit_exec(format(
+    'INSERT INTO taskbound.task_query_receipts ' ||
+    '(task_id, budget_account, query_digest, decision, reason) ' ||
+    'VALUES (%L, %L, encode(public.digest(%L, ''sha256''), ''hex''), ''denied'', %L)',
+    v_task_id,
+    COALESCE(v_budget_account, v_task_id),
+    COALESCE(sql_text, ''),
+    reason
+  ));
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION taskbound.fail_receipt(sql_text text, reason text)
 RETURNS void
 LANGUAGE plpgsql
@@ -10,17 +68,226 @@ DECLARE
 BEGIN
   p := taskbound.current_payload();
   v_receipts_enabled := COALESCE((p #>> ARRAY['runtime_options', 'receipts_enabled'])::boolean, true);
-  IF p IS NOT NULL AND v_receipts_enabled THEN
-    INSERT INTO taskbound.task_query_receipts (
-      task_id, budget_account, query_digest, decision, reason
-    )
-    VALUES (
+  IF p IS NOT NULL THEN
+    PERFORM taskbound.native_denied_receipt(
       p->>'task_id',
       COALESCE(p->>'budget_account', p->>'task_id'),
-      encode(public.digest(sql_text, 'sha256'), 'hex'),
-      'denied',
-      reason
+      sql_text,
+      reason,
+      v_receipts_enabled
     );
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.native_reserve_query(
+  v_task_id text,
+  v_budget_account text,
+  sql_text text,
+  v_max_queries int,
+  v_budget_accounting_enabled boolean,
+  v_receipts_enabled boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+DECLARE
+  v_conn text := taskbound.audit_connection_name();
+  v_connections text[];
+  v_status text;
+BEGIN
+  IF NOT COALESCE(v_budget_accounting_enabled, true) THEN
+    RETURN;
+  END IF;
+
+  SELECT public.dblink_get_connections() INTO v_connections;
+  IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
+    PERFORM public.dblink_connect(v_conn, 'dbname=' || current_database());
+  END IF;
+
+  SELECT status INTO v_status
+  FROM public.dblink(
+    v_conn,
+    format(
+      $sql$
+      WITH updated AS (
+        UPDATE taskbound.task_execution_state
+        SET query_count = query_count + 1
+        WHERE task_id = %L
+          AND revoked = false
+          AND query_count < %s
+        RETURNING task_id
+      ),
+      existing AS (
+        SELECT query_count, revoked
+        FROM taskbound.task_execution_state
+        WHERE task_id = %L
+      )
+      SELECT CASE
+        WHEN EXISTS (SELECT 1 FROM updated) THEN 'ok'
+        WHEN EXISTS (SELECT 1 FROM existing WHERE revoked) THEN 'task is revoked'
+        WHEN EXISTS (SELECT 1 FROM existing WHERE query_count >= %s) THEN 'query budget exhausted'
+        ELSE 'task execution state is missing'
+      END AS status
+      $sql$,
+      v_task_id,
+      GREATEST(COALESCE(v_max_queries, 0), 0),
+      v_task_id,
+      GREATEST(COALESCE(v_max_queries, 0), 0)
+    )
+  ) AS t(status text);
+
+  IF v_status <> 'ok' THEN
+    PERFORM taskbound.native_denied_receipt(
+      v_task_id,
+      v_budget_account,
+      sql_text,
+      v_status,
+      v_receipts_enabled
+    );
+    RAISE EXCEPTION 'SessionBoundDB denied query: %', v_status;
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.native_seen_expense_rows(v_budget_account text)
+RETURNS TABLE(row_id text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+DECLARE
+  v_conn text := taskbound.audit_connection_name();
+  v_connections text[];
+BEGIN
+  SELECT public.dblink_get_connections() INTO v_connections;
+  IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
+    PERFORM public.dblink_connect(v_conn, 'dbname=' || current_database());
+  END IF;
+
+  RETURN QUERY
+  SELECT t.row_id
+  FROM public.dblink(
+    v_conn,
+    format(
+      'SELECT row_id FROM taskbound.task_rows_seen WHERE budget_account = %L AND row_kind = ''expense''',
+      v_budget_account
+    )
+  ) AS t(row_id text);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.native_finish_query(
+  v_task_id text,
+  v_budget_account text,
+  sql_text text,
+  v_rows_returned bigint,
+  v_new_expense_ids text[],
+  v_max_rows int,
+  v_budget_accounting_enabled boolean,
+  v_receipts_enabled boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+DECLARE
+  v_conn text := taskbound.audit_connection_name();
+  v_connections text[];
+  v_ids_expr text;
+  v_unique_added bigint := 0;
+  v_unique_after bigint;
+  v_remaining_sql text := 'NULL';
+BEGIN
+  SELECT public.dblink_get_connections() INTO v_connections;
+  IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
+    PERFORM public.dblink_connect(v_conn, 'dbname=' || current_database());
+  END IF;
+
+  IF COALESCE(v_budget_accounting_enabled, true) THEN
+    IF COALESCE(cardinality(v_new_expense_ids), 0) = 0 THEN
+      v_ids_expr := 'ARRAY[]::text[]';
+    ELSE
+      SELECT 'ARRAY[' || string_agg(format('%L', row_id), ',') || ']::text[]'
+      INTO v_ids_expr
+      FROM unnest(v_new_expense_ids) AS u(row_id);
+    END IF;
+
+    SELECT unique_added, unique_after
+    INTO v_unique_added, v_unique_after
+    FROM public.dblink(
+      v_conn,
+      format(
+        $sql$
+        WITH before_count AS (
+          SELECT count(*)::bigint AS n
+          FROM taskbound.task_rows_seen
+          WHERE budget_account = %L
+            AND row_kind = 'expense'
+        ),
+        input AS (
+          SELECT DISTINCT row_id
+          FROM unnest(%s) AS u(row_id)
+          WHERE row_id IS NOT NULL AND row_id <> ''
+        ),
+        ins AS (
+          INSERT INTO taskbound.task_rows_seen (budget_account, row_kind, row_id)
+          SELECT %L, 'expense', row_id
+          FROM input
+          ON CONFLICT DO NOTHING
+          RETURNING 1
+        ),
+        after_count AS (
+          SELECT (SELECT n FROM before_count) + (SELECT count(*)::bigint FROM ins) AS n
+        ),
+        updated AS (
+          UPDATE taskbound.task_execution_state
+          SET returned_rows = returned_rows + %s,
+              unique_expense_rows = (SELECT n FROM after_count)
+          WHERE task_id = %L
+          RETURNING 1
+        )
+        SELECT
+          (SELECT count(*)::bigint FROM ins) AS unique_added,
+          (SELECT n FROM after_count) AS unique_after
+        $sql$,
+        v_budget_account,
+        v_ids_expr,
+        v_budget_account,
+        GREATEST(COALESCE(v_rows_returned, 0), 0),
+        v_task_id
+      )
+    ) AS t(unique_added bigint, unique_after bigint);
+
+    IF v_unique_after > COALESCE(v_max_rows, 0) THEN
+      PERFORM taskbound.native_denied_receipt(
+        v_task_id,
+        v_budget_account,
+        sql_text,
+        'unique expense row budget exceeded',
+        v_receipts_enabled
+      );
+      RAISE EXCEPTION 'SessionBoundDB denied query: unique expense row budget exceeded';
+    END IF;
+
+    v_remaining_sql := (COALESCE(v_max_rows, 0) - COALESCE(v_unique_after, 0))::text;
+  END IF;
+
+  IF COALESCE(v_receipts_enabled, true) THEN
+    PERFORM taskbound.audit_exec(format(
+      'INSERT INTO taskbound.task_query_receipts ' ||
+      '(task_id, budget_account, query_digest, decision, rows_returned, unique_rows_added, remaining_unique_row_budget) ' ||
+      'VALUES (%L, %L, encode(public.digest(%L, ''sha256''), ''hex''), ''allowed'', %s, %s, %s)',
+      v_task_id,
+      v_budget_account,
+      COALESCE(sql_text, ''),
+      GREATEST(COALESCE(v_rows_returned, 0), 0),
+      GREATEST(COALESCE(v_unique_added, 0), 0),
+      v_remaining_sql
+    ));
   END IF;
 END;
 $$;

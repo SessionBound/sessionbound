@@ -25,23 +25,25 @@ It enforces:
 
 ## SQL Entry Point
 
-The prototype exposes a native-feeling SDK method:
+The prototype exposes a native SDK method:
 
 ```python
 rows = session.query("SELECT * FROM expenses LIMIT 10")
 ```
 
-The SDK wraps the supplied SQL in controlled database entry points:
+The SDK binds the task token, then executes the supplied safe-view SQL natively
+under PostgreSQL hook and executor accounting:
 
 ```sql
 SELECT taskbound.bind_task(:payload_text, :signature_hex);
-SELECT * FROM taskbound.run(:sql);
+SELECT * FROM expenses LIMIT 10;
 SELECT * FROM taskbound.command(:command_name, :json_args);
 ```
 
-The agent can generate SQL, but runtime credentials are not granted bare
-`SELECT` on safe views and cannot directly widen the database session's
-authority.
+The agent can generate SQL, but runtime credentials can only read registered
+safe views after a valid task binding. Unbound safe-view access, raw table
+access, unsafe utility statements, and private runtime helper calls fail closed.
+`taskbound.run(:sql)` remains as a compatibility wrapper.
 
 ## Safe Views
 

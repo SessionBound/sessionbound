@@ -10,6 +10,8 @@ T = TypeVar("T")
 
 
 def rows_as_dicts(cur) -> list[dict[str, Any]]:
+    if cur.description is None:
+        return []
     names = [d.name for d in cur.description]
     return [dict(zip(names, row)) for row in cur.fetchall()]
 
@@ -31,6 +33,10 @@ class TaskboundSession:
         return cls(conn=conn, owns_connection=True)
 
     def close(self) -> None:
+        try:
+            self.unbind_task()
+        except Exception:
+            pass
         if self.owns_connection and self.conn is not None:
             self.conn.close()
 
@@ -55,8 +61,24 @@ class TaskboundSession:
 
         return self._with_cursor(run)
 
+    def unbind_task(self) -> None:
+        def run(cur):
+            cur.execute("SELECT taskbound.unbind_task()")
+            return None
+
+        self._with_cursor(run)
+
     def query(self, sql_text: str) -> list[dict[str, Any]]:
-        """Run ordinary safe-view SQL through taskbound.run(sql)."""
+        """Run ordinary safe-view SQL natively under the SessionBound guard."""
+
+        def run(cur):
+            cur.execute(sql_text)
+            return rows_as_dicts(cur)
+
+        return self._with_cursor(run)
+
+    def query_via_runtime(self, sql_text: str) -> list[dict[str, Any]]:
+        """Compatibility path for the historical taskbound.run(sql) wrapper."""
 
         def run(cur):
             cur.execute("SELECT * FROM taskbound.run(%s)", (sql_text,))

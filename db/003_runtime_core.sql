@@ -48,6 +48,10 @@ DECLARE
   v_binding record;
   v_expected_snapshot jsonb;
   v_allowed_view_oids text;
+  v_receipts_enabled boolean;
+  v_budget_accounting_enabled boolean;
+  v_max_queries int;
+  v_max_rows int;
 BEGIN
   p := payload_text::jsonb;
   SELECT signing_keys.secret INTO secret
@@ -71,6 +75,10 @@ BEGIN
   v_budget_account := COALESCE(p->>'budget_account', v_task_id);
   v_credential_id := p->>'credential_id';
   v_token_digest := encode(public.digest(payload_text, 'sha256'), 'hex');
+  v_receipts_enabled := COALESCE((p #>> ARRAY['runtime_options', 'receipts_enabled'])::boolean, true);
+  v_budget_accounting_enabled := COALESCE((p #>> ARRAY['runtime_options', 'budget_accounting_enabled'])::boolean, true);
+  v_max_queries := COALESCE((p #>> ARRAY['budgets', 'max_queries'])::int, 100);
+  v_max_rows := COALESCE((p #>> ARRAY['budgets', 'max_unique_expense_rows'])::int, 1000000);
   v_session_user := session_user;
   SELECT backend_start INTO v_backend_start
   FROM pg_catalog.pg_stat_activity
@@ -106,7 +114,8 @@ BEGIN
   WHERE backend_pid = pg_backend_pid();
 
   IF v_existing_task IS NOT NULL AND v_existing_task <> v_task_id THEN
-    RAISE EXCEPTION 'database session is already bound to active task %', v_existing_task;
+    DELETE FROM taskbound.active_sessions
+    WHERE backend_pid = pg_backend_pid();
   END IF;
 
   IF v_credential_id IS NOT NULL THEN
@@ -180,8 +189,14 @@ BEGIN
 
   PERFORM set_config('sessionbound_guard.task_bound', 'on', false);
   PERFORM set_config('sessionbound_guard.task_id', v_task_id, false);
+  PERFORM set_config('sessionbound_guard.budget_account', v_budget_account, false);
   PERFORM set_config('sessionbound_guard.allowed_view_oids', v_allowed_view_oids, false);
+  PERFORM set_config('sessionbound_guard.max_queries', v_max_queries::text, false);
+  PERFORM set_config('sessionbound_guard.max_unique_expense_rows', v_max_rows::text, false);
+  PERFORM set_config('sessionbound_guard.receipts_enabled', CASE WHEN v_receipts_enabled THEN 'on' ELSE 'off' END, false);
+  PERFORM set_config('sessionbound_guard.budget_accounting_enabled', CASE WHEN v_budget_accounting_enabled THEN 'on' ELSE 'off' END, false);
   PERFORM set_config('sessionbound_guard.enabled', 'off', false);
+  PERFORM set_config('search_path', 'taskbound, pg_temp', false);
 
   RETURN jsonb_build_object(
     'bound', true,
@@ -190,6 +205,29 @@ BEGIN
     'budget_account', v_budget_account,
     'purpose', p->>'purpose'
   );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.unbind_task()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, pg_temp
+AS $$
+BEGIN
+  DELETE FROM taskbound.active_sessions
+  WHERE backend_pid = pg_backend_pid();
+
+  PERFORM set_config('sessionbound_guard.task_bound', 'off', false);
+  PERFORM set_config('sessionbound_guard.task_id', '', false);
+  PERFORM set_config('sessionbound_guard.budget_account', '', false);
+  PERFORM set_config('sessionbound_guard.allowed_view_oids', '', false);
+  PERFORM set_config('sessionbound_guard.max_queries', '0', false);
+  PERFORM set_config('sessionbound_guard.max_unique_expense_rows', '0', false);
+  PERFORM set_config('sessionbound_guard.receipts_enabled', 'off', false);
+  PERFORM set_config('sessionbound_guard.budget_accounting_enabled', 'off', false);
+  PERFORM set_config('sessionbound_guard.enabled', 'off', false);
+  PERFORM set_config('search_path', '"$user", public', false);
 END;
 $$;
 

@@ -63,7 +63,11 @@ def evaluate(dsn: str) -> dict[str, Any]:
         )
         state = session.inspect_state()
         receipts = session.receipts(limit=5)
-        bare_select = bare_select_attempt(conn)
+        native_bare_select = bare_select_attempt(conn)
+        native_state = session.inspect_state()
+        native_receipts = session.receipts(limit=5)
+        session.unbind_task()
+        unbound_bare_select = bare_select_attempt(conn)
 
     sdk_receipt_ok = any(
         receipt.get("decision") == "allowed" and receipt.get("rows_returned") == 2
@@ -72,7 +76,7 @@ def evaluate(dsn: str) -> dict[str, Any]:
     sdk_state_ok = bool(state) and state[0].get("query_count") == 1
     sdk_case = {
         "id": "SDK01",
-        "name": "sdk_query_wraps_taskbound_run",
+        "name": "sdk_query_uses_native_select",
         "expected": "Allowed",
         "actual": "Allowed" if rows and sdk_receipt_ok and sdk_state_ok else "Unexpected",
         "passed": bool(rows) and len(rows) == 2 and sdk_receipt_ok and sdk_state_ok,
@@ -83,15 +87,35 @@ def evaluate(dsn: str) -> dict[str, Any]:
             "receipts": receipts,
         },
     }
-    bare_case = {
+    native_bare_case = {
         "id": "SDK02",
-        "name": "bare_safe_view_select_still_denied",
-        "expected": "Blocked",
-        "actual": "Blocked" if not bare_select["ok"] else "Allowed",
-        "passed": (not bare_select["ok"]) and "permission denied" in bare_select.get("error", ""),
-        "evidence": bare_select,
+        "name": "bound_bare_safe_view_select_is_native_accounted",
+        "expected": "Allowed",
+        "actual": "Allowed" if native_bare_select["ok"] else "Blocked",
+        "passed": (
+            native_bare_select["ok"]
+            and bool(native_state)
+            and native_state[0].get("query_count") == 2
+            and any(receipt.get("decision") == "allowed" for receipt in native_receipts)
+        ),
+        "evidence": {
+            "select": native_bare_select,
+            "state": native_state,
+            "receipts": native_receipts,
+        },
     }
-    records = [sdk_case, bare_case]
+    unbound_bare_case = {
+        "id": "SDK03",
+        "name": "unbound_safe_view_select_fails_closed",
+        "expected": "Blocked",
+        "actual": "Blocked" if not unbound_bare_select["ok"] else "Allowed",
+        "passed": (not unbound_bare_select["ok"]) and (
+            "no trusted task binding" in unbound_bare_select.get("error", "")
+            or "permission denied" in unbound_bare_select.get("error", "")
+        ),
+        "evidence": unbound_bare_select,
+    }
+    records = [sdk_case, native_bare_case, unbound_bare_case]
     passed = sum(1 for record in records if record["passed"])
     return {
         "records": records,

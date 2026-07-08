@@ -58,8 +58,8 @@ The prototype demonstrates:
 - task templates, task applications, approvals, grants, budgets, and TTLs;
 - signed task tokens that bind business intent to database execution;
 - short-lived credentials for agent runtimes;
-- a native-feeling agent SDK where `query(sql)` wraps the database accounting
-  entrypoint;
+- a native agent SDK where `query(sql)` runs safe-view SQL through PostgreSQL
+  hook and executor accounting;
 - safe views that expose business objects without exposing raw tables;
 - denied fields such as salary, phone, and bank account;
 - query and disclosure budgets;
@@ -82,8 +82,10 @@ WHERE rn = 1;
 ```
 
 In the prototype, the SDK submits that SQL through `TaskboundSession.query(sql)`,
-which parameterizes the call to `taskbound.run(sql)` so budgets and receipts are
-always applied. Runtime credentials are not granted bare `SELECT` on safe views.
+which executes native safe-view `SELECT` on a task-bound PostgreSQL session.
+PostgreSQL hooks validate the approved safe-view OIDs, executor accounting
+counts returned rows and disclosed `expense_id` values before forwarding tuples,
+and receipts are written through a rollback-surviving audit channel.
 
 But the database rejects access outside the task:
 
@@ -176,7 +178,7 @@ Benchmark and overhead data for the TDSC artifact are recorded in:
 - [paper/tdsc/OVERHEAD_BREAKDOWN.md](paper/tdsc/OVERHEAD_BREAKDOWN.md)
 - [paper/tdsc/experiments/SCALE_CONCURRENCY_RESULTS.md](paper/tdsc/experiments/SCALE_CONCURRENCY_RESULTS.md)
 
-The benchmark compares equivalent SQL over raw `app_data` tables with the SessionBound path through signed task-token binding, SDK-style query execution, and the underlying `taskbound.run(sql)` runtime. Benchmark numbers are not summarized here so that the benchmark report remains the single source for measured results.
+The benchmark compares equivalent SQL over raw `app_data` tables with the SessionBound path through signed task-token binding, SDK-style query execution, and the guarded safe-view runtime. Benchmark numbers are not summarized here so that the benchmark report remains the single source for measured results.
 
 ## Paper
 
@@ -225,7 +227,7 @@ paper/arxiv-v1/            Earlier arXiv v1 manuscript, validation, and packagin
   parser/analyzer, planner, or executor integration.
 - Complex single-database `SELECT` queries are supported for the demo, including joins, CTEs, subqueries, and window functions.
 - Unique-row accounting tracks detail rows that include `expense_id`.
-- Denied queries are surfaced as database errors. In this PL/pgSQL-only demo, denied receipts are not persisted because PostgreSQL rolls back writes in the failing statement.
+- Denied queries are surfaced as database errors. Native hook denials and allowed query receipts are written through an autonomous audit channel so they survive rollback of the agent transaction.
 - HMAC keys are stored in the demo database for convenience.
 - The Credential Broker is implemented inside the demo FastAPI service and uses the admin database URL.
 - Cross-database federation is intentionally out of scope for this prototype.

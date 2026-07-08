@@ -55,11 +55,51 @@ AGENT_CASES: list[dict[str, str]] = [
     },
     {
         "id": "HG06",
-        "name": "bare_safe_view_select_denied_by_grants",
+        "name": "bound_bare_safe_view_select_native_accounted",
         "mode": "bare_select",
-        "expected": "Blocked",
+        "expected": "Allowed",
         "sql": "SELECT expense_id, amount FROM taskbound.expenses LIMIT 1",
-        "expected_reason": "permission denied",
+        "expected_reason": "",
+    },
+    {
+        "id": "HG07",
+        "name": "native_prepared_execute",
+        "mode": "native_script",
+        "expected": "Allowed",
+        "sql": "PREPARE q AS SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;\nEXECUTE q;",
+        "expected_reason": "",
+    },
+    {
+        "id": "HG08",
+        "name": "native_cursor_fetch",
+        "mode": "native_script",
+        "expected": "Allowed",
+        "sql": "BEGIN;\nDECLARE c CURSOR FOR SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 3;\nFETCH 2 FROM c;\nCLOSE c;\nCOMMIT;",
+        "expected_reason": "",
+    },
+    {
+        "id": "HG09",
+        "name": "native_copy_select",
+        "mode": "native_script",
+        "expected": "Allowed",
+        "sql": "COPY (SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2) TO STDOUT WITH CSV HEADER;",
+        "expected_reason": "",
+    },
+    {
+        "id": "HG10",
+        "name": "native_explain_select",
+        "mode": "native_script",
+        "expected": "Allowed",
+        "sql": "EXPLAIN SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;",
+        "expected_reason": "",
+    },
+    {
+        "id": "HG11",
+        "name": "native_explain_analyze_blocked",
+        "mode": "native_script",
+        "expected": "Blocked",
+        "sql": "EXPLAIN ANALYZE SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;",
+        "expected_reason": "EXPLAIN ANALYZE is not allowed",
     },
 ]
 
@@ -217,7 +257,13 @@ def run_agent_case(case: dict[str, str], credential: dict[str, Any], task: dict[
             f"SELECT taskbound.bind_task({sql_literal(task['payload_text'])}, {sql_literal(task['signature'])});\n"
             f"{case['sql']};\n"
         )
-        path = "agent credential direct database call without taskbound.run"
+        path = "agent credential direct native safe-view SELECT"
+    elif case.get("mode") == "native_script":
+        sql_script = (
+            f"SELECT taskbound.bind_task({sql_literal(task['payload_text'])}, {sql_literal(task['signature'])});\n"
+            f"{case['sql']}\n"
+        )
+        path = "agent credential native SQL surface"
     else:
         sql_script = (
             f"SELECT taskbound.bind_task({sql_literal(task['payload_text'])}, {sql_literal(task['signature'])});\n"
@@ -244,7 +290,6 @@ def hook_setup_sql(allowed_views: str) -> str:
         predicate = "view_name = ANY(ARRAY['expenses','employees','departments','approval_events','ledger_entries'])"
     return f"""
 SET search_path = taskbound, pg_temp;
-SELECT set_config('sessionbound_guard.task_bound', 'on', false);
 SELECT set_config(
   'sessionbound_guard.allowed_view_oids',
   (
@@ -254,6 +299,7 @@ SELECT set_config(
   ),
   false
 );
+SELECT set_config('sessionbound_guard.task_bound', 'on', false);
 """
 
 

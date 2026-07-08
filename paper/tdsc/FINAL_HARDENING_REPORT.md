@@ -19,14 +19,14 @@
 
 - AST validation status: implemented as API-layer preflight with `sqlglot`; 17
   / 17 AST validation cases passed.
-- SDK query surface status: implemented in `app/taskbound_sdk.py`; 2 / 2 SDK
-  surface cases passed, including an accounted `query(sql)` call and a blocked
-  bare safe-view `SELECT`.
-- PostgreSQL hook status: implemented as experimental
-  `post_parse_analyze_hook` enforcement with trusted SUSET GUC context and
-  approved safe-view OID checks; 11 / 11 hook evaluation cases passed,
-  including a blocked bare safe-view `SELECT` with the generated runtime
-  credential.
+- SDK query surface status: implemented in `app/taskbound_sdk.py`; native SDK
+  smoke passed, including accounted `query(sql)`, accounted bound bare
+  safe-view `SELECT`, and unbound fail-closed behavior.
+- PostgreSQL hook status: implemented as native `post_parse_analyze_hook`,
+  `ProcessUtility_hook`, and executor accounting with trusted SUSET GUC context
+  and approved safe-view OID checks; 16 / 16 hook evaluation cases passed,
+  including prepared statements, cursor/FETCH, COPY(SELECT), EXPLAIN, and
+  blocked EXPLAIN ANALYZE.
 - Adversarial SQL suite status: implemented; 28 / 28 expected classifications
   passed.
 - Overhead breakdown status: implemented; latest supported modes ran with zero
@@ -43,10 +43,9 @@
 
 - AST validation: 17 / 17 passed; latest raw result:
   `paper/tdsc/raw_results/ast_validation_20260707_182706.json`.
-- SDK query surface: 2 / 2 passed; latest raw result:
-  `paper/tdsc/raw_results/sdk_query_20260707_102212.json`.
-- PostgreSQL hook enforcement: 11 / 11 passed; latest raw result:
-  `paper/tdsc/raw_results/sessionbound_guard_hook_20260707_182650.json`.
+- SDK query surface: native SDK smoke passed on 2026-07-08.
+- PostgreSQL hook enforcement: 16 / 16 passed; latest raw result:
+  `paper/tdsc/raw_results/sessionbound_guard_hook_20260708_122824.json`.
 - Adversarial SQL: 22 blocked, 5 allowed but accounted, 1 known limitation;
   latest raw result:
   `paper/tdsc/raw_results/adversarial_sql_20260707_182701.json`.
@@ -58,18 +57,22 @@
 - Manuscript audits: no stale draft-language, placeholder, Codex, or prior
   author-name matches in the final manuscript and bibliography sweep.
 
-## Known Remaining Blockers
+## Known Remaining Gaps
 
-- The database hook path is experimental parse/analyze enforcement, not yet a
-  production-grade planner/executor hook with optimized accounting.
+- The native hook path is still a research prototype: disclosure accounting is
+  demo-specific (`expense_id`) and the autonomous audit channel uses same-DB
+  `dblink`.
 - Small-group aggregate inference remains a known limitation.
 - The budget vector does not provide formal differential privacy guarantees.
-- The PL/pgSQL reference runtime remains too slow for production-scale claims.
+- The old PL/pgSQL wrapper baseline remains too slow for production-scale
+  claims; the new native path needs a fresh overhead sweep before replacing the
+  existing benchmark table.
 - RLS-only was not remeasured in the latest overhead breakdown.
 
 ## Recommendation
 
-Not ready for final TDSC submission yet. The candidate is technically stronger
-and more honest than the prior draft, and it now has a real database hook
-prototype. The remaining production-hook, inference-control, and performance
-gaps should be addressed or explicitly accepted before submission.
+The candidate is substantially stronger: native SELECT, executor accounting,
+rollback-surviving receipts, prepared/cursor/COPY/EXPLAIN coverage, and
+fail-closed behavior are implemented and validated. Before final submission,
+rerun the overhead/scale tables on the native path or clearly label older
+wrapper measurements as historical.
