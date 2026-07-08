@@ -150,7 +150,7 @@ with a task-control-plane contract: business users approve tasks, agents
 generate SQL, and the database decides whether each attempt stays inside
 the approved boundary. The artifact repository, including code,
 synthetic data, validation reports, benchmark outputs, and LaTeX source,
-will be released with the submission artifact.
+is included in the submitted artifact package.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -1344,13 +1344,13 @@ synthetic dataset.
 \hypertarget{experimental-setup}{%
 \subsection{Experimental setup}\label{experimental-setup}}
 
-The latest revision run used Docker Compose with PostgreSQL 16.14, the
+The reported evaluation used Docker Compose with PostgreSQL 16.14, the
 FastAPI SessionBoundDB prototype, and the
 \texttt{sessionbound\_guard} extension loaded through
-\texttt{shared\_preload\_libraries}. The repository branch was
-\texttt{high-standard-tdsc-pdsc-revision}. The default seed
-contains 430 expenses, 240 employees, and 124 departments. The raw
-outputs are stored under \texttt{paper/tdsc/raw\_results/}.
+\texttt{shared\_preload\_libraries}. The default seed contains 430
+expenses, 240 employees, and 124 departments. The artifact metadata
+records the git commit identifier, environment variables, raw result
+paths, and run timestamps.
 
 The AST and adversarial SQL evaluations exercise the HTTP API, including
 dynamic credential issuance, signed task-token creation, token binding,
@@ -1384,7 +1384,7 @@ reproduction entrypoints are \texttt{ast\_validation\_eval.py},
 over-budget prefix accounting. Exact command lines and
 environment variables are recorded in the artifact README and changelog.
 
-The latest raw files cited in the paper are
+The reported tables cite the following raw result files:
 \texttt{ast\_validation\_20260708\_205921.json},
 \texttt{adversarial\_sql\_20260708\_235742.json},
 \texttt{sessionbound\_guard\_hook\_20260709\_015110.json},
@@ -1459,7 +1459,7 @@ exposed-column hash no longer matches the runtime registry.
 \hypertarget{adversarial-sql-evaluation}{%
 \subsection{Adversarial SQL evaluation}\label{adversarial-sql-evaluation}}
 
-The latest revision run uses an adversarial SQL suite with 140 cases.
+The reported adversarial evaluation uses an SQL suite with 140 cases.
 The suite covers direct boundary violations, raw-schema escape, catalog
 and metadata escape, \texttt{pg\_temp}/search-path/GUC tampering,
 function abuse, payload aggregation and compression, JSON/XML/composite
@@ -1573,7 +1573,7 @@ the AST preflight before entering PostgreSQL, so the end-to-end path is
 strictly larger than the database-only numbers in
 Table~\ref{tab:performance}.
 
-Within the historical measured database path, the overhead comes from
+Within the evaluated wrapper reference path, the overhead comes from
 several implementation layers in the wrapper reference prototype. First,
 \texttt{taskbound.run} dispatches each query through a PL/pgSQL wrapper
 rather than through PostgreSQL's native planner and executor path alone.
