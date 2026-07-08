@@ -5,6 +5,9 @@
 - Script: `paper/tdsc/scripts/overhead_breakdown.py`
 - Latest raw JSON: `paper/tdsc/raw_results/overhead_breakdown_20260707_084853.json`
 - Latest raw CSV: `paper/tdsc/raw_results/overhead_breakdown_20260707_084853.csv`
+- Hook-only microbenchmark script: `paper/tdsc/scripts/hook_microbenchmark.py`
+- Latest hook-only microbenchmark:
+  `paper/tdsc/raw_results/hook_microbenchmark_20260708_181304.json`
 - Warmup: 10 iterations per pattern and mode
 - Measurement: 100 iterations per pattern and mode
 - Metrics: p50, p95, mean, standard deviation, rows returned, errors
@@ -54,7 +57,7 @@ shape dominate on the small seed dataset.
 
 Is it fixed per-query overhead?
 
-Mostly yes on this dataset. The raw query complexity range is small
+Mostly yes on the small default dataset. The raw query complexity range is small
 (0.169--0.351 ms p50), while safe-view and SessionBound modes show a roughly
 fixed tens-of-milliseconds per-query cost with modest variation by query shape.
 
@@ -84,6 +87,17 @@ Likely prototype artifacts include PL/pgSQL dynamic execution through
 returning rows, repeated claim lookup through SQL functions, and the lack of an
 optimized planner/executor hook path.
 
+What does the hook-only microbenchmark show?
+
+The hook-only script measures `public.sessionbound_guard_check(sql)`, which
+prepares SQL through PostgreSQL parse/analyze and the native structural guard
+without executing result rows. With 20 warmup and 200 measured iterations,
+allowed structural checks had p50 latency of 0.138 ms for SELECT, 0.169 ms for
+JOIN, 0.139 ms for GROUP BY, and 0.130 ms for CTE/window SQL. Raw-schema and
+UNION denial checks passed. This does not measure executor accounting or receipt
+insertion, but it shows that the structural guard itself is not the source of
+the historical 6.7--7.0 s 100k-row behavior.
+
 Which parts are security costs?
 
 Security costs include safe-view scope predicates, task-session lookup,
@@ -94,5 +108,7 @@ receipt and budget accounting are comparatively smaller.
 ## Caveat
 
 These measurements should not be generalized to production deployments or an
-optimized planner/executor-hook implementation. They characterize the current
-PostgreSQL reference prototype.
+optimized planner/executor-hook implementation. They characterize a
+security-oriented PostgreSQL reference prototype. The 100k scale sweep exposes
+the wrapper-era materialization/accounting bottleneck; it is not a
+production-readiness result for the native hook/executor architecture.

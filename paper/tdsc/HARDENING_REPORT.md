@@ -89,6 +89,16 @@ PostgreSQL hook enforcement:
 - Status: native database-resident structural enforcement and executor
   accounting path; API AST preflight remains defense in depth.
 
+Hook-only microbenchmark:
+
+- Script: `paper/tdsc/scripts/hook_microbenchmark.py`
+- Latest raw result:
+  `paper/tdsc/raw_results/hook_microbenchmark_20260708_181304.json`
+- Result: 6 / 6 checks passed.
+- Main finding: allowed structural guard checks were 0.130--0.169 ms p50,
+  while raw-schema and UNION denial checks passed. This isolates parse/analyze
+  structural guarding from wrapper-era row materialization/accounting.
+
 Rollback audit:
 
 - Script: `paper/tdsc/scripts/rollback_audit_eval.py`
@@ -112,7 +122,9 @@ Overhead breakdown:
 - Latest raw CSV: `paper/tdsc/raw_results/overhead_breakdown_20260707_084853.csv`
 - Result: 0 errors across supported modes
 - Main finding: safe-view/session-claim evaluation dominates the measured
-  small-dataset overhead; receipts and budget updates do not dominate.
+  small-dataset overhead; receipts and budget updates do not dominate. The 100k
+  scale sweep remains a PL/pgSQL wrapper limitation, not a production-ready
+  native-hook throughput claim.
 
 Canonical validation:
 

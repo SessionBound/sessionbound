@@ -38,6 +38,9 @@ Core validated claims in the TDSC candidate:
   analytical cases, and 1 known limitation;
 - default-seed overhead: full SessionBound p50 latency is 14.6--18.6 ms across
   representative query patterns;
+- hook-only structural guard microbenchmark: `sessionbound_guard_check`
+  p50 was 0.130--0.169 ms across SELECT/JOIN/GROUP BY/CTE-window checks,
+  with raw-schema and UNION denials verified;
 - 100k synthetic scale sweep: the historical PL/pgSQL wrapper path reaches
   multi-second latency; the new native path should be rebenchmarked before
   replacing the published performance table;
@@ -55,6 +58,9 @@ Core validated claims in the TDSC candidate:
 - AST validation report: `paper/tdsc/AST_VALIDATION.md`
 - SDK query surface report: `paper/tdsc/SDK_QUERY_SURFACE.md`
 - PostgreSQL hook report: `paper/tdsc/POSTGRES_HOOK_ENFORCEMENT.md`
+- Hook-only microbenchmark script: `paper/tdsc/scripts/hook_microbenchmark.py`
+- Hook-only microbenchmark raw result:
+  `paper/tdsc/raw_results/hook_microbenchmark_20260708_181304.json`
 - Rollback audit script: `paper/tdsc/scripts/rollback_audit_eval.py`
 - Rollback audit raw result:
   `paper/tdsc/raw_results/rollback_audit_20260708_141120.json`

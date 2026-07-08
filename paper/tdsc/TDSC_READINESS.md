@@ -25,6 +25,7 @@ stronger than the prior draft.
 - Added AST validation script and raw results.
 - Added SDK query surface script and raw results.
 - Added hook enforcement script and raw results.
+- Added hook-only structural guard microbenchmark and raw result.
 - Added direct bare safe-view `SELECT`, prepared statement, cursor/FETCH,
   COPY(SELECT), and EXPLAIN cases showing that generated runtime credentials
   remain guarded by native hook/executor accounting outside `taskbound.run(...)`.
@@ -42,6 +43,8 @@ stronger than the prior draft.
 - SDK query surface: native query, bound bare SELECT accounting, and unbound
   fail-closed behavior passed.
 - PostgreSQL hook enforcement: 16 / 16 cases passed.
+- Hook-only microbenchmark: 6 / 6 checks passed; allowed structural guard checks
+  were 0.130--0.169 ms p50.
 - Rollback audit: 2 / 2 cases passed.
 - Adversarial SQL: 28 / 28 expected classifications passed.
 - Adversarial classifications: 22 blocked, 5 allowed but accounted, 1 known
@@ -57,7 +60,9 @@ stronger than the prior draft.
 - Small-group aggregate inference remains a known limitation.
 - Disclosure budgets are operational controls, not formal differential privacy.
 - The PL/pgSQL reference runtime has high scale-sensitive overhead in prior
-  100k-row tests.
+  100k-row tests. The hook-only microbenchmark narrows the bottleneck away from
+  structural parse/analyze guarding, but native executor-accounting scale still
+  needs measurement.
 - RLS-only was not measured in the hardening overhead breakdown because the current
   prototype does not define RLS policies in the active runtime path.
 - Production claims require hardened signing/key management, credential

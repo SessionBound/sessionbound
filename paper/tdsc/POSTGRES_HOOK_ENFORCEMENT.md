@@ -9,10 +9,15 @@
   `public.sessionbound_guard_check(sql_text)`
 - Trusted context: SUSET GUCs set by `taskbound.bind_task(...)`
 - Evaluation script: `paper/tdsc/scripts/sessionbound_guard_hook_eval.py`
+- Hook-only microbenchmark script: `paper/tdsc/scripts/hook_microbenchmark.py`
 - Rollback audit script: `paper/tdsc/scripts/rollback_audit_eval.py`
 - Latest raw result: `paper/tdsc/raw_results/sessionbound_guard_hook_20260708_122824.json`
+- Latest hook-only microbenchmark result:
+  `paper/tdsc/raw_results/hook_microbenchmark_20260708_181304.json`
 - Latest rollback audit result: `paper/tdsc/raw_results/rollback_audit_20260708_141120.json`
 - Result: 16 / 16 cases passed
+- Hook-only microbenchmark result: 6 / 6 checks passed; allowed structural
+  checks p50 = 0.130--0.169 ms
 - Rollback audit result: 2 / 2 cases passed
 
 The hardening prototype now includes both API-layer AST validation and a native
@@ -107,11 +112,30 @@ allowed accounting update and receipt. It separately executes a denied raw
 receipt with reason `raw application schema access is not allowed` remains
 visible after rollback.
 
+## Hook-Only Microbenchmark
+
+Run:
+
+```bash
+python paper/tdsc/scripts/hook_microbenchmark.py --output-dir paper/tdsc/raw_results
+```
+
+The script measures `public.sessionbound_guard_check(sql)`, which prepares SQL
+through PostgreSQL parse/analyze and the `sessionbound_guard` structural checks.
+It does not execute result rows and does not measure executor row accounting,
+receipt insertion, or PL/pgSQL result materialization. In the latest run, 20
+warmup and 200 measured iterations per allowed case produced p50 values of
+0.138 ms for SELECT, 0.169 ms for JOIN, 0.139 ms for GROUP BY, and 0.130 ms for
+CTE/window SQL. Raw-schema and UNION denial checks also passed. This supports
+the performance interpretation that the historical 100k multi-second result is
+not caused by the structural parse/analyze guard alone.
+
 ## Boundary
 
 This is now a native hook/executor prototype rather than a wrapper-only path.
 It still remains a research artifact: the disclosure unit is demo-specific
 (`expense_id`), the autonomous audit channel uses same-database `dblink`, and
-larger deployments would want planner-level cost controls and richer inference
-budgets. The API-layer AST validator remains as defense in depth and as a
-portable preflight path.
+larger deployments would want planner-level cost controls, richer inference
+budgets, and fresh scale measurements of the native executor-accounting path.
+The API-layer AST validator remains as defense in depth and as a portable
+preflight path.

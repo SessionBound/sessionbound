@@ -181,6 +181,11 @@ Benchmark and overhead data for the TDSC artifact are recorded in:
 
 The benchmark compares equivalent SQL over raw `app_data` tables with the SessionBound path through signed task-token binding, SDK-style query execution, and the guarded safe-view runtime. Benchmark numbers are not summarized here so that the benchmark report remains the single source for measured results.
 
+Performance claims are intentionally scoped to the reference artifact. The
+100k-row sweep exposes a PL/pgSQL wrapper materialization/accounting bottleneck,
+while a hook-only structural-guard microbenchmark shows that parse/analyze guard
+checks themselves are not the multi-second bottleneck.
+
 ## Paper
 
 TDSC-oriented current candidate:

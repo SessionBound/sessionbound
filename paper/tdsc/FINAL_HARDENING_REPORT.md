@@ -27,6 +27,8 @@
   and approved safe-view OID checks; 16 / 16 hook evaluation cases passed,
   including prepared statements, cursor/FETCH, COPY(SELECT), EXPLAIN, and
   blocked EXPLAIN ANALYZE.
+- Hook-only microbenchmark status: implemented as an artifact script; 6 / 6
+  checks passed, with allowed structural guard checks at 0.130--0.169 ms p50.
 - Rollback audit status: implemented as an artifact script; 2 / 2 cases passed,
   showing that evaluated bound-runtime allowed receipts/accounting and
   raw-schema denial receipts survive rollback of the agent transaction.
@@ -49,6 +51,8 @@
 - SDK query surface: native SDK smoke passed on 2026-07-08.
 - PostgreSQL hook enforcement: 16 / 16 passed; latest raw result:
   `paper/tdsc/raw_results/sessionbound_guard_hook_20260708_122824.json`.
+- Hook-only microbenchmark: 6 / 6 passed; latest raw result:
+  `paper/tdsc/raw_results/hook_microbenchmark_20260708_181304.json`.
 - Rollback audit: 2 / 2 passed; latest raw result:
   `paper/tdsc/raw_results/rollback_audit_20260708_141120.json`.
 - Adversarial SQL: 22 blocked, 5 allowed but accounted, 1 known limitation;
@@ -70,8 +74,9 @@
 - Small-group aggregate inference remains a known limitation.
 - The budget vector does not provide formal differential privacy guarantees.
 - The old PL/pgSQL wrapper baseline remains too slow for production-scale
-  claims; the new native path needs a fresh overhead sweep before replacing the
-  existing benchmark table.
+  claims. The hook-only microbenchmark shows structural guarding is not the
+  multi-second bottleneck, but native executor accounting still needs a fresh
+  overhead/scale sweep before replacing the existing benchmark table.
 - RLS-only was not remeasured in the latest overhead breakdown.
 
 ## Recommendation

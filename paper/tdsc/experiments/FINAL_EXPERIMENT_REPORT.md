@@ -44,7 +44,10 @@ p50 was 14.77 ms for aggregate-by-category and 15.62 ms for top-k
 ordering, while Full SessionBound p50 was 6742.55 ms and 6965.09 ms,
 respectively. This confirms that the PL/pgSQL prototype is a security
 reference path and still needs planner/executor-hook or lower-level execution
-engineering before production-scale claims.
+engineering before production-scale claims. The later TDSC hardening
+microbenchmark isolates native structural guard checks at sub-millisecond p50,
+so the multi-second 100k result should be attributed to the wrapper-era
+materialization/accounting path rather than parse/analyze guarding alone.
 
 Concurrency smoke testing passed at 1, 5, and 20 concurrent sessions with
 0 failures. At 20 concurrent sessions, query p50 was 82.896 ms and query

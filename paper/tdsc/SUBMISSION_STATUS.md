@@ -54,7 +54,9 @@ is prepared from the TDSC text.
   experimental parse/analyze hook path is now implemented. The 100k scale sweep
   shows multi-second Full SessionBound p50 in the current PL/pgSQL
   implementation, so production-scale claims still require lower-level
-  planner/executor integration and runtime optimization.
+  planner/executor integration and runtime optimization. The hook-only
+  microbenchmark shows structural guard checks are not the multi-second
+  bottleneck, but it is not a native executor-accounting scale benchmark.
 - Re-run layout review after the official IEEE/TDSC template and
   submission metadata are finalized.
 - Prepare arXiv v2 only after the TDSC text stabilizes; do not treat arXiv v1

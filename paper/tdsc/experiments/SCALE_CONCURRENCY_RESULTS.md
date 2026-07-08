@@ -18,7 +18,10 @@ The final database was restored to zero `scale_bench_*` rows.
 
 The 100k result exposes substantial scale-sensitive overhead in the
 current PL/pgSQL prototype and safe-view shape. It should be read as a
-reference-runtime limitation, not as a production throughput claim.
+reference-runtime limitation, not as a production throughput claim. The current
+TDSC hardening workspace adds a separate hook-only microbenchmark at
+`paper/tdsc/raw_results/hook_microbenchmark_20260708_181304.json`, which shows
+that native structural guard checks are not the multi-second bottleneck.
 
 | Concurrent sessions | Successful sessions | Failed sessions | Error rate | Query p50 ms | Query p95 ms | Session p50 ms |
 |---:|---:|---:|---:|---:|---:|---:|

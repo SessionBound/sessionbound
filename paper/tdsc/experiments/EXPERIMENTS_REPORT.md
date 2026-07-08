@@ -30,4 +30,6 @@ The ablation run confirms that receipt and budget-accounting switches
 work as intended, but small-dataset latency deltas are noisy. The scale
 sweep shows severe Full SessionBound overhead at 100k scoped rows,
 supporting the manuscript's claim that this PL/pgSQL implementation is a
-security reference prototype rather than a production performance path.
+security reference prototype rather than a production performance path. The
+later hook-only microbenchmark in the TDSC hardening workspace separates this
+wrapper bottleneck from native structural guard cost.

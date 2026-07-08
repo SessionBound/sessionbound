@@ -133,7 +133,9 @@ suite with 22 blocked cases, 5 allowed safe-view analytical cases, and 1
 known limitation. On the default synthetic seed, full SessionBound p50
 latency is 14.6--18.6 ms across representative query patterns; a 100k-row
 scale sweep exposes multi-second latency in the PL/pgSQL wrapper path,
-motivating planner- or executor-hook enforcement for production.
+while hook-only structural checks are 0.130--0.169 ms p50, indicating a
+wrapper materialization/accounting bottleneck rather than parse/analyze
+guard cost.
 
 SessionBound is not a replacement for RLS, ABAC, delegation, data
 catalogs, or differential privacy. It composes database-side enforcement
@@ -1378,7 +1380,10 @@ directly against PostgreSQL, and it uses trusted superuser setup for
 hook-only structural checks. The overhead breakdown uses direct
 PostgreSQL connections from the Compose network so that it isolates
 database runtime overhead from HTTP, model calls, dynamic credential
-creation, and API-layer AST parsing.
+creation, and API-layer AST parsing. A hook-only microbenchmark measures
+\texttt{sessionbound\_guard\_check(sql)} directly, exercising PostgreSQL
+parse/analyze and the structural guard without executing result rows or
+performing wrapper materialization.
 
 \hypertarget{functional-validation}{%
 \subsection{Functional validation}\label{functional-validation}}
@@ -1568,6 +1573,19 @@ business identifiers. Fifth, receipt insertion and budget accounting add
 state updates, but the no-receipt and no-budget ablations show that
 these updates are not the dominant source on the small default dataset.
 
+To separate structural enforcement from wrapper-era execution cost, we
+also ran a hook-only microbenchmark over the native
+\texttt{sessionbound\_guard\_check(sql)} path. This path prepares SQL
+through PostgreSQL parse/analyze and the structural guard, but does not
+execute result rows, perform executor row accounting, insert receipts, or
+materialize JSON rows through \texttt{taskbound.run}. With 20 warmup and
+200 measured iterations per query shape, allowed structural checks had
+p50 latency of 0.138 ms for SELECT, 0.169 ms for JOIN, 0.139 ms for GROUP
+BY, and 0.130 ms for CTE/window SQL; raw-schema and UNION denial checks
+also passed. This is not an end-to-end performance claim for the native
+executor-accounting path, but it shows that structural parse/analyze
+guarding is not the source of the 100k-row multi-second behavior.
+
 The historical scale results in Table~\ref{tab:scale-sweep} show a different
 regime. At 100k scoped expense rows, safe-view-only execution remains in
 the tens of milliseconds, while full SessionBound reaches 6.7--7.0 s.
@@ -1578,8 +1596,9 @@ optimized execution engine. A production implementation should bind the
 task token once, keep approved safe-view identifiers in trusted backend
 state, and move structural checks and disclosure accounting into
 parser/analyzer, planner, or executor hooks. The native hook/executor
-implementation described above addresses this architectural gap, but its
-overhead should be remeasured before replacing the wrapper-era numbers.
+implementation described above addresses the structural-enforcement part
+of this path, but native executor-accounting overhead and scale behavior
+should be remeasured before replacing the wrapper-era numbers.
 
 \hypertarget{scale-and-concurrency}{%
 \subsection{Scale and concurrency}\label{scale-and-concurrency}}
@@ -1605,7 +1624,8 @@ millisecond-to-tens-of-milliseconds range at 100k rows, and
 safe-view-only execution stays below 33 ms. Full SessionBound reaches
 6.7--7.0 s at 100k rows. These results expose the scale-sensitive
 limitation of the PL/pgSQL reference runtime measured at the time and
-motivate the native hook path discussed above.
+motivate the native hook path discussed above. They should not be read as
+a production-throughput result for the native hook/executor architecture.
 
 \hypertarget{remaining-gaps}{%
 \subsection{Discussion of remaining gaps}\label{remaining-gaps}}
@@ -1903,10 +1923,12 @@ execution, so the small-scale overhead is primarily safe-view and
 session-runtime overhead rather than receipt-chain insertion or budget
 updates. At 100k scoped rows, however, the PL/pgSQL reference runtime
 becomes multi-second while raw PostgreSQL and safe-view-only execution
-remain much faster. This does not change the core task-bound session
-model, but it does define the production engineering path: move from the
-wrapper-based reference runtime toward parser/analyzer, planner, and
-executor integration inside PostgreSQL.
+remain much faster; the hook-only microbenchmark shows that structural
+parse/analyze guarding is not the multi-second bottleneck. This does not
+change the core task-bound session model, but it does define the
+production engineering path: move from the wrapper-based reference
+runtime toward native executor accounting and optimized PostgreSQL
+integration.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
