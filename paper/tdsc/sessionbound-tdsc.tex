@@ -135,10 +135,11 @@ small-group aggregate-release attempts are blocked by the minimum-group
 policy. In the wrapper-based reference path, full SessionBound has p50
 latency of 17.4--18.6 ms across representative query patterns on the
 default seed. A diagnostic native end-to-end scale benchmark over
-1k/10k/100k scoped rows shows that both current accounting paths remain
-unoptimized: wrapper p50 latency is 75.6--92.6 ms at 1k rows and
-6.11--6.24 s at 100k rows, while native hook/executor accounting is
-79.8--95.5 ms at 1k rows and 6.18--6.30 s at 100k rows. A separate
+1k/10k/100k scoped rows shows that both accounting-complete paths remain
+interactive at 1k rows (75.6--95.5 ms p50) and sub-second around 10k
+rows (632.4--647.0 ms p50), but become multi-second at 100k rows
+(6.11--6.30 s p50), exposing an unoptimized result-accounting
+bottleneck for large detail releases. A separate
 hook-only parse/analyze guard microbenchmark shows 0.125--0.138 ms p50
 structural-check latency, indicating that structural guarding is not the
 dominant bottleneck.
