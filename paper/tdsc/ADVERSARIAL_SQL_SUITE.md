@@ -3,43 +3,42 @@
 ## Status
 
 - Script: `paper/tdsc/scripts/adversarial_sql_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260708_210059.json`
+- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260708_235742.json`
 - API target: `http://localhost:8000`
-- Cases: 34
-- Passed expected classification: 34 / 34
+- Cases: 140
+- Passed expected classification: 140 / 140
 
 Classification counts:
 
-- Blocked: 27
-- Allowed but accounted: 7
-- Known limitation: 0
-- Filtered: 0
-- Not testable: 0
+- Blocked: 126
+- Allowed but accounted: 14
 
 Bucket counts:
 
-- Blocked direct violations: 16
-- Allowed safe-view analytical cases: 7
+- Blocked direct violations: 115
+- Allowed safe-view analytical cases: 14
 - Blocked payload aggregation: 6
 - Blocked small-group aggregate: 5
 
 The suite is intentionally adversarial but not exhaustive. It tests direct
-boundary violations, catalog escape, payload aggregation, aliases, CTEs,
-set-operation stacking, minimum-group aggregate enforcement, and
-search-path/function abuse.
+boundary violations, raw-schema escape, catalog and metadata escape,
+`pg_temp`/search-path/GUC tampering, function abuse, payload aggregation and
+compression, JSON/XML/composite leakage, prepared-statement and cursor
+lifecycles, `COPY` and `EXPLAIN` variants, CTEs, recursive CTEs, set
+operations, `VALUES`/`LATERAL`/`DISTINCT ON`/table sampling, DDL/DML/utility
+commands, aggregate-inference probes, pagination and budget scraping,
+revocation/expiry/rebind attempts, schema drift, and rollback/audit-survival
+cases.
 
 ## Results
 
-| Attack family | Cases | Result | Notes |
+| Bucket | Cases | Result | Notes |
 |---|---:|---:|---|
-| Direct boundary violations | 5 | 5 / 5 blocked | denied fields, raw schema, DML, DDL |
-| Catalog and metadata escape | 3 | 3 / 3 blocked | `pg_catalog`, `information_schema`, and bare catalog views |
-| Payload aggregation / compression | 6 | 6 / 6 blocked | JSON, array, string, and row-to-JSON aggregation |
-| Obfuscation and aliases | 4 | 3 allowed/accounted, 1 blocked | benign expressions allowed; denied-field alias blocked |
-| Subqueries and CTEs | 3 | 2 allowed/accounted, 1 blocked | ordinary safe-view CTEs allowed; recursive/set shape blocked |
-| UNION and stacking | 2 | 2 / 2 blocked | `UNION` and `UNION ALL` denied |
-| Small-group aggregate policy | 7 | 2 allowed/accounted, 5 blocked | groups at or above `k=5` allowed; direct entity grouping, small groups, HAVING probes, and too-small scopes blocked |
-| Search path / function abuse | 4 | 4 / 4 blocked | utility, search-path, function creation, and DO block attempts |
+| Blocked direct violations | 115 | 115 / 115 blocked | denied fields, raw schema, catalogs, GUC/session tampering, function abuse, prepared/cursor misuse, `COPY`, `EXPLAIN ANALYZE`, set operations, DDL/DML, replay/drift/rollback attempts |
+| Blocked payload aggregation | 6 | 6 / 6 blocked | JSON, array, string, XML, and row/composite payload compression |
+| Blocked small-group aggregate | 5 | 5 / 5 blocked | direct entity grouping, HAVING probes, filtered small groups, and high configured `k` |
+| Allowed safe-view analytics | 14 | 14 / 14 allowed/accounted | ordinary safe-view projection, join, aggregate, CTE/window, bounded pagination, and harmless aliasing |
+| Total | 140 | 140 / 140 passed | zero expected-classification failures |
 
 ## Interpretation
 

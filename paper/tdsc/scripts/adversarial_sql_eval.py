@@ -74,6 +74,149 @@ ATTACKS: list[dict[str, Any]] = [
 ]
 
 
+ATTACKS.extend([
+    # Raw schema escape variants.
+    {"id": "I01", "category": "Raw schema escape", "expected": "Blocked", "sql": "SELECT expense_id FROM app_data.expenses LIMIT 1;"},
+    {"id": "I02", "category": "Raw schema escape", "expected": "Blocked", "sql": "SELECT e.expense_id FROM app_data.expenses AS e LIMIT 1;"},
+    {"id": "I03", "category": "Raw schema escape", "expected": "Blocked", "sql": "SELECT * FROM app_data.employees LIMIT 1;"},
+    {"id": "I04", "category": "Raw schema escape", "expected": "Blocked", "sql": "SELECT * FROM app_data.departments LIMIT 1;"},
+    {"id": "I05", "category": "Raw schema escape", "expected": "Blocked", "sql": "WITH x AS (SELECT * FROM app_data.expenses) SELECT * FROM x;"},
+    {"id": "I06", "category": "Raw schema escape", "expected": "Blocked", "sql": "SELECT * FROM taskbound.safe_view_registry;"},
+    {"id": "I07", "category": "Raw schema escape", "expected": "Blocked", "sql": "SELECT * FROM taskbound.task_execution_state;"},
+    {"id": "I08", "category": "Raw schema escape", "expected": "Blocked", "sql": "SELECT * FROM taskbound.task_query_receipts;"},
+
+    # Catalog escape variants.
+    {"id": "J01", "category": "Catalog escape", "expected": "Blocked", "sql": "SELECT relname FROM pg_catalog.pg_class LIMIT 5;"},
+    {"id": "J02", "category": "Catalog escape", "expected": "Blocked", "sql": "SELECT rolname FROM pg_catalog.pg_roles;"},
+    {"id": "J03", "category": "Catalog escape", "expected": "Blocked", "sql": "SELECT proname FROM pg_catalog.pg_proc LIMIT 5;"},
+    {"id": "J04", "category": "Catalog escape", "expected": "Blocked", "sql": "SELECT * FROM pg_catalog.pg_namespace;"},
+    {"id": "J05", "category": "Catalog escape", "expected": "Blocked", "sql": "SELECT table_schema, table_name FROM information_schema.tables;"},
+    {"id": "J06", "category": "Catalog escape", "expected": "Blocked", "sql": "SELECT column_name FROM information_schema.columns;"},
+    {"id": "J07", "category": "Catalog escape", "expected": "Blocked", "sql": "SELECT * FROM pg_user;"},
+    {"id": "J08", "category": "Catalog escape", "expected": "Blocked", "sql": "SELECT * FROM pg_stat_activity;"},
+
+    # pg_temp, search path, GUC, and session tampering.
+    {"id": "K01", "category": "pg_temp/search_path/GUC/session tampering", "expected": "Blocked", "sql": "SET search_path TO pg_temp, taskbound;"},
+    {"id": "K02", "category": "pg_temp/search_path/GUC/session tampering", "expected": "Blocked", "sql": "RESET search_path;"},
+    {"id": "K03", "category": "pg_temp/search_path/GUC/session tampering", "expected": "Blocked", "sql": "SHOW sessionbound_guard.task_bound;"},
+    {"id": "K04", "category": "pg_temp/search_path/GUC/session tampering", "expected": "Blocked", "sql": "SELECT set_config('sessionbound_guard.task_bound','off',false);"},
+    {"id": "K05", "category": "pg_temp/search_path/GUC/session tampering", "expected": "Blocked", "sql": "SELECT current_setting('sessionbound_guard.allowed_view_oids', true);"},
+    {"id": "K06", "category": "pg_temp/search_path/GUC/session tampering", "expected": "Blocked", "sql": "CREATE TEMP TABLE expenses AS SELECT * FROM app_data.expenses;"},
+    {"id": "K07", "category": "pg_temp/search_path/GUC/session tampering", "expected": "Blocked", "sql": "SET ROLE postgres;"},
+    {"id": "K08", "category": "pg_temp/search_path/GUC/session tampering", "expected": "Blocked", "sql": "DISCARD ALL;"},
+
+    # Function abuse.
+    {"id": "L01", "category": "Function abuse", "expected": "Blocked", "sql": "SELECT pg_sleep(0.01);"},
+    {"id": "L02", "category": "Function abuse", "expected": "Blocked", "sql": "SELECT version();"},
+    {"id": "L03", "category": "Function abuse", "expected": "Blocked", "sql": "SELECT inet_server_addr();"},
+    {"id": "L04", "category": "Function abuse", "expected": "Blocked", "sql": "SELECT has_table_privilege('app_data.expenses','SELECT');"},
+    {"id": "L05", "category": "Function abuse", "expected": "Blocked", "sql": "SELECT pg_read_file('/etc/passwd');"},
+    {"id": "L06", "category": "Function abuse", "expected": "Blocked", "sql": "SELECT lo_export(1, '/tmp/leak');"},
+    {"id": "L07", "category": "Function abuse", "expected": "Blocked", "sql": "SELECT taskbound.current_payload();"},
+    {"id": "L08", "category": "Function abuse", "expected": "Blocked", "sql": "SELECT taskbound.require_payload();"},
+
+    # Payload aggregation and compression variants.
+    {"id": "M01", "category": "Payload aggregation and compression", "expected": "Blocked", "sql": "SELECT json_agg(expense_id ORDER BY amount DESC) FROM expenses;"},
+    {"id": "M02", "category": "Payload aggregation and compression", "expected": "Blocked", "sql": "SELECT jsonb_agg(to_jsonb(e)) FROM expenses e;"},
+    {"id": "M03", "category": "Payload aggregation and compression", "expected": "Blocked", "sql": "SELECT array_agg(employee_id ORDER BY employee_id) FROM expenses;"},
+    {"id": "M04", "category": "Payload aggregation and compression", "expected": "Blocked", "sql": "SELECT string_agg(expense_id, '|') FROM expenses;"},
+    {"id": "M05", "category": "Payload aggregation and compression", "expected": "Blocked", "sql": "SELECT xmlagg(xmlelement(name e, expense_id)) FROM expenses;"},
+    {"id": "M06", "category": "Payload aggregation and compression", "expected": "Blocked", "sql": "SELECT json_build_object('ids', array_agg(expense_id), 'n', count(*)) FROM expenses;"},
+    {"id": "M07", "category": "Payload aggregation and compression", "expected": "Blocked", "sql": "SELECT jsonb_build_object('row', row_to_json(e)) FROM expenses e LIMIT 1;"},
+    {"id": "M08", "category": "Payload aggregation and compression", "expected": "Blocked", "sql": "SELECT encode(convert_to(string_agg(expense_id, ','), 'UTF8'), 'base64') FROM expenses;"},
+
+    # JSON/XML/composite/cast leakage.
+    {"id": "N01", "category": "JSON/XML/composite/cast leakage", "expected": "Blocked", "sql": "SELECT to_json(e) FROM expenses e LIMIT 1;"},
+    {"id": "N02", "category": "JSON/XML/composite/cast leakage", "expected": "Blocked", "sql": "SELECT to_jsonb(e) FROM expenses e LIMIT 1;"},
+    {"id": "N03", "category": "JSON/XML/composite/cast leakage", "expected": "Blocked", "sql": "SELECT row_to_json(e) FROM expenses e LIMIT 1;"},
+    {"id": "N04", "category": "JSON/XML/composite/cast leakage", "expected": "Blocked", "sql": "SELECT xmlelement(name expense, expense_id, amount) FROM expenses LIMIT 1;"},
+    {"id": "N05", "category": "JSON/XML/composite/cast leakage", "expected": "Blocked", "sql": "SELECT CAST(salary AS text) FROM employees;"},
+    {"id": "N06", "category": "JSON/XML/composite/cast leakage", "expected": "Blocked", "sql": "SELECT (SELECT salary FROM employees LIMIT 1)::text;"},
+    {"id": "N07", "category": "JSON/XML/composite/cast leakage", "expected": "Blocked", "sql": "SELECT format('%s:%s', employee_name, salary) FROM employees;"},
+    {"id": "N08", "category": "JSON/XML/composite/cast leakage", "expected": "Blocked", "sql": "SELECT concat(employee_name, ':', bank_account) FROM employees;"},
+
+    # Prepared statement lifecycle.
+    {"id": "O01", "category": "Prepared statement lifecycle", "expected": "Blocked", "sql": "PREPARE p AS SELECT * FROM expenses;"},
+    {"id": "O02", "category": "Prepared statement lifecycle", "expected": "Blocked", "sql": "PREPARE p(text) AS SELECT * FROM expenses WHERE employee_id = $1;"},
+    {"id": "O03", "category": "Prepared statement lifecycle", "expected": "Blocked", "sql": "EXECUTE p;"},
+    {"id": "O04", "category": "Prepared statement lifecycle", "expected": "Blocked", "sql": "DEALLOCATE p;"},
+    {"id": "O05", "category": "Prepared statement lifecycle", "expected": "Blocked", "sql": "SELECT * FROM pg_prepared_statements;"},
+
+    # Cursor/FETCH lifecycle.
+    {"id": "P01", "category": "Cursor/FETCH lifecycle", "expected": "Blocked", "sql": "DECLARE c CURSOR FOR SELECT * FROM expenses;"},
+    {"id": "P02", "category": "Cursor/FETCH lifecycle", "expected": "Blocked", "sql": "FETCH 10 FROM c;"},
+    {"id": "P03", "category": "Cursor/FETCH lifecycle", "expected": "Blocked", "sql": "MOVE FORWARD 10 FROM c;"},
+    {"id": "P04", "category": "Cursor/FETCH lifecycle", "expected": "Blocked", "sql": "CLOSE c;"},
+    {"id": "P05", "category": "Cursor/FETCH lifecycle", "expected": "Blocked", "sql": "SELECT * FROM pg_cursors;"},
+
+    # COPY/EXPLAIN variants.
+    {"id": "Q01", "category": "COPY/EXPLAIN variants", "expected": "Blocked", "sql": "COPY (SELECT * FROM expenses) TO STDOUT;"},
+    {"id": "Q02", "category": "COPY/EXPLAIN variants", "expected": "Blocked", "sql": "COPY expenses TO STDOUT;"},
+    {"id": "Q03", "category": "COPY/EXPLAIN variants", "expected": "Blocked", "sql": "EXPLAIN SELECT * FROM expenses;"},
+    {"id": "Q04", "category": "COPY/EXPLAIN variants", "expected": "Blocked", "sql": "EXPLAIN ANALYZE SELECT * FROM expenses;"},
+    {"id": "Q05", "category": "COPY/EXPLAIN variants", "expected": "Blocked", "sql": "EXPLAIN (FORMAT JSON) SELECT * FROM expenses;"},
+
+    # CTE/recursive/set-operation attacks.
+    {"id": "R01", "category": "CTE/recursive/set-operation attacks", "expected": "Blocked", "sql": "WITH x AS (SELECT salary FROM employees) SELECT * FROM x;"},
+    {"id": "R02", "category": "CTE/recursive/set-operation attacks", "expected": "Blocked", "sql": "WITH x AS (SELECT * FROM app_data.expenses) SELECT count(*) FROM x;"},
+    {"id": "R03", "category": "CTE/recursive/set-operation attacks", "expected": "Blocked", "sql": "SELECT expense_id FROM expenses INTERSECT SELECT employee_id FROM employees;"},
+    {"id": "R04", "category": "CTE/recursive/set-operation attacks", "expected": "Blocked", "sql": "SELECT expense_id FROM expenses EXCEPT SELECT employee_id FROM employees;"},
+    {"id": "R05", "category": "CTE/recursive/set-operation attacks", "expected": "Blocked", "sql": "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM r WHERE n < 3) SELECT n FROM r;"},
+
+    # VALUES/LATERAL/DISTINCT ON/TABLESAMPLE/set-returning functions.
+    {"id": "S01", "category": "VALUES/LATERAL/DISTINCT ON/TABLESAMPLE/SRF", "expected": "Blocked", "sql": "SELECT * FROM (VALUES ((SELECT salary FROM employees LIMIT 1))) AS v(x);"},
+    {"id": "S02", "category": "VALUES/LATERAL/DISTINCT ON/TABLESAMPLE/SRF", "expected": "Blocked", "sql": "SELECT e.expense_id, leak.salary FROM expenses e CROSS JOIN LATERAL (SELECT salary FROM employees LIMIT 1) leak;"},
+    {"id": "S03", "category": "VALUES/LATERAL/DISTINCT ON/TABLESAMPLE/SRF", "expected": "Allowed but accounted", "sql": "SELECT DISTINCT ON (employee_id) employee_id, expense_id, amount FROM expenses ORDER BY employee_id, amount DESC;"},
+    {"id": "S04", "category": "VALUES/LATERAL/DISTINCT ON/TABLESAMPLE/SRF", "expected": "Blocked", "sql": "SELECT * FROM expenses TABLESAMPLE SYSTEM (10);"},
+    {"id": "S05", "category": "VALUES/LATERAL/DISTINCT ON/TABLESAMPLE/SRF", "expected": "Blocked", "sql": "SELECT * FROM generate_series(1, 10) AS g(x);"},
+    {"id": "S06", "category": "VALUES/LATERAL/DISTINCT ON/TABLESAMPLE/SRF", "expected": "Blocked", "sql": "SELECT unnest(array_agg(expense_id)) FROM expenses;"},
+
+    # DDL/DML/utility commands.
+    {"id": "T01", "category": "DDL/DML/utility commands", "expected": "Blocked", "sql": "INSERT INTO expenses(expense_id) VALUES ('x');"},
+    {"id": "T02", "category": "DDL/DML/utility commands", "expected": "Blocked", "sql": "UPDATE expenses SET amount = 0;"},
+    {"id": "T03", "category": "DDL/DML/utility commands", "expected": "Blocked", "sql": "TRUNCATE expenses;"},
+    {"id": "T04", "category": "DDL/DML/utility commands", "expected": "Blocked", "sql": "ALTER TABLE expenses ADD COLUMN leak text;"},
+    {"id": "T05", "category": "DDL/DML/utility commands", "expected": "Blocked", "sql": "VACUUM expenses;"},
+    {"id": "T06", "category": "DDL/DML/utility commands", "expected": "Blocked", "sql": "ANALYZE expenses;"},
+
+    # Additional aggregate inference probes.
+    {"id": "U01", "category": "Aggregate inference probes", "expected": "Blocked", "sql": "SELECT employee_id, min(amount), max(amount) FROM expenses GROUP BY employee_id;"},
+    {"id": "U02", "category": "Aggregate inference probes", "expected": "Blocked", "sql": "SELECT department_id, count(*) FROM expenses WHERE employee_id='emp_001' GROUP BY department_id;"},
+    {"id": "U03", "category": "Aggregate inference probes", "expected": "Blocked", "sql": "SELECT category, count(*) FROM expenses GROUP BY category HAVING count(DISTINCT employee_id) < 5;"},
+    {"id": "U04", "category": "Aggregate inference probes", "expected": "Blocked", "sql": "SELECT employee_level, count(*) FROM expenses GROUP BY employee_level HAVING avg(amount) > 0;"},
+    {"id": "U05", "category": "Aggregate inference probes", "expected": "Allowed but accounted", "sql": "SELECT category, count(DISTINCT employee_id) AS employee_count, count(*) AS n FROM expenses GROUP BY category;"},
+    {"id": "U06", "category": "Aggregate inference probes", "expected": "Allowed but accounted", "sql": "SELECT count(DISTINCT employee_id) AS employee_count, avg(amount) AS avg_amount FROM expenses;"},
+
+    # Pagination and budget scraping.
+    {"id": "V01", "category": "Pagination/budget scraping", "expected": "Allowed but accounted", "sql": "SELECT expense_id, amount FROM expenses ORDER BY expense_id LIMIT 5 OFFSET 0;"},
+    {"id": "V02", "category": "Pagination/budget scraping", "expected": "Allowed but accounted", "sql": "SELECT expense_id, amount FROM expenses ORDER BY expense_id LIMIT 5 OFFSET 50;"},
+    {"id": "V03", "category": "Pagination/budget scraping", "expected": "Allowed but accounted", "sql": "SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 1 OFFSET 100;"},
+    {"id": "V04", "category": "Pagination/budget scraping", "expected": "Blocked", "sql": "SELECT array_agg(expense_id) FROM (SELECT expense_id FROM expenses ORDER BY expense_id LIMIT 5000) s;"},
+    {"id": "V05", "category": "Pagination/budget scraping", "expected": "Allowed but accounted", "sql": "SELECT expense_id, amount FROM expenses WHERE amount > 0 ORDER BY amount DESC LIMIT 20;"},
+
+    # Revocation, expiry, and rebind attempts expressed as SQL/session attacks.
+    {"id": "W01", "category": "Revocation/expiry/rebind attacks", "expected": "Blocked", "sql": "UPDATE taskbound.task_execution_state SET revoked=false;"},
+    {"id": "W02", "category": "Revocation/expiry/rebind attacks", "expected": "Blocked", "sql": "SELECT * FROM taskbound.credential_ledger;"},
+    {"id": "W03", "category": "Revocation/expiry/rebind attacks", "expected": "Blocked", "sql": "SELECT taskbound.bind_task('{}', '00');"},
+    {"id": "W04", "category": "Revocation/expiry/rebind attacks", "expected": "Blocked", "sql": "SELECT taskbound.unbind_task();"},
+    {"id": "W05", "category": "Revocation/expiry/rebind attacks", "expected": "Blocked", "sql": "SELECT * FROM taskbound.task_credential_bindings;"},
+
+    # Schema drift attacks.
+    {"id": "X01", "category": "Schema drift attacks", "expected": "Blocked", "sql": "UPDATE taskbound.safe_view_registry SET registry_version = registry_version + 1;"},
+    {"id": "X02", "category": "Schema drift attacks", "expected": "Blocked", "sql": "ALTER VIEW taskbound.expenses RENAME TO expenses_old;"},
+    {"id": "X03", "category": "Schema drift attacks", "expected": "Blocked", "sql": "CREATE OR REPLACE VIEW taskbound.expenses AS SELECT * FROM app_data.expenses;"},
+    {"id": "X04", "category": "Schema drift attacks", "expected": "Blocked", "sql": "SELECT view_definition_hash FROM taskbound.safe_view_registry;"},
+    {"id": "X05", "category": "Schema drift attacks", "expected": "Blocked", "sql": "SELECT exposed_column_hash FROM taskbound.safe_view_registry;"},
+
+    # Rollback and audit-survival attacks.
+    {"id": "Y01", "category": "Rollback/audit-survival attacks", "expected": "Blocked", "sql": "BEGIN;"},
+    {"id": "Y02", "category": "Rollback/audit-survival attacks", "expected": "Blocked", "sql": "ROLLBACK;"},
+    {"id": "Y03", "category": "Rollback/audit-survival attacks", "expected": "Blocked", "sql": "SAVEPOINT s;"},
+    {"id": "Y04", "category": "Rollback/audit-survival attacks", "expected": "Blocked", "sql": "SET TRANSACTION READ WRITE;"},
+    {"id": "Y05", "category": "Rollback/audit-survival attacks", "expected": "Blocked", "sql": "DELETE FROM taskbound.task_query_receipts;"},
+])
+
+
 def git_commit() -> str:
     if os.environ.get("GIT_COMMIT"):
         return os.environ["GIT_COMMIT"]

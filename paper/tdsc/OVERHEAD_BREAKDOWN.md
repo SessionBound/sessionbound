@@ -84,7 +84,9 @@ Which parts are prototype artifacts?
 Prototype artifacts include PL/pgSQL dynamic execution through
 `taskbound.run`, per-row JSON materialization, array accumulation before
 returning rows, repeated claim lookup through SQL functions, and the absence of
-a measured optimized native executor-accounting path.
+an optimized native executor-accounting path. The current native
+hook/executor-accounting path is measured diagnostically, but it has not yet
+removed the multi-second 100k-row accounting bottleneck.
 
 What does the hook-only microbenchmark show?
 
@@ -102,5 +104,6 @@ guarding is not the source of the 100k-row wrapper bottleneck.
 These measurements should not be generalized to production deployments or an
 optimized planner/executor-hook implementation. They characterize a
 security-oriented PostgreSQL reference prototype. The 100k scale sweep exposes
-the wrapper materialization/accounting bottleneck; native executor-accounting
-scale behavior remains to be measured.
+the accounting/materialization bottleneck. The native end-to-end benchmark
+shows the current native accounting path is also unoptimized at 100k rows, even
+though hook-only structural checks are sub-millisecond.

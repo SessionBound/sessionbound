@@ -32,11 +32,12 @@
 - Rollback audit status: implemented as an artifact script; 2 / 2 cases passed,
   showing that evaluated bound-runtime allowed receipts/accounting and
   raw-schema denial receipts survive rollback of the agent transaction.
-- Adversarial SQL suite status: implemented; 34 / 34 expected classifications
-  passed, including minimum-group aggregate checks.
+- Adversarial SQL suite status: implemented; 140 / 140 expected
+  classifications passed, including minimum-group aggregate checks.
 - Overhead breakdown status: implemented; latest supported modes ran with zero
   measurement errors.
-- Scale status: 1k/10k/100k wrapper reference scale sweep rerun and discussed.
+- Scale status: 1k/10k/100k native end-to-end diagnostic benchmark rerun and
+  discussed, alongside the historical wrapper reference scale sweep.
 - Credential-token binding status: credential-token suite rerun and passed.
 - Schema drift status: registry version, policy version, view-definition hash,
   and exposed-column hash drift checks rerun and passed.
@@ -54,10 +55,10 @@
   `paper/tdsc/raw_results/hook_microbenchmark_20260708_205831.json`.
 - Rollback audit: 2 / 2 passed; latest raw result:
   `paper/tdsc/raw_results/rollback_audit_20260708_205904.json`.
-- Adversarial SQL: 27 blocked, 7 allowed but accounted, and no
+- Adversarial SQL: 126 blocked, 14 allowed but accounted, and no
   expected-classification failures in the tested direct-release suite;
   latest raw result:
-  `paper/tdsc/raw_results/adversarial_sql_20260708_210059.json`.
+  `paper/tdsc/raw_results/adversarial_sql_20260708_235742.json`.
 - Canonical validation: 24 / 24 passed.
 - Credential-token and schema drift: 11 / 11 denied or accepted as expected;
   latest raw result:
@@ -67,6 +68,11 @@
   for window-function queries; RLS+Safe View+Short Credential+Audit was
   0.976--1.119 ms p50; latest raw result:
   `paper/tdsc/raw_results/overhead_breakdown_20260708_205527.json`.
+- Native end-to-end scale: at 100k scoped rows, SessionBound wrapper p50 was
+  6136.37--6313.42 ms and SessionBound native hook/executor p50 was
+  6242.66--6444.11 ms across SELECT/JOIN/GROUP BY/CTE/window query shapes;
+  latest raw result:
+  `paper/tdsc/raw_results/native_end_to_end_20260708_235456.json`.
 - Manuscript audits: no stale draft-language, placeholder, Codex, or prior
   author-name matches in the final manuscript and bibliography sweep.
 
@@ -78,12 +84,10 @@
 - Minimum-group policy mitigates direct small-group aggregate release; arbitrary
   semantic inference remains out of scope.
 - The budget vector does not provide formal differential privacy guarantees.
-- The old PL/pgSQL wrapper baseline remains too slow for production-scale
-  claims. The hook-only microbenchmark shows structural guarding is not the
-  multi-second bottleneck, but native executor accounting still needs a fresh
-  overhead/scale sweep before replacing the existing benchmark table.
-- Native executor-accounting scale still needs a fresh broad workload benchmark;
-  the current scale table is for the accounting-complete wrapper reference path.
+- The current wrapper and native hook/executor accounting paths remain too slow
+  for production-scale claims. The hook-only microbenchmark shows structural
+  guarding is not the multi-second bottleneck, but native accounting still needs
+  optimization and a broader workload study.
 
 ## Recommendation
 

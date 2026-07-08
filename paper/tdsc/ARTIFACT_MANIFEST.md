@@ -10,7 +10,7 @@ SessionBound submission candidate.
 - Manuscript source: `paper/tdsc/sessionbound-tdsc.tex`
 - Manuscript PDF: `paper/tdsc/sessionbound-tdsc.pdf`
 - Build command: `cd paper/tdsc && make`
-- Page count after high-standard revision: 14 pages
+- Page count after P0 hardening revision: 15 pages
 
 No immutable Git tag has been created for this revision yet. The manuscript and
 raw results in this branch are the current submission-candidate artifact set;
@@ -36,9 +36,9 @@ Core validated claims in the TDSC candidate:
 - rollback-surviving audit: 2 / 2 cases passed, showing that evaluated
   bound-runtime allowed receipts/accounting and raw-schema denial receipts
   persist after `BEGIN ... ROLLBACK`;
-- adversarial SQL suite: 34 cases, with 27 blocked cases, 7 allowed safe-view
-  analytical cases, and no direct small-group aggregate release in the tested
-  suite;
+- adversarial SQL suite: 140 cases, with 126 blocked cases, 14 allowed
+  safe-view analytical cases, and all tested direct small-group
+  aggregate-release attempts blocked by the minimum-group policy;
 - strong baseline: RLS + Safe View + Short Credential + Audit is implemented
   and measured alongside raw, role-only, safe-view-only, and SessionBound modes;
 - default-seed overhead: full SessionBound wrapper-reference p50 latency is
@@ -47,8 +47,9 @@ Core validated claims in the TDSC candidate:
 - hook-only structural guard microbenchmark: `sessionbound_guard_check`
   p50 was 0.125--0.138 ms across SELECT/JOIN/GROUP BY/CTE-window checks,
   with raw-schema, UNION, direct-entity group-by, and HAVING denials verified;
-- 100k synthetic scale sweep: the wrapper reference path reaches 6.17--6.37 s
-  p50; native executor-accounting scale behavior remains to be measured;
+- diagnostic native end-to-end scale benchmark: at 100k scoped rows, wrapper
+  p50 is 6.14--6.31 s and native hook/executor accounting p50 is
+  6.24--6.44 s across SELECT/JOIN/GROUP BY/CTE/window query shapes;
 - security guarantees are limited to the stated prototype SQL fragment and do
   not claim arbitrary semantic inference prevention or differential privacy.
 
@@ -74,6 +75,8 @@ Core validated claims in the TDSC candidate:
   `paper/tdsc/raw_results/overhead_breakdown_20260708_205527.json`
 - Scale sweep raw result:
   `paper/tdsc/raw_results/scale_1783515366.json`
+- Native end-to-end scale raw result:
+  `paper/tdsc/raw_results/native_end_to_end_20260708_235456.json`
 - Credential-token and schema drift raw result:
   `paper/tdsc/raw_results/credential_token_1783515640.json`
 - Security baseline raw result:

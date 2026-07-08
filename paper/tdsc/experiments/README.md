@@ -22,12 +22,14 @@ reports in this directory cite those files.
 
 - Functional validation: `../raw_results/sessionbound_agent_eval_1783515659.json`
 - AST validation: `../raw_results/ast_validation_20260708_205921.json`
-- Adversarial SQL: `../raw_results/adversarial_sql_20260708_210059.json`
+- Adversarial SQL: `../raw_results/adversarial_sql_20260708_235742.json`
 - Hook/direct DB enforcement: `../raw_results/sessionbound_guard_hook_20260708_205325.json`
 - Security baselines: `../raw_results/security_baseline_1783515117.json`
 - Performance baselines: `../raw_results/overhead_breakdown_20260708_205527.json`
 - Credential-token and schema drift tests: `../raw_results/credential_token_1783515640.json`
-- Scale sweep: `../raw_results/scale_1783515366.json`
+- Historical wrapper scale sweep: `../raw_results/scale_1783515366.json`
+- Native end-to-end scale benchmark:
+  `../raw_results/native_end_to_end_20260708_235456.json`
 - Hook-only microbenchmark: `../raw_results/hook_microbenchmark_20260708_205831.json`
 - Rollback audit: `../raw_results/rollback_audit_20260708_205904.json`
 - Concurrency smoke test: `raw_results/concurrency_1783221968.json` (historical)
@@ -52,6 +54,7 @@ TDSC_OUT_DIR=paper/tdsc/raw_results TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TD
 TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 python paper/tdsc/scripts/overhead_breakdown.py --output-dir paper/tdsc/raw_results
 TDSC_OUT_DIR=paper/tdsc/raw_results TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TDSC_BASE_URL=http://localhost:8000 python paper/tdsc/experiments/scripts/tdsc_credential_token_tests.py
 TDSC_OUT_DIR=paper/tdsc/raw_results TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TDSC_BASE_URL=http://localhost:8000 python paper/tdsc/experiments/scripts/tdsc_scale_eval.py
+TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TDSC_BASE_URL=http://localhost:8000 python paper/tdsc/scripts/native_end_to_end_benchmark.py --output-dir paper/tdsc/raw_results
 docker compose exec -T api sh -lc 'TDSC_OUT_DIR=/tmp/tdsc_experiments/raw_results TDSC_BASE_URL=http://127.0.0.1:8000 python /tmp/tdsc_experiments/scripts/tdsc_concurrency_eval.py'
 python paper/tdsc/scripts/hook_microbenchmark.py --output-dir paper/tdsc/raw_results
 ```

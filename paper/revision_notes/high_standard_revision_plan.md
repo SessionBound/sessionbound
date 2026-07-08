@@ -51,7 +51,7 @@ Branch: `high-standard-tdsc-pdsc-revision`
    - Entry: `public.sessionbound_guard_check(sql)`
    - Measures parse/analyze and structural guard only.
    - Does not execute rows, account disclosure, or emit receipts.
-   - Current manuscript uses 0.130--0.169 ms p50 from `paper/tdsc/raw_results/hook_microbenchmark_20260708_181304.json`.
+   - Current manuscript uses 0.125--0.138 ms p50 from `paper/tdsc/raw_results/hook_microbenchmark_20260708_205831.json`.
 
 ## Currently Supported Baselines
 
@@ -102,3 +102,40 @@ Branch: `high-standard-tdsc-pdsc-revision`
 - Abstract combines wrapper scale bottleneck and hook-only structural microbenchmark too tightly; must explicitly say hook-only is not end-to-end SessionBound performance.
 - Limitations still state small-group aggregate inference remains a known limitation; this should become partial direct mitigation plus arbitrary semantic inference out of scope after implementation.
 - Implementation text says native executor accounting is implemented; performance text must not imply native executor-accounting scale has been measured unless rerun.
+
+## 2026-07-08 P0 Status Update
+
+This file began as the initial repository/paper audit. The current hardening
+branch has since addressed several items above:
+
+- Strong RLS baseline:
+  - Implemented and measured as `RLS + Safe View + Short Credential + Audit`.
+  - It is reported as a strong baseline that lacks SessionBound task-token
+    binding, cumulative disclosure budget, receipt hash chain, and safe-view
+    drift invalidation.
+- Small-group aggregate inference:
+  - Implemented configurable minimum-group policy in the API/wrapper path and
+    conservative native shape checks.
+  - The adversarial suite now reports all tested direct small-group aggregate
+    release attempts blocked.
+  - Arbitrary semantic inference across multiple allowed answers remains out
+    of scope.
+- Adversarial SQL:
+  - Expanded to 140 cases.
+  - Latest raw result:
+    `paper/tdsc/raw_results/adversarial_sql_20260708_235742.json`.
+  - Result: 140 / 140 expected classifications passed; 126 blocked and 14
+    allowed/accounted.
+- Native executor-accounting scale:
+  - Added diagnostic native end-to-end benchmark:
+    `paper/tdsc/scripts/native_end_to_end_benchmark.py`.
+  - Latest raw result:
+    `paper/tdsc/raw_results/native_end_to_end_20260708_235456.json`.
+  - Result: native hook/executor accounting is measured but still unoptimized;
+    at 100k rows, wrapper p50 is 6136.37--6313.42 ms and native p50 is
+    6242.66--6444.11 ms across SELECT/JOIN/GROUP BY/CTE/window shapes.
+- Manuscript claim hygiene:
+  - The abstract, Implementation/Evaluation path matrix, performance
+    diagnosis, scale table, limitations, and conclusion now distinguish
+    wrapper reference performance, native end-to-end accounting performance,
+    and hook-only structural-check latency.

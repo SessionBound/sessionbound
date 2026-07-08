@@ -53,12 +53,12 @@ is prepared from the TDSC text.
   requirements, open-access choice, and submission metadata.
 - Confirm the current CAS / Chinese Academy of Sciences journal
   partition using the author's institution-approved list.
-- Treat current performance as a prototype limitation. The 100k scale sweep
-  shows multi-second Full SessionBound p50 in the accounting-complete wrapper
-  implementation, so production-scale claims still require lower-level
-  executor-accounting integration and runtime optimization. The hook-only
+- Treat current performance as a prototype limitation. The native end-to-end
+  benchmark shows multi-second SessionBound p50 at 100k rows in both current
+  wrapper and native hook/executor accounting paths, so production-scale claims
+  still require runtime optimization and broader workload study. The hook-only
   microbenchmark shows structural guard checks are not the multi-second
-  bottleneck, but it is not a native executor-accounting scale benchmark.
+  bottleneck.
 - Re-run layout review after the official IEEE/TDSC template and
   submission metadata are finalized.
 - Prepare arXiv v2 only after the TDSC text stabilizes; do not treat arXiv v1

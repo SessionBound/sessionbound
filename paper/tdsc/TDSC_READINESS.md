@@ -2,9 +2,10 @@
 
 ## Status
 
-Recommendation: substantially stronger than the prior draft, but still requiring
-final PDF/layout review and optional native executor-accounting scale work
-before formal upload.
+Recommendation: substantially stronger than the prior draft, with final
+PDF/layout review still required before formal upload. Native
+executor-accounting scale is now measured diagnostically, but remains
+unoptimized.
 
 ## Completed
 
@@ -32,11 +33,14 @@ before formal upload.
   COPY(SELECT), and EXPLAIN cases showing that generated runtime credentials
   remain guarded by native hook/executor accounting outside `taskbound.run(...)`.
 - Added rollback audit script and raw result for allowed and denied receipts.
-- Added 34-case adversarial SQL suite and raw results, including minimum-group
-  aggregate checks.
+- Expanded the adversarial SQL suite to 140 cases and added raw results,
+  including minimum-group aggregate checks.
 - Added a strongest-practical RLS + Safe View + Short Credential + Audit
   baseline and remeasured overhead/security comparisons.
 - Added overhead breakdown script with raw JSON/CSV outputs.
+- Added native end-to-end benchmark across Raw, Safe-view-only,
+  RLS+SafeView+ShortCredential+Audit, SessionBound wrapper, and SessionBound
+  native hook/executor modes.
 - Expanded related work to 29 verified references.
 - Updated the active TDSC manuscript in `paper/tdsc/sessionbound-tdsc.tex`
   with security invariants, AST validation positioning, adversarial SQL summary,
@@ -51,9 +55,9 @@ before formal upload.
 - Hook-only microbenchmark: 6 / 6 checks passed; allowed structural guard checks
   were 0.125--0.138 ms p50.
 - Rollback audit: 2 / 2 cases passed.
-- Adversarial SQL: 34 / 34 expected classifications passed.
-- Adversarial classifications: 27 blocked, 7 allowed but accounted, no direct
-  small-group aggregate release in the tested suite.
+- Adversarial SQL: 140 / 140 expected classifications passed.
+- Adversarial classifications: 126 blocked, 14 allowed but accounted, all
+  tested direct small-group aggregate-release attempts blocked.
 - Canonical validation: 24 / 24 scenarios passed.
 - Overhead: supported modes completed with zero errors.
 - Related work: 29 verified bibliography entries, all cited.
@@ -61,14 +65,15 @@ before formal upload.
 ## Remaining Blockers
 
 - The PostgreSQL hook path includes experimental parse/analyze enforcement and
-  executor accounting, but not a formal production-grade SQL safety proof.
+  executor accounting, but not a formal SQL safety proof.
 - Minimum-group policy mitigates direct small-group aggregate release; arbitrary
   semantic inference across multiple allowed answers remains out of scope.
 - Disclosure budgets are operational controls, not formal differential privacy.
-- The PL/pgSQL reference runtime has high scale-sensitive overhead in prior
-  100k-row tests. The hook-only microbenchmark narrows the bottleneck away from
-  structural parse/analyze guarding, but native executor-accounting scale still
-  needs measurement.
+- The current wrapper and native executor-accounting paths both have high
+  scale-sensitive overhead in 100k-row tests. The hook-only microbenchmark
+  narrows the bottleneck away from structural parse/analyze guarding, but the
+  native accounting implementation still needs optimization and broader
+  workload study.
 - The RLS + Safe View + Short Credential + Audit baseline is implemented and
   measured, but it intentionally lacks task-token binding, cumulative disclosure
   budget, receipt hash chain, and safe-view drift invalidation.

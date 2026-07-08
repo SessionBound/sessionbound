@@ -114,10 +114,10 @@ Rollback audit:
 Adversarial SQL:
 
 - Script: `paper/tdsc/scripts/adversarial_sql_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260708_210059.json`
-- Result: 34 / 34 expected classifications passed
-- Classification counts: 27 blocked, 7 allowed but accounted, 0 known
-  limitations in the tested direct-release suite
+- Latest raw result: `paper/tdsc/raw_results/adversarial_sql_20260708_235742.json`
+- Result: 140 / 140 expected classifications passed
+- Classification counts: 126 blocked, 14 allowed but accounted; all tested
+  direct small-group aggregate-release attempts were blocked
 
 Overhead breakdown:
 
@@ -128,8 +128,9 @@ Overhead breakdown:
 - Main finding: raw/role/safe-view modes are sub-millisecond, the
   RLS+Safe View+Short Credential+Audit baseline is 0.976--1.119 ms p50, and
   the full SessionBound wrapper reference path is 17.397--18.616 ms p50.
-  Receipt and budget switches do not dominate. The 100k scale sweep remains a
-  wrapper-reference limitation, not a production-ready native-hook throughput
+  Receipt and budget switches do not dominate. The 100k native end-to-end
+  scale benchmark shows both current SessionBound accounting paths remain
+  unoptimized, so the result is diagnostic rather than a production-throughput
   claim.
 
 RLS + Safe View + Short Credential + Audit:
