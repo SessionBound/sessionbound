@@ -1688,28 +1688,36 @@ optimize aggregate-heavy executor accounting and route high-cardinality
 detail exports through controlled workflows. The roadmap is cached task
 descriptors, executor accounting, \texttt{DestReceiver}/CustomScan-style
 integration, aggregate-first accounting, and less PL/pgSQL
-materialization.
+materialization. These optimizations target moving high-cardinality
+native accounting from PL/pgSQL-style materialization toward
+executor-local streaming overhead, with the engineering goal of reducing
+100k-row detail-release accounting from multi-second latency to
+sub-second latency on similar hardware; this target remains future work
+rather than an evaluated claim.
 
 \hypertarget{scale-and-concurrency}{%
 \subsection{Scale and concurrency}\label{scale-and-concurrency}}
 
-We separately tested credential-token edge cases. The updated prototype
-denied all tested edge cases: credential A with token B, replaying a
-token with a second credential, binding a second active task in the same
-session, wrong token audience, wrong token actor, expired token, and
-revoked task state. We also tested safe-view drift checks: registry
-version drift, safe-view policy-version drift, view-definition hash
-mismatch, and exposed-column hash mismatch were denied and require
+We separately tested credential-token and safe-view drift edge cases; the
+updated prototype denied all tested cases: credential A with token B,
+replaying a token with a second credential, same-session second active
+binding, wrong token audience or actor, expired token, revoked task
+state, registry and safe-view policy-version drift, view-definition hash
+mismatch, and exposed-column hash mismatch. Drift denials require
 re-approval before execution.
 
-The default seed contains 430 expenses, 240 employees, and 124
-departments. A concurrency smoke test over the API completed 1, 5, and
-20 concurrent sessions with zero failed sessions. At 20 concurrent
-sessions, query p50 was 82.896 ms and query p95 was 110.356 ms. This is
-an API-stack smoke test, not a throughput-capacity claim.
+On the default seed (430 expenses, 240 employees, and 124 departments),
+an API concurrency smoke test completed 1, 5, and 20 concurrent sessions
+with zero failed sessions. At 20 concurrent sessions, query p50 was
+82.896 ms and query p95 was 110.356 ms. This is an API-stack smoke test,
+not a throughput-capacity claim.
 The concurrent isolation script confirmed independent credentials,
 budgets, and task-specific receipts for two active tasks, and denied
-credential A with token B and same-backend double binding.
+credential A with token B and same-backend double binding. In the
+concurrent isolation run, two active tasks executed interleaved queries
+with independent query-count, result-row, and unique-entity counters;
+over-budget denial in one task did not change the other task's remaining
+budget or receipt chain.
 
 We also ran a synthetic scale sweep over 1k, 10k, and 100k scoped
 expense rows. Table~\ref{tab:scale-sweep} reports p50 ranges across
@@ -1771,32 +1779,28 @@ differential privacy.
 
 SessionBound is a task-session contract, while prior systems are
 identity-, policy-, product-, operation-, or audit-centered. RLS,
-short-lived credentials, safe views, and audit logs implement important
-pieces, but do not by themselves bind row scope, credential identity, SQL
-surface, cumulative budget, drift checks, and decision-bound receipts
-into one approved database session.
+short-lived credentials, safe views, and audit logs implement pieces, but
+do not bind row scope, credential identity, SQL surface, cumulative
+budget, drift checks, and decision-bound receipts into one approved
+database session.
 
-ABAC, XACML, capabilities, purpose-aware access, OAuth, authenticated
-delegation, and Zanzibar provide authorization, delegation, or
-relationship checks~\cite{nist2019abac,oasis2013xacml,dennis1966programming,miller2003capability,agrawal2002hippocratic,byun2008purpose,rfc6749,south2025authenticateddelegation,pang2019zanzibar};
+ABAC/XACML, capability systems, purpose-aware access, OAuth,
+authenticated delegation, and Zanzibar provide authorization,
+delegation, or relationship checks~\cite{nist2019abac,oasis2013xacml,dennis1966programming,miller2003capability,agrawal2002hippocratic,byun2008purpose,rfc6749,south2025authenticateddelegation,pang2019zanzibar};
 SessionBound addresses how the resulting SQL session is scoped,
 budgeted, drift-checked, and audited.
 
-PAuth authorizes concrete service or tool operations implied by a
-natural-language task~\cite{sharma2026pauth}. SessionBound is
-complementary: it assumes approval is compiled into structured claims,
-then enforces a multi-query SQL session with safe views, budgets, drift
-checks, and receipts.
-
-Data Product MCP governs discovery, access, and contract-aware querying
-of enterprise data products~\cite{tonnarelli2026dataproductmcp,mcp2025specification}.
-SessionBound can consume those outputs, but enforces the lower-level
-PostgreSQL execution contract after approval. Prompt-injection work,
-information-flow controls, RLS/VPD/DDS, parser-mediated validation,
-auditing, inference control, and differential privacy address adjacent
-pieces~\cite{greshake2023indirect,liu2023promptinjection,owasp2025llm01,myers1997difc,costa2025ifcagents,postgresql2026rowsecurity,oracle2026vpd,oracle2026deepdatasecuritydocs,oracle2026deepdatasecuritybrief,boyd2004sqlrand,su2006essence,kleinberg2000auditing,adam1989securitycontrol,dwork2014algorithmic}.
-SessionBound composes these ideas around a task-bound database session;
-its disclosure budgets are operational accounting, not formal DP.
+PAuth authorizes service/tool operations implied by a
+task~\cite{sharma2026pauth}; Data Product MCP governs data-product
+discovery, access, and contract-aware querying~\cite{tonnarelli2026dataproductmcp,mcp2025specification}.
+SessionBound is complementary: after approval or data-product selection,
+it enforces the PostgreSQL execution contract. Prompt-injection work,
+information-flow controls, RLS/VPD/DDS,
+parser-mediated validation, auditing, inference control, and
+differential privacy address adjacent
+pieces~\cite{greshake2023indirect,liu2023promptinjection,owasp2025llm01,myers1997difc,costa2025ifcagents,postgresql2026rowsecurity,oracle2026vpd,oracle2026deepdatasecuritydocs,oracle2026deepdatasecuritybrief,boyd2004sqlrand,su2006essence,kleinberg2000auditing,adam1989securitycontrol,dwork2014algorithmic};
+SessionBound composes them around a task-bound database session with
+operational accounting, not formal DP.
 
 
 \hypertarget{limitations}{%
@@ -1804,15 +1808,14 @@ its disclosure budgets are operational accounting, not formal DP.
 
 SessionBound is a research prototype and reference architecture, not a
 formal SQL safety proof. It targets one PostgreSQL database; production
-deployments need KMS/JWKS signing, credential lifecycle management,
-safe-view migration review, external audit retention, and WORM
-anchoring. Disclosure budgets are operational authority accounting, not
+needs KMS/JWKS signing, credential lifecycle management, safe-view
+migration review, external audit retention, and WORM anchoring.
+Disclosure budgets are operational authority accounting, not
 differential privacy or complete semantic inference control:
 minimum-group policy mitigates direct small-group aggregate release, but
-arbitrary inference across multiple allowed answers remains out of scope
-and high-risk payload aggregation is conservatively blocked. The
-measurements cover microbenchmarks, overhead ablations, concurrency
-smoke tests, and 1k/10k/100k diagnostic scale benchmarks, not optimized
+inference across allowed answers and high-risk payload aggregation remain
+out of scope. Measurements cover microbenchmarks, ablations, concurrency
+smoke tests, and diagnostic 1k/10k/100k scale benchmarks, not optimized
 broad production workloads. Federation, malicious DBAs, and compromised
 hosts are out of scope.
 
@@ -1822,11 +1825,10 @@ hosts are out of scope.
 SessionBound turns enterprise task approval into budgeted database
 sessions for AI agents: ``The agent can try. The database decides.'' It
 binds approval, credential identity, safe-view versioning, SQL surface,
-budgets, and receipts into one database-session contract. The prototype
-shows that structural parse/analyze guarding is sub-millisecond, while
-current accounting-complete paths become multi-second at 100k rows; the
-production path is to optimize result accounting, backend state caching,
-and PostgreSQL executor integration without weakening that contract.
+budgets, and receipts into one contract. The prototype shows
+sub-millisecond structural guarding and multi-second accounting-complete
+100k-row paths; production work must optimize result accounting, backend
+state caching, and PostgreSQL executor integration without weakening it.
 
 {\scriptsize
 \bibliographystyle{IEEEtran}
