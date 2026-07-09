@@ -135,8 +135,7 @@ is sub-millisecond, while unoptimized result accounting becomes the
 bottleneck for large detail-release stress settings. These results
 support SessionBound as a task-session contract for database-enforced
 AI-agent governance, while identifying executor-level accounting
-optimization as future work. The submitted artifact includes code,
-synthetic data, raw outputs, and LaTeX source.
+optimization as future work.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -775,7 +774,9 @@ a formal proof that all semantic inference is impossible.
   I6. Budget state is monotonic: an allowed query consumes budget, or
   the query is denied.
 \item
-  I7. Every allow/deny decision emits a receipt.
+  I7. Every evaluated allowed execution and every bound-runtime denial
+  emits a receipt; connection-level failures before task binding may be
+  logged outside the task receipt chain.
 \item
   I8. Safe-view registry, policy version, or definition-hash drift
   invalidates the token or requires reapproval.
@@ -789,8 +790,9 @@ In the prototype, I1--I2 and I8 are checked during
 preflight, the experimental \texttt{sessionbound\_guard} PostgreSQL
 hook path, and database permissions; I5 is enforced by safe-view
 predicates; I6 is implemented through task execution state; I7 is
-implemented through allow/deny receipts; and I9 is implemented by API
-shape checks plus wrapper/runtime entity-cardinality checks, with
+implemented through execution and denial receipts after binding; and I9
+is implemented by API shape checks plus wrapper/runtime
+entity-cardinality checks, with
 conservative native shape checks for direct SQL. Production implementations
 should harden these structural checks into always-on planner or executor
 integration, but the invariant set is independent of that implementation
@@ -812,7 +814,10 @@ table functions, raw-schema or catalog references, and high-risk payload
 aggregation such as \texttt{json\_agg}, \texttt{jsonb\_agg},
 \texttt{array\_agg}, \texttt{string\_agg}, \texttt{xmlagg},
 \texttt{row\_to\_json}, \texttt{json\_build\_object}, and
-\texttt{jsonb\_build\_object}.
+\texttt{jsonb\_build\_object}. The evaluated \texttt{COPY (SELECT)}
+support is an engineering extension routed through the same
+relation-resolution and executor-accounting path; the propositions below
+are stated only for \(\mathrm{SELECT}\text{-}F\).
 
 Let \(\mathrm{Rels}(q)\) be the set of relation identifiers in \(q\)
 after database name resolution and before safe-view expansion. Let
@@ -1324,8 +1329,7 @@ The prototype evaluation has two goals:
   reference path, stronger baselines, and native structural checks.
 \end{enumerate}
 
-It does not prove production-grade SQL safety or eliminate all inference
-attacks. The evaluation focuses on functional boundary validation,
+The evaluation focuses on functional boundary validation,
 security-property comparisons against narrower database controls,
 database-runtime overhead, and concurrency behavior on the default
 synthetic dataset.
@@ -1368,9 +1372,11 @@ performing wrapper materialization.
 \hypertarget{artifact-reproducibility}{%
 \subsection{Artifact reproducibility}\label{artifact-reproducibility}}
 
-The artifact is container-oriented. A reviewer starts the database,
-extension, API, and seed data with \texttt{docker compose up -d --build},
-then runs the scripts in \texttt{paper/tdsc/scripts/} against
+The artifact is container-oriented and includes code, synthetic data,
+raw outputs, and LaTeX source. A reviewer starts the database,
+extension, API, and seed data with
+\verb|docker compose up -d --build|, then runs the scripts in
+\texttt{paper/tdsc/scripts/} against
 \texttt{localhost:8000} and PostgreSQL on \texttt{localhost:15432}. The
 reproduction entrypoints are \texttt{ast\_validation\_eval.py},
 \texttt{adversarial\_sql\_eval.py},
@@ -1736,7 +1742,9 @@ Window & 0.251 & 0.238 & 0.281 & 1.119 & 16.818 & 17.778 & 17.639 \\
 \caption{Diagnostic end-to-end scale benchmark in milliseconds. p50 is
 the range across five query shapes; p95/p99 are maxima. The 1k and 10k
 targets use 10 warmup plus 100 measured iterations; 100k uses 10 warmup
-plus 30 measured iterations.}
+plus 30 measured iterations. The 100k setting uses elevated disclosure
+budgets as a detail-release stress test, not the expected common
+operating mode.}
 \label{tab:scale-sweep}
 \begin{tabular}{@{}llrrrc@{}}
 \toprule
