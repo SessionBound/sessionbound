@@ -346,9 +346,28 @@ REVOKE ALL ON SCHEMA app_data FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA app_data FROM PUBLIC;
 REVOKE ALL ON SCHEMA taskbound FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA taskbound FROM PUBLIC;
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA taskbound FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_check(text) FROM PUBLIC;
 
 GRANT USAGE ON SCHEMA taskbound TO agent_runtime;
+GRANT USAGE ON SCHEMA app_data TO agent_runtime;
+GRANT SELECT ON TABLE
+  taskbound.expenses,
+  taskbound.departments,
+  taskbound.employees,
+  taskbound.approval_events,
+  taskbound.ledger_entries
+TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.bind_task(text, text) TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.unbind_task() TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.fail_receipt(text, text) TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.claim(text[]) TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.current_payload() TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.require_payload() TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.native_denied_receipt(text, text, text, text, boolean) TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.native_reserve_query(text, text, text, int, boolean, boolean) TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.native_seen_expense_rows(text) TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.native_finish_query(text, text, text, bigint, text[], int, boolean, boolean) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.run(text) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.command(text, jsonb) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.inspect_task_state() TO agent_runtime;

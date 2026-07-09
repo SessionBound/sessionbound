@@ -10,7 +10,7 @@ Define task templates in FastAPI.
 Expose only low-privilege dynamic DB credentials to Agents.
 Expose signed task tokens to Agents.
 Put task-scoped views and policies in Postgres.
-Let Agents send open SQL through taskbound.run(sql).
+Let Agents call SDK query(sql), which wraps taskbound.run(sql).
 ```
 
 Version 1 scope:
@@ -55,7 +55,14 @@ POST /tasks        -> get signed task token
 POST /agent-query  -> send credential + task token + SQL
 ```
 
-In a real Agent, `/agent-query` is optional. The Agent can directly connect to Postgres using the dynamic DB credential, then call:
+In a real Agent, `/agent-query` is optional. The Agent can directly connect to Postgres using the dynamic DB credential, then use the SDK:
+
+```python
+session.bind_task(payload_text, signature)
+rows = session.query("SELECT * FROM expenses LIMIT 10")
+```
+
+The underlying database calls are:
 
 ```sql
 SELECT taskbound.bind_task(:payload_text, :signature);
@@ -673,6 +680,7 @@ The Agent flow:
 ```python
 import requests
 import psycopg
+from taskbound_sdk import TaskboundSession
 
 control_plane = "http://localhost:8000"
 
@@ -697,16 +705,9 @@ conninfo = (
 )
 
 with psycopg.connect(conninfo, autocommit=True) as conn:
-    with conn.cursor() as cur:
-        cur.execute(
-            "SELECT taskbound.bind_task(%s, %s)",
-            (task["payload_text"], task["signature"]),
-        )
-        cur.execute(
-            "SELECT * FROM taskbound.run(%s)",
-            ("SELECT * FROM expenses LIMIT 10",),
-        )
-        rows = cur.fetchall()
+    session = TaskboundSession(conn=conn)
+    session.bind_task(task["payload_text"], task["signature"])
+    rows = session.query("SELECT * FROM expenses LIMIT 10")
 ```
 
 For browser demos, you can call `/agent-query` instead:

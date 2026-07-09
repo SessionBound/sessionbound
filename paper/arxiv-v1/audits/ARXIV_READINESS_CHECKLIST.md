@@ -28,6 +28,23 @@
 - [x] Demo data is described as synthetic.
 - [x] PDF builds from source or build gap documented.
 - [x] Recommended category documented: primary cs.DB, secondary cs.CR, optional cs.AI.
+- [x] Discussion section added.
+- [x] Paper manuscript no longer contains commit hashes or Git tag references.
+- [x] Code availability points to `https://github.com/SessionBound/sessionbound`; the arXiv paper link is listed separately.
+- [x] Bibliography style changed to `unsrt`.
+- [x] First in-text citation starts at `[1]`.
+- [x] No unused references remain.
+- [x] No missing BibTeX keys remain.
+- [x] `arxiv.bbl` regenerated.
+- [x] PDF rebuilt.
+- [x] Upload ZIP regenerated.
+- [x] Subtitle subsection removed before abstract.
+- [x] Markdown horizontal-rule artifacts removed.
+- [x] Automatic section numbering enabled.
+- [x] Old ASCII architecture block removed; TikZ architecture figure retained.
+- [x] Validation text confirmed as 24 of 24.
+- [x] Formal architecture figure added.
+- [x] Major tables now have captions and labels.
 
 ## Current Recommendation
 

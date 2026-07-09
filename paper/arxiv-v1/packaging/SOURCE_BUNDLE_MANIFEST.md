@@ -21,3 +21,23 @@ ZIP contents:
 The ZIP intentionally excludes generated local build files such as `arxiv.pdf`,
 `arxiv.aux`, `arxiv.log`, `arxiv.out`, `arxiv.blg`, `arxiv.fls`, and
 `arxiv.fdb_latexmk`.
+
+Final manuscript packaging status:
+
+- Discussion section added.
+- Paper manuscript no longer contains commit hashes or Git tag references.
+- Code availability points to `https://github.com/SessionBound/sessionbound`; the arXiv paper link is listed separately.
+- Bibliography style changed to `unsrt`.
+- First in-text citation starts at `[1]`.
+- No unused references remain.
+- No missing BibTeX keys remain.
+- `arxiv.bbl` regenerated.
+- PDF rebuilt.
+- Upload ZIP regenerated.
+- Subtitle subsection removed.
+- Horizontal rules removed.
+- Automatic section numbering enabled.
+- ASCII architecture block removed; TikZ architecture figure retained.
+- Validation text confirmed as 24 of 24.
+- Formal architecture figure added.
+- Major tables now have captions and labels.

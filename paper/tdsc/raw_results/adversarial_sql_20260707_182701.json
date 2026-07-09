@@ -1,0 +1,496 @@
+{
+  "records": [
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "denied_column"
+      ],
+      "category": "Direct boundary violations",
+      "error": "AST preflight denied query: denied column salary is outside this task capability",
+      "expected": "Blocked",
+      "id": "A01",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT salary FROM employees;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "denied_column"
+      ],
+      "category": "Direct boundary violations",
+      "error": "AST preflight denied query: denied column bank_account is outside this task capability",
+      "expected": "Blocked",
+      "id": "A02",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT bank_account FROM employees;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "raw_or_catalog_schema",
+        "raw_schema_reference"
+      ],
+      "category": "Direct boundary violations",
+      "error": "AST preflight denied query: direct access to schema app_data is not allowed; schema-qualified relation app_data.expenses is outside the safe-view registry",
+      "expected": "Blocked",
+      "id": "A03",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT * FROM app_data.expenses;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "non_select_statement"
+      ],
+      "category": "Direct boundary violations",
+      "error": "AST preflight denied query: statement type Delete is not allowed",
+      "expected": "Blocked",
+      "id": "A04",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "DELETE FROM expenses WHERE expense_month='2026-06';"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "non_select_statement"
+      ],
+      "category": "Direct boundary violations",
+      "error": "AST preflight denied query: statement type Drop is not allowed",
+      "expected": "Blocked",
+      "id": "A05",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "DROP TABLE expenses;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "catalog_access",
+        "raw_or_catalog_schema",
+        "raw_schema_reference",
+        "unapproved_relation"
+      ],
+      "category": "Catalog and metadata escape",
+      "error": "AST preflight denied query: catalog relation pg_tables is not allowed; direct access to schema pg_catalog is not allowed; relation pg_tables is not in the approved safe-view registry; schema-qualified relation pg_catalog.pg_tables is outside the safe-view registry",
+      "expected": "Blocked",
+      "id": "B01",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT * FROM pg_catalog.pg_tables;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "catalog_access",
+        "raw_or_catalog_schema",
+        "raw_schema_reference",
+        "unapproved_relation"
+      ],
+      "category": "Catalog and metadata escape",
+      "error": "AST preflight denied query: catalog relation columns is not allowed; direct access to schema information_schema is not allowed; relation columns is not in the approved safe-view registry; schema-qualified relation information_schema.columns is outside the safe-view registry",
+      "expected": "Blocked",
+      "id": "B02",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT * FROM information_schema.columns;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "catalog_access",
+        "unapproved_relation"
+      ],
+      "category": "Catalog and metadata escape",
+      "error": "AST preflight denied query: catalog relation pg_tables is not allowed; relation pg_tables is not in the approved safe-view registry",
+      "expected": "Blocked",
+      "id": "B03",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT schemaname, tablename FROM pg_tables;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "payload_aggregation"
+      ],
+      "category": "Payload aggregation / compression",
+      "error": "AST preflight denied query: payload aggregation function j_s_o_n_array_agg is not allowed; payload aggregation function json_agg is not allowed",
+      "expected": "Blocked",
+      "id": "C01",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT json_agg(e) FROM expenses e;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "payload_aggregation"
+      ],
+      "category": "Payload aggregation / compression",
+      "error": "AST preflight denied query: payload aggregation function jsonb_agg is not allowed",
+      "expected": "Blocked",
+      "id": "C02",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT jsonb_agg(e) FROM expenses e;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "payload_aggregation"
+      ],
+      "category": "Payload aggregation / compression",
+      "error": "AST preflight denied query: payload aggregation function array_agg is not allowed",
+      "expected": "Blocked",
+      "id": "C03",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT array_agg(e.expense_id) FROM expenses e;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "payload_aggregation"
+      ],
+      "category": "Payload aggregation / compression",
+      "error": "AST preflight denied query: payload aggregation function array_agg is not allowed; payload aggregation function row_to_json is not allowed",
+      "expected": "Blocked",
+      "id": "C04",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT array_agg(row_to_json(e)) FROM expenses e;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "payload_aggregation"
+      ],
+      "category": "Payload aggregation / compression",
+      "error": "AST preflight denied query: payload aggregation function group_concat is not allowed; payload aggregation function string_agg is not allowed",
+      "expected": "Blocked",
+      "id": "C05",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT string_agg(employee_name, ',') FROM employees;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "payload_aggregation"
+      ],
+      "category": "Payload aggregation / compression",
+      "error": "AST preflight denied query: payload aggregation function array_agg is not allowed; payload aggregation function json_build_object is not allowed",
+      "expected": "Blocked",
+      "id": "C06",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT json_build_object('data', array_agg(e.expense_id)) FROM expenses e;"
+    },
+    {
+      "actual": "Allowed but accounted",
+      "ast_allowed": true,
+      "ast_flags": [],
+      "category": "Obfuscation and aliases",
+      "error": "",
+      "expected": "Allowed but accounted",
+      "id": "D01",
+      "passed": true,
+      "receipt_decisions": [
+        "allowed"
+      ],
+      "row_count": 226,
+      "sql": "SELECT e.employee_name AS s FROM employees e;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "denied_column_alias"
+      ],
+      "category": "Obfuscation and aliases",
+      "error": "AST preflight denied query: alias salary matches a denied field",
+      "expected": "Blocked",
+      "id": "D02",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT amount AS salary FROM expenses;"
+    },
+    {
+      "actual": "Allowed but accounted",
+      "ast_allowed": true,
+      "ast_flags": [],
+      "category": "Obfuscation and aliases",
+      "error": "",
+      "expected": "Allowed but accounted",
+      "id": "D03",
+      "passed": true,
+      "receipt_decisions": [
+        "allowed"
+      ],
+      "row_count": 347,
+      "sql": "SELECT e.amount + 0 AS amount2 FROM expenses e;"
+    },
+    {
+      "actual": "Allowed but accounted",
+      "ast_allowed": true,
+      "ast_flags": [],
+      "category": "Obfuscation and aliases",
+      "error": "",
+      "expected": "Allowed but accounted",
+      "id": "D04",
+      "passed": true,
+      "receipt_decisions": [
+        "allowed"
+      ],
+      "row_count": 226,
+      "sql": "SELECT COALESCE(employee_name, '') FROM employees;"
+    },
+    {
+      "actual": "Allowed but accounted",
+      "ast_allowed": true,
+      "ast_flags": [],
+      "category": "Subqueries and CTEs",
+      "error": "",
+      "expected": "Allowed but accounted",
+      "id": "E01",
+      "passed": true,
+      "receipt_decisions": [
+        "allowed"
+      ],
+      "row_count": 347,
+      "sql": "WITH x AS (SELECT * FROM expenses) SELECT * FROM x;"
+    },
+    {
+      "actual": "Allowed but accounted",
+      "ast_allowed": true,
+      "ast_flags": [],
+      "category": "Subqueries and CTEs",
+      "error": "",
+      "expected": "Allowed but accounted",
+      "id": "E02",
+      "passed": true,
+      "receipt_decisions": [
+        "allowed"
+      ],
+      "row_count": 226,
+      "sql": "WITH x AS (SELECT employee_name FROM employees) SELECT * FROM x;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "recursive_cte",
+        "set_operation"
+      ],
+      "category": "Subqueries and CTEs",
+      "error": "AST preflight denied query: UNION, INTERSECT, and EXCEPT query shapes are not allowed; recursive CTEs are not allowed",
+      "expected": "Blocked",
+      "id": "E03",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM r WHERE n < 10) SELECT * FROM r;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "set_operation"
+      ],
+      "category": "UNION and stacking",
+      "error": "AST preflight denied query: UNION, INTERSECT, and EXCEPT query shapes are not allowed",
+      "expected": "Blocked",
+      "id": "F01",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT expense_id FROM expenses UNION SELECT employee_id FROM employees;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "set_operation"
+      ],
+      "category": "UNION and stacking",
+      "error": "AST preflight denied query: UNION, INTERSECT, and EXCEPT query shapes are not allowed",
+      "expected": "Blocked",
+      "id": "F02",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT department_id FROM departments UNION ALL SELECT employee_id FROM employees;"
+    },
+    {
+      "actual": "Known limitation",
+      "ast_allowed": true,
+      "ast_flags": [],
+      "category": "Small-group / aggregate inference",
+      "error": "",
+      "expected": "Known limitation",
+      "id": "G01",
+      "passed": true,
+      "receipt_decisions": [
+        "allowed"
+      ],
+      "row_count": 218,
+      "sql": "SELECT department_id, employee_id, count(*), sum(amount) FROM expenses GROUP BY department_id, employee_id;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "blocked_lexical_form",
+        "non_select_statement"
+      ],
+      "category": "Search path / function abuse",
+      "error": "AST preflight denied query: SHOW statements are not allowed; statement type Command is not allowed",
+      "expected": "Blocked",
+      "id": "H01",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SHOW search_path;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "blocked_lexical_form",
+        "non_select_statement"
+      ],
+      "category": "Search path / function abuse",
+      "error": "AST preflight denied query: SET search_path is not allowed; SET statements are not allowed; statement type Set is not allowed",
+      "expected": "Blocked",
+      "id": "H02",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SET search_path TO app_data;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "blocked_lexical_form",
+        "non_select_statement",
+        "unapproved_relation"
+      ],
+      "category": "Search path / function abuse",
+      "error": "AST preflight denied query: CREATE FUNCTION is not allowed; relation leak is not in the approved safe-view registry; statement type Create is not allowed",
+      "expected": "Blocked",
+      "id": "H03",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "CREATE FUNCTION leak() RETURNS text AS $$ SELECT 'x' $$ LANGUAGE SQL;"
+    },
+    {
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "blocked_lexical_form",
+        "multiple_statements",
+        "non_select_statement"
+      ],
+      "category": "Search path / function abuse",
+      "error": "AST preflight denied query: DO blocks are not allowed; multiple SQL statements are not allowed; statement type Command is not allowed",
+      "expected": "Blocked",
+      "id": "H04",
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "DO $$ BEGIN RAISE NOTICE 'x'; END $$;"
+    }
+  ],
+  "run": {
+    "base_url": "http://localhost:8000",
+    "case_count": 28,
+    "classification_counts": {
+      "Allowed but accounted": 5,
+      "Blocked": 22,
+      "Known limitation": 1
+    },
+    "commit": "5dbece5",
+    "failed": 0,
+    "passed": 28,
+    "timestamp": "2026-07-07T10:27:01Z"
+  }
+}

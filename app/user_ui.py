@@ -176,9 +176,13 @@ USER_HTML = r"""
       font-size: 12px;
     }
     .sql-box {
-      min-height: 170px;
+      min-height: 140px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       font-size: 13px;
+    }
+    .question-box {
+      min-height: 96px;
+      font-size: 15px;
     }
     .query-layout {
       display: grid;
@@ -269,26 +273,26 @@ USER_HTML = r"""
       <div class="card-list">
         <section>
           <div class="section-title">
-            <h2>Task Template</h2>
-            <span class="eyebrow">Control Plane</span>
+            <h2>Task Template Catalog</h2>
+            <span class="eyebrow">Control Plane policy</span>
           </div>
-          <div class="kv">
-            <span>Template</span><strong>Monthly Travel Expense Analysis</strong>
-            <span>Purpose</span><span>internal analytical review</span>
-            <span>Safe views</span><span class="mono">expenses, departments, employees, approval_events, ledger_entries</span>
-            <span>Denied fields</span><span class="mono">salary, bank_account, phone, identity_number</span>
-            <span>Default scope</span><span>tenant + expense month + department</span>
-            <span>Default TTL</span><span>15 minutes</span>
-            <span>Default budget</span><span>20 queries / 5000 result rows / weighted disclosure budget</span>
-          </div>
+          <div id="templateCatalog" class="card-list"></div>
         </section>
 
         <section>
           <div class="section-title">
             <h2>Task Application</h2>
-            <span class="eyebrow">Request a bounded analytical database session</span>
+            <span class="eyebrow">Choose a fixed template and request a bounded session</span>
           </div>
           <div class="grid-3">
+            <div class="field">
+              <label for="taskTemplate">Task template</label>
+              <select id="taskTemplate" onchange="applyTemplateDefaults()">
+                <option value="monthly_travel_expense_review">Monthly Travel Expense Analysis</option>
+                <option value="finance_compliance_review">Finance Compliance Review</option>
+                <option value="payment_readiness_audit">Payment Readiness Audit</option>
+              </select>
+            </div>
             <div class="field">
               <label for="requester">Requested by</label>
               <select id="requester">
@@ -307,16 +311,12 @@ USER_HTML = r"""
                 <option value="">All approved departments</option>
               </select>
             </div>
+          </div>
+          <div class="grid-3" style="margin-top:10px;">
             <div class="field">
               <label for="expenseMonth">Expense month</label>
               <input id="expenseMonth" value="2026-06" readonly />
             </div>
-          </div>
-          <div class="field" style="margin-top:10px;">
-            <label for="businessQuestion">Business question / reason</label>
-            <textarea id="businessQuestion">Review June 2026 travel reimbursements for Engineering. Find unusual merchants, repeated claims, high-value reimbursement risk, and aggregate totals. Exclude salary, bank account, phone, identity number, private notes, and credential material.</textarea>
-          </div>
-          <div class="grid-3" style="margin-top:10px;">
             <div class="field">
               <label for="maxQueries">Requested query budget</label>
               <input id="maxQueries" type="number" min="1" max="100" value="20" />
@@ -325,6 +325,8 @@ USER_HTML = r"""
               <label for="maxRows">Requested result-row budget</label>
               <input id="maxRows" type="number" min="1" max="5000" value="5000" />
             </div>
+          </div>
+          <div class="grid-3" style="margin-top:10px;">
             <div class="field">
               <label>Token and credential TTL</label>
               <input value="15 minutes credential / 30 minutes task token" readonly />
@@ -332,8 +334,6 @@ USER_HTML = r"""
           </div>
           <div class="buttons" style="margin-top:12px;">
             <button id="applyBtn" onclick="submitApplication()">Submit Task Application</button>
-            <button class="secondary" onclick="loadExample('anomaly')">Expense Anomaly Review</button>
-            <button class="secondary" onclick="loadExample('risk')">High-value Risk Analysis</button>
           </div>
         </section>
       </div>
@@ -356,8 +356,8 @@ USER_HTML = r"""
             <span class="eyebrow">Runtime</span>
           </div>
           <div id="sessionCard" class="mini-card">
-            <strong>No approved database session yet</strong>
-            <p>Submit or approve a task application to issue a short-lived, budgeted database session. The agent can analyze data only after SessionBoundDB binds the approved task token.</p>
+            <strong>No database session requested</strong>
+            <p>Submit a task application, then approve it to issue a short-lived, budgeted database session.</p>
           </div>
         </section>
       </div>
@@ -366,23 +366,33 @@ USER_HTML = r"""
     <section>
       <div class="section-title">
         <h2>Agent Analysis Workspace</h2>
-        <span class="eyebrow">Analysis inside approved session</span>
+        <span class="eyebrow">Ask naturally; SQL is generated and enforced below</span>
       </div>
       <div class="query-layout">
-        <div class="field">
-          <label for="sqlInput">Agent-generated SQL</label>
-          <textarea id="sqlInput" class="sql-box" disabled></textarea>
+        <div class="card-list">
+          <div class="field">
+            <label for="questionInput">Natural language question</label>
+            <textarea id="questionInput" class="question-box" disabled>Which departments spent the most in June 2026, and what is the average reimbursement amount?</textarea>
+          </div>
           <div class="buttons" style="margin-top:10px;">
-            <button id="runQueryBtn" onclick="runQuery()" disabled>Run SQL in SessionBoundDB</button>
+            <button id="askAgentBtn" onclick="askAgent()" disabled>Ask Agent</button>
             <button class="secondary" onclick="resetDemo()">Reset Demo State</button>
+          </div>
+          <div class="field">
+            <label for="sqlInput">Generated SQL shown for review</label>
+            <textarea id="sqlInput" class="sql-box" readonly disabled></textarea>
+            <div class="buttons" style="margin-top:10px;">
+              <button class="secondary" id="editSqlBtn" onclick="enableSqlEditing()" disabled>Edit SQL</button>
+              <button class="danger" id="manualSqlBtn" onclick="runManualSql()" disabled>Run SQL Manually</button>
+            </div>
           </div>
         </div>
         <div class="preset-list">
-          <button class="secondary" onclick="loadSql('variance')" disabled>Department Expense Variance</button>
-          <button class="secondary" onclick="loadSql('risk')" disabled>Reimbursement Risk Review</button>
-          <button class="secondary" onclick="loadSql('salary')" disabled>Denied Field Probe</button>
-          <button class="secondary" onclick="loadSql('raw')" disabled>Raw Table Probe</button>
-          <button class="secondary" onclick="loadSql('payload')" disabled>Payload Aggregation Probe</button>
+          <button class="secondary" onclick="loadQuestion('variance')" disabled>Ask: Department Spend</button>
+          <button class="secondary" onclick="loadQuestion('risk')" disabled>Ask: High-value Risk</button>
+          <button class="secondary" onclick="loadQuestion('merchant')" disabled>Ask: Repeated Merchants</button>
+          <button class="secondary" onclick="loadQuestion('detail')" disabled>Ask: Recent Details</button>
+          <button class="secondary" onclick="loadQuestion('denied')" disabled>Ask: Salary Probe</button>
         </div>
       </div>
     </section>
@@ -418,6 +428,35 @@ USER_HTML = r"""
     const steps = ["Apply", "Approve", "Issue Session", "Analyze", "Receipt"];
     const safeViews = ["expenses", "departments", "employees", "approval_events", "ledger_entries"];
     const deniedFields = ["salary", "bank_account", "phone", "identity_number"];
+    const taskTemplates = {
+      monthly_travel_expense_review: {
+        label: "Monthly Travel Expense Analysis",
+        purpose: "Read-only reimbursement analysis for totals, trends, repeated merchants, and outliers.",
+        views: ["expenses", "departments", "employees"],
+        commands: [],
+        ttl: "30 minute task token",
+        budget: "up to 100 queries / 5000 unique expense rows",
+        applicantHint: "Best for managers or analysts who need temporary analytical access."
+      },
+      finance_compliance_review: {
+        label: "Finance Compliance Review",
+        purpose: "Finance first-pass review for submitted claims, policy hints, approval, or return for more information.",
+        views: ["expenses", "departments", "employees", "approval_events"],
+        commands: ["finance_approve", "return_expense_for_more_info"],
+        ttl: "20 minute task token",
+        budget: "up to 50 queries / 2000 unique expense rows",
+        applicantHint: "Best for finance reviewers; Fiona has this demo grant."
+      },
+      payment_readiness_audit: {
+        label: "Payment Readiness Audit",
+        purpose: "Payment readiness and ledger checks for approved reimbursements, with controlled payment execution.",
+        views: ["expenses", "departments", "approval_events", "ledger_entries"],
+        commands: ["pay_expense"],
+        ttl: "15 minute task token",
+        budget: "up to 40 queries / 1000 unique expense rows",
+        applicantHint: "Best for finance payment operations; Fiona has this demo grant."
+      }
+    };
     const state = {
       phase: "apply",
       application: null,
@@ -430,35 +469,45 @@ USER_HTML = r"""
       rowsReturned: 0,
       latestResult: null
     };
-    const sqlPresets = {
-      variance: `SELECT department_name,
-       count(*) AS expense_count,
-       sum(amount) AS total_amount,
-       avg(amount) AS average_amount
-FROM expenses
-GROUP BY department_name
-ORDER BY total_amount DESC;`,
-      risk: `SELECT expense_id,
-       department_name,
-       employee_name,
-       merchant,
-       amount,
-       monthly_employee_total,
-       approval_reason
-FROM expenses
-WHERE amount >= 1000
-   OR monthly_employee_total >= 2000
-ORDER BY amount DESC
-LIMIT 10;`,
-      salary: `SELECT employee_name, salary
-FROM employees;`,
-      raw: `SELECT *
-FROM app_data.expenses
-LIMIT 5;`,
-      payload: `SELECT json_agg(expense_id)
-FROM expenses;`
+    const questionPresets = {
+      variance: "Which departments spent the most in June 2026, and what is the average reimbursement amount?",
+      risk: "Find high-value or unusual reimbursement risk. Show the largest claims, monthly employee totals, approval reason, and current status.",
+      merchant: "Which merchants appear repeatedly, and which merchant-category pairs have the highest total reimbursement amount?",
+      detail: "Show the most recent reimbursement details in the approved scope, including department, employee, merchant, city, amount, and status.",
+      denied: "Can you show employee salary together with reimbursement totals?"
     };
 
+    function resetUsageCounters() {
+      state.queryRuns = 0;
+      state.rowsReturned = 0;
+      state.latestResult = null;
+    }
+    function resetAnalysisOutput() {
+      document.getElementById("decisionBadge").textContent = "Locked until session issued";
+      document.getElementById("resultPanel").innerHTML = `<strong>Database-enforced boundary</strong><p>The agent may generate SQL freely, but SessionBoundDB decides whether the query is inside the approved task.</p>`;
+      document.getElementById("receiptPanel").innerHTML = `<pre>{
+  "status": "no query receipt yet"
+}</pre>`;
+    }
+    function sessionBudget() {
+      const budgets = state.task?.payload?.budgets || {};
+      return {
+        maxQueries: Number(budgets.max_queries ?? state.maxQueries) || state.maxQueries,
+        maxRows: Number(budgets.max_unique_expense_rows ?? state.maxRows) || state.maxRows
+      };
+    }
+    function runtimeTaskState(result = state.latestResult) {
+      const rows = result?.state || [];
+      const taskId = state.task?.payload?.task_id;
+      return rows.find(row => !taskId || row.task_id === taskId) || null;
+    }
+    function syncUsageFromRuntime(result) {
+      const taskState = runtimeTaskState(result);
+      if (!taskState) return false;
+      state.queryRuns = Number(taskState.query_count || 0);
+      state.rowsReturned = Number(taskState.unique_expense_rows || 0);
+      return true;
+    }
     function html(value) {
       return String(value ?? "").replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     }
@@ -467,12 +516,53 @@ FROM expenses;`
       return Number(value).toLocaleString("en-US", {style: "currency", currency: "USD", maximumFractionDigits: 0});
     }
     function currentStepIndex() {
-      return {apply: 0, approve: 1, issued: 2, analyze: 3, receipt: 4, expired: 4}[state.phase] ?? 0;
+      return {apply: 0, approve: 1, issuing: 2, issued: 2, analyze: 3, receipt: 4, expired: 4}[state.phase] ?? 0;
     }
     function setStatus(text, cls = "locked") {
       const el = document.getElementById("sessionStatus");
       el.textContent = text;
       el.className = `pill ${cls}`;
+    }
+    function selectedTemplateId() {
+      return document.getElementById("taskTemplate")?.value || "monthly_travel_expense_review";
+    }
+    function selectedTemplate() {
+      return taskTemplates[selectedTemplateId()] || taskTemplates.monthly_travel_expense_review;
+    }
+    function applyTemplateDefaults() {
+      const id = selectedTemplateId();
+      if (id === "monthly_travel_expense_review") {
+        document.getElementById("requester").value = "user:alice";
+        document.getElementById("maxQueries").value = 20;
+        document.getElementById("maxRows").value = 5000;
+      } else if (id === "finance_compliance_review") {
+        document.getElementById("requester").value = "user:fiona";
+        document.getElementById("maxQueries").value = 30;
+        document.getElementById("maxRows").value = 2000;
+      } else if (id === "payment_readiness_audit") {
+        document.getElementById("requester").value = "user:fiona";
+        document.getElementById("maxQueries").value = 25;
+        document.getElementById("maxRows").value = 1000;
+      }
+      renderAll();
+    }
+    function renderTemplateCatalog() {
+      const selected = selectedTemplateId();
+      document.getElementById("templateCatalog").innerHTML = Object.entries(taskTemplates).map(([id, tpl]) => `
+        <div class="mini-card" style="${id === selected ? 'border-color:#0f766e;background:#e8f6f3;' : ''}">
+          <div class="chips"><strong>${html(tpl.label)}</strong>${id === selected ? '<span class="pill ok">selected</span>' : ''}</div>
+          <p style="margin-top:6px;">${html(tpl.purpose)}</p>
+          <div class="kv" style="margin-top:10px;">
+            <span>Task type</span><span class="mono">${html(id)}</span>
+            <span>Safe views</span><span class="mono">${html(tpl.views.join(", "))}</span>
+            <span>Commands</span><span class="mono">${tpl.commands.length ? html(tpl.commands.join(", ")) : "none, read-only"}</span>
+            <span>Denied fields</span><span class="mono">${deniedFields.join(", ")}</span>
+            <span>TTL</span><span>${html(tpl.ttl)}</span>
+            <span>Budget cap</span><span>${html(tpl.budget)}</span>
+          </div>
+          <p style="margin-top:8px;">${html(tpl.applicantHint)}</p>
+        </div>
+      `).join("");
     }
     function renderStepper() {
       const active = currentStepIndex();
@@ -483,17 +573,18 @@ FROM expenses;`
       }).join("");
     }
     function renderBudgetPanel() {
-      const queryPct = Math.min(100, (state.queryRuns / state.maxQueries) * 100);
-      const rowPct = Math.min(100, (state.rowsReturned / state.maxRows) * 100);
+      const budget = sessionBudget();
+      const queryPct = Math.min(100, (state.queryRuns / budget.maxQueries) * 100);
+      const rowPct = Math.min(100, (state.rowsReturned / budget.maxRows) * 100);
       document.getElementById("budgetPanel").innerHTML = `
         <div class="mini-card">
           <strong>Query budget</strong>
-          <span class="eyebrow">${state.queryRuns} / ${state.maxQueries} used</span>
+          <span class="eyebrow">${state.queryRuns} / ${budget.maxQueries} used</span>
           <div class="meter"><span style="width:${queryPct}%"></span></div>
         </div>
         <div class="mini-card">
-          <strong>Result-row budget</strong>
-          <span class="eyebrow">${state.rowsReturned} / ${state.maxRows} observed in this UI</span>
+          <strong>Unique expense row budget</strong>
+          <span class="eyebrow">${state.rowsReturned} / ${budget.maxRows} seen by runtime</span>
           <div class="meter"><span style="width:${rowPct}%"></span></div>
         </div>
         <div class="mini-card">
@@ -511,29 +602,47 @@ FROM expenses;`
       }
       const app = state.application;
       const approveButton = state.phase === "approve"
-        ? `<button onclick="approveSession()">Approve Session</button><button class="danger" onclick="denyApplication()">Deny</button>`
+        ? `<button onclick="approveSession()">Approve Application & Issue Session</button><button class="danger" onclick="denyApplication()">Deny Application</button>`
         : "";
       el.innerHTML = `
         <div class="chips"><span class="pill warn">${html(app.status)}</span><span class="pill">Control Plane</span></div>
         <div class="kv" style="margin-top:10px;">
-          <span>Task type</span><strong>monthly_travel_expense_review</strong>
+          <span>Selected template</span><strong>${html(app.templateLabel)}</strong>
+          <span>Task type</span><span class="mono">${html(app.taskType)}</span>
           <span>Requester</span><span>${html(app.requester)}</span>
           <span>Scope</span><span>${html(app.scope)}</span>
-          <span>Safe views</span><span class="mono">${safeViews.join(", ")}</span>
+          <span>Purpose</span><span>${html(app.templatePurpose)}</span>
+          <span>Safe views</span><span class="mono">${html((taskTemplates[app.taskType]?.views || safeViews).join(", "))}</span>
+          <span>Commands</span><span class="mono">${html((taskTemplates[app.taskType]?.commands || []).join(", ") || "none, read-only")}</span>
           <span>Denied fields</span><span class="mono">${deniedFields.join(", ")}</span>
           <span>Budget</span><span>${app.maxQueries} queries / ${app.maxRows} result rows</span>
-          <span>TTL</span><span>15 minute credential / 30 minute task token</span>
+          <span>TTL</span><span>15 minute credential / ${html(taskTemplates[app.taskType]?.ttl || "30 minute task token")}</span>
         </div>
-        <p style="margin-top:10px;">${html(app.question)}</p>
         <div class="buttons" style="margin-top:12px;">${approveButton}</div>
       `;
     }
     function renderSession() {
       const el = document.getElementById("sessionCard");
       if (!state.task || !state.credential) {
+        if (state.phase === "issuing") {
+          el.innerHTML = `
+            <div class="chips"><span class="pill warn">Issuing session</span><span class="pill">Credential request in flight</span></div>
+            <strong>Minting the approved database session</strong>
+            <p>SessionBoundDB is receiving the approved task token and short-lived credential. Analysis unlocks as soon as both are issued.</p>
+          `;
+          return;
+        }
+        if (state.phase === "approve" && state.application) {
+          el.innerHTML = `
+            <div class="chips"><span class="pill warn">Approval required</span><span class="pill">No session issued</span></div>
+            <strong>Waiting for approved task boundary</strong>
+            <p>The database session is not an approval object. It will be minted only after the task application is approved by the control plane.</p>
+          `;
+          return;
+        }
         el.innerHTML = `
-          <strong>No approved database session yet</strong>
-          <p>Submit or approve a task application to issue a short-lived, budgeted database session. The agent can analyze data only after SessionBoundDB binds the approved task token.</p>
+          <strong>No active database session</strong>
+          <p>Submit a task application and approve it to issue a short-lived, budgeted database session.</p>
         `;
         return;
       }
@@ -555,11 +664,15 @@ FROM expenses;`
       `;
     }
     function enableAnalysis(enabled) {
+      document.getElementById("questionInput").disabled = !enabled;
       document.getElementById("sqlInput").disabled = !enabled;
-      document.getElementById("runQueryBtn").disabled = !enabled;
+      document.getElementById("askAgentBtn").disabled = !enabled;
+      document.getElementById("editSqlBtn").disabled = !enabled;
+      document.getElementById("manualSqlBtn").disabled = !enabled;
       document.querySelectorAll(".preset-list button").forEach(btn => btn.disabled = !enabled);
     }
     function renderAll() {
+      renderTemplateCatalog();
       renderStepper();
       renderApplication();
       renderSession();
@@ -567,25 +680,29 @@ FROM expenses;`
       enableAnalysis(Boolean(state.task && state.credential) && state.phase !== "expired");
       if (state.phase === "apply") setStatus("No approved session", "locked");
       if (state.phase === "approve") setStatus("Task application pending", "warn");
+      if (state.phase === "issuing") setStatus("Issuing budgeted session", "warn");
       if (state.phase === "issued" || state.phase === "analyze" || state.phase === "receipt") setStatus("Budgeted session active", "ok");
       if (state.phase === "expired") setStatus("Session expired", "warn");
-    }
-    function loadExample(kind) {
-      document.getElementById("businessQuestion").value = kind === "risk"
-        ? "Analyze June 2026 reimbursements for high-value risk signals. Focus on large single claims, monthly employee totals, repeated merchants, and unusual departments. Do not access salary, phone, bank account, or raw tables."
-        : "Review June 2026 travel reimbursements for unusual merchants, repeated claims, high-value reimbursement risk, and aggregate department totals. Exclude salary, bank account, phone, identity number, private notes, and credential material.";
     }
     function submitApplication() {
       state.maxQueries = Number(document.getElementById("maxQueries").value || 20);
       state.maxRows = Number(document.getElementById("maxRows").value || 5000);
+      resetUsageCounters();
+      state.credential = null;
+      state.task = null;
+      state.issuedAt = null;
+      resetAnalysisOutput();
       const dept = document.getElementById("department").value;
       const deptLabel = document.getElementById("department").selectedOptions[0].textContent;
+      const templateSelect = document.getElementById("taskTemplate");
       state.application = {
         status: "Submitted",
+        taskType: templateSelect.value,
+        templateLabel: templateSelect.selectedOptions[0].textContent,
+        templatePurpose: selectedTemplate().purpose,
         requester: document.getElementById("requester").value,
         departmentId: dept,
         scope: `tenant=company_a, expense_month=2026-06${dept ? `, department=${deptLabel}` : ""}`,
-        question: document.getElementById("businessQuestion").value,
         maxQueries: state.maxQueries,
         maxRows: state.maxRows
       };
@@ -603,22 +720,27 @@ FROM expenses;`
       const approveButtons = document.querySelectorAll("#applicationCard button");
       approveButtons.forEach(btn => btn.disabled = true);
       state.application.status = "Approved";
-      state.phase = "issued";
+      state.phase = "issuing";
       renderAll();
       try {
         const credential = await fetch("/credentials", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({agent_id: "sessionbound-demo-agent", ttl_minutes: 15})
+          body: JSON.stringify({
+            agent_id: "sessionbound-demo-agent",
+            actor: "agent:travel-expense-analyst",
+            ttl_minutes: 15
+          })
         }).then(r => r.json());
         const task = await fetch("/tasks", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
             task_id: "task_june_expense_analysis_" + Date.now(),
-            task_type: "monthly_travel_expense_review",
+            task_type: state.application.taskType,
             delegator: state.application.requester,
             actor: "agent:travel-expense-analyst",
+            credential_id: credential.credential_id,
             department_id: state.application.departmentId || null,
             max_queries: state.maxQueries,
             max_rows: state.maxRows
@@ -628,9 +750,17 @@ FROM expenses;`
         state.credential = credential;
         state.task = task;
         state.issuedAt = new Date();
+        state.maxQueries = Number(task.payload?.budgets?.max_queries ?? state.maxQueries);
+        state.maxRows = Number(task.payload?.budgets?.max_unique_expense_rows ?? state.maxRows);
+        resetUsageCounters();
+        document.getElementById("decisionBadge").textContent = "Ready to run";
+        document.getElementById("resultPanel").innerHTML = `<strong>Budgeted session issued</strong><p>Ask a natural language question. The agent will generate SQL, SessionBoundDB will enforce it, and results will appear here.</p>`;
+        document.getElementById("receiptPanel").innerHTML = `<pre>{
+  "status": "no query receipt yet"
+}</pre>`;
         state.application.status = "Session Issued";
         state.phase = "analyze";
-        loadSql("variance");
+        loadQuestion("variance");
       } catch (err) {
         state.phase = "approve";
         state.application.status = "Submitted";
@@ -638,8 +768,9 @@ FROM expenses;`
       }
       renderAll();
     }
-    function loadSql(kind) {
-      document.getElementById("sqlInput").value = sqlPresets[kind] || sqlPresets.variance;
+    function loadQuestion(kind) {
+      document.getElementById("questionInput").value = questionPresets[kind] || questionPresets.variance;
+      document.getElementById("sqlInput").value = "";
     }
     function rowsTable(rows) {
       if (!rows || !rows.length) return "<p>No rows returned.</p>";
@@ -661,14 +792,83 @@ FROM expenses;`
       const receipts = result?.receipts || [];
       return receipts[0] || null;
     }
-    async function runQuery() {
+    function renderQueryOutcome(result, question, source) {
+      state.latestResult = result;
+      const runtimeSynced = syncUsageFromRuntime(result);
+      if (!runtimeSynced && result.ok && !result.answer) {
+        state.queryRuns += 1;
+        state.rowsReturned += (result.rows || []).length;
+      }
+      state.phase = "receipt";
+      document.getElementById("decisionBadge").innerHTML = result.ok
+        ? '<span class="status-ok">allowed</span>'
+        : '<span class="status-bad">denied</span>';
+      document.getElementById("resultPanel").innerHTML = result.ok
+        ? (result.answer
+            ? `<strong>Agent answer</strong><p>${html(result.answer)}</p>`
+            : rowsTable(result.rows || []))
+        : `<strong class="status-bad">SessionBoundDB denied query</strong><p>${html(cleanError(result.error))}</p>`;
+      const receipt = latestReceipt(result);
+      document.getElementById("receiptPanel").innerHTML = `<pre>${html(JSON.stringify({
+        task_id: state.task.payload?.task_id,
+        session_id: state.credential.db_user,
+        question,
+        source,
+        generation: result.generation,
+        generated_sql: result.generated_sql,
+        decision: result.ok ? "allowed" : "denied",
+        rows_returned: result.ok ? (result.rows || []).length : 0,
+        database_receipt: receipt || "No persisted receipt for denied statements that rolled back",
+        remaining_budget: {
+          queries_from_runtime: Math.max(0, sessionBudget().maxQueries - state.queryRuns),
+          unique_expense_rows_from_runtime: receipt?.remaining_unique_row_budget ?? "see runtime state"
+        }
+      }, null, 2))}</pre>`;
+    }
+    function enableSqlEditing() {
+      const sqlInput = document.getElementById("sqlInput");
+      sqlInput.readOnly = false;
+      sqlInput.focus();
+      document.getElementById("decisionBadge").textContent = "Manual SQL editing enabled";
+    }
+    async function askAgent() {
+      if (!state.credential || !state.task) return;
+      const question = document.getElementById("questionInput").value.trim();
+      if (!question) return;
+      document.getElementById("askAgentBtn").disabled = true;
+      document.getElementById("decisionBadge").textContent = "Agent is generating SQL";
+      try {
+        const response = await fetch("/agent-question", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            credential: state.credential,
+            payload_text: state.task.payload_text,
+            signature: state.task.signature,
+            question
+          })
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.detail || "Agent model is unavailable.");
+        }
+        document.getElementById("sqlInput").value = result.generated_sql || "";
+        renderQueryOutcome(result, question, "agent_question");
+      } catch (err) {
+        document.getElementById("decisionBadge").innerHTML = '<span class="status-bad">error</span>';
+        document.getElementById("resultPanel").innerHTML = `<strong class="status-bad">Request failed</strong><p>${html(err.message)}</p>`;
+      } finally {
+        renderAll();
+      }
+    }
+    async function runManualSql() {
       if (!state.credential || !state.task) return;
       const sql = document.getElementById("sqlInput").value.trim();
       if (!sql) return;
-      document.getElementById("runQueryBtn").disabled = true;
-      document.getElementById("decisionBadge").textContent = "Running in SessionBoundDB";
+      document.getElementById("manualSqlBtn").disabled = true;
+      document.getElementById("decisionBadge").textContent = "Running manual SQL in SessionBoundDB";
       try {
-        const result = await fetch("/agent-query", {
+        const response = await fetch("/agent-query", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
@@ -677,32 +877,18 @@ FROM expenses;`
             signature: state.task.signature,
             sql
           })
-        }).then(r => r.json());
-        state.latestResult = result;
-        state.queryRuns += 1;
-        if (result.ok) state.rowsReturned += (result.rows || []).length;
-        state.phase = "receipt";
-        document.getElementById("decisionBadge").innerHTML = result.ok
-          ? '<span class="status-ok">allowed</span>'
-          : '<span class="status-bad">denied</span>';
-        document.getElementById("resultPanel").innerHTML = result.ok
-          ? rowsTable(result.rows || [])
-          : `<strong class="status-bad">SessionBoundDB denied query</strong><p>${html(cleanError(result.error))}</p>`;
-        const receipt = latestReceipt(result);
-        document.getElementById("receiptPanel").innerHTML = `<pre>${html(JSON.stringify({
-          task_id: state.task.payload?.task_id,
-          session_id: state.credential.db_user,
-          decision: result.ok ? "allowed" : "denied",
-          rows_returned: result.ok ? (result.rows || []).length : 0,
-          database_receipt: receipt || "No persisted receipt for denied statements that rolled back",
-          remaining_budget: {
-            queries_observed_by_ui: Math.max(0, state.maxQueries - state.queryRuns),
-            unique_expense_rows_from_runtime: receipt?.remaining_unique_row_budget ?? "see runtime state"
-          }
-        }, null, 2))}</pre>`;
+        });
+        const result = await response.json();
+        result.generated_sql = sql;
+        result.generation = {
+          mode: "manual_sql",
+          action: "run_sql",
+          reason: "User manually executed SQL to test the database boundary."
+        };
+        renderQueryOutcome(result, document.getElementById("questionInput").value.trim(), "manual_sql");
       } catch (err) {
         document.getElementById("decisionBadge").innerHTML = '<span class="status-bad">error</span>';
-        document.getElementById("resultPanel").innerHTML = `<strong class="status-bad">Request failed</strong><p>${html(err.message)}</p>`;
+        document.getElementById("resultPanel").innerHTML = `<strong class="status-bad">Manual SQL request failed</strong><p>${html(err.message)}</p>`;
       } finally {
         renderAll();
       }
@@ -713,15 +899,11 @@ FROM expenses;`
       state.credential = null;
       state.task = null;
       state.issuedAt = null;
-      state.queryRuns = 0;
-      state.rowsReturned = 0;
-      state.latestResult = null;
+      resetUsageCounters();
+      document.getElementById("questionInput").value = questionPresets.variance;
       document.getElementById("sqlInput").value = "";
-      document.getElementById("decisionBadge").textContent = "Locked until session issued";
-      document.getElementById("resultPanel").innerHTML = `<strong>Database-enforced boundary</strong><p>The agent may generate SQL freely, but SessionBoundDB decides whether the query is inside the approved task.</p>`;
-      document.getElementById("receiptPanel").innerHTML = `<pre>{
-  "status": "no query receipt yet"
-}</pre>`;
+      document.getElementById("sqlInput").readOnly = true;
+      resetAnalysisOutput();
       renderAll();
     }
     renderAll();

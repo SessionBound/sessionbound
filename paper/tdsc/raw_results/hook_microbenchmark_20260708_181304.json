@@ -1,0 +1,132 @@
+{
+  "denied_checks": [
+    {
+      "expected": "Denied structural check",
+      "expected_reason": "raw application schema access is not allowed",
+      "id": "HD01",
+      "name": "guard_blocks_raw_schema",
+      "passed": true,
+      "psql": {
+        "output_tail": "ERROR:  SessionBound guard denied query: raw application schema access is not allowed\nCONTEXT:  SQL statement \"SELECT * FROM app_data.expenses LIMIT 1\"\nSQL statement \"SELECT public.sessionbound_guard_check(sql_text)\"\nPL/pgSQL function pg_temp_3.guard_check(text) line 3 at PERFORM",
+        "returncode": 0,
+        "stderr": "ERROR:  SessionBound guard denied query: raw application schema access is not allowed\nCONTEXT:  SQL statement \"SELECT * FROM app_data.expenses LIMIT 1\"\nSQL statement \"SELECT public.sessionbound_guard_check(sql_text)\"\nPL/pgSQL function pg_temp_3.guard_check(text) line 3 at PERFORM\n",
+        "stdout": " \n\n"
+      },
+      "sql": "SELECT * FROM app_data.expenses LIMIT 1"
+    },
+    {
+      "expected": "Denied structural check",
+      "expected_reason": "UNION, INTERSECT, and EXCEPT are not allowed",
+      "id": "HD02",
+      "name": "guard_blocks_union",
+      "passed": true,
+      "psql": {
+        "output_tail": "ERROR:  SessionBound guard denied query: UNION, INTERSECT, and EXCEPT are not allowed\nCONTEXT:  SQL statement \"SELECT expense_id FROM expenses UNION SELECT employee_id FROM employees\"\nSQL statement \"SELECT public.sessionbound_guard_check(sql_text)\"\nPL/pgSQL function pg_temp_3.guard_check(text) line 3 at PERFORM",
+        "returncode": 0,
+        "stderr": "ERROR:  SessionBound guard denied query: UNION, INTERSECT, and EXCEPT are not allowed\nCONTEXT:  SQL statement \"SELECT expense_id FROM expenses UNION SELECT employee_id FROM employees\"\nSQL statement \"SELECT public.sessionbound_guard_check(sql_text)\"\nPL/pgSQL function pg_temp_3.guard_check(text) line 3 at PERFORM\n",
+        "stdout": " \n\n"
+      },
+      "sql": "SELECT expense_id FROM expenses UNION SELECT employee_id FROM employees"
+    }
+  ],
+  "records": [
+    {
+      "expected": "Allowed structural check",
+      "id": "HM01",
+      "name": "guard_check_select",
+      "passed": true,
+      "psql": {
+        "output_tail": "Time: 0.125 ms\n \n\nTime: 0.095 ms\n \n\nTime: 0.095 ms\n \n\nTime: 0.166 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.208 ms",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": " \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\nTime: 0.262 ms\n \n\nTime: 0.169 ms\n \n\nTime: 0.332 ms\n \n\nTime: 0.178 ms\n \n\nTime: 0.147 ms\n \n\nTime: 0.159 ms\n \n\nTime: 0.233 ms\n \n\nTime: 0.147 ms\n \n\nTime: 0.158 ms\n \n\nTime: 0.182 ms\n \n\nTime: 0.125 ms\n \n\nTime: 0.100 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.186 ms\n \n\nTime: 0.143 ms\n \n\nTime: 0.229 ms\n \n\nTime: 0.135 ms\n \n\nTime: 0.103 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.221 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.172 ms\n \n\nTime: 0.132 ms\n \n\nTime: 0.149 ms\n \n\nTime: 0.151 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.189 ms\n \n\nTime: 0.178 ms\n \n\nTime: 0.136 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.121 ms\n \n\nTime: 0.140 ms\n \n\nTime: 0.110 ms\n \n\nTime: 0.088 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.123 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.135 ms\n \n\nTime: 0.101 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.101 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.116 ms\n \n\nTime: 0.132 ms\n \n\nTime: 0.129 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.092 ms\n \n\nTime: 0.120 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.162 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.246 ms\n \n\nTime: 0.192 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.158 ms\n \n\nTime: 0.173 ms\n \n\nTime: 0.140 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.155 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.098 ms\n \n\nTime: 0.112 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.159 ms\n \n\nTime: 0.172 ms\n \n\nTime: 0.094 ms\n \n\nTime: 0.136 ms\n \n\nTime: 0.105 ms\n \n\nTime: 0.140 ms\n \n\nTime: 0.199 ms\n \n\nTime: 0.125 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.089 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.116 ms\n \n\nTime: 0.165 ms\n \n\nTime: 0.157 ms\n \n\nTime: 0.171 ms\n \n\nTime: 0.150 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.110 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.184 ms\n \n\nTime: 0.125 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.155 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.205 ms\n \n\nTime: 0.177 ms\n \n\nTime: 0.118 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.267 ms\n \n\nTime: 0.171 ms\n \n\nTime: 0.152 ms\n \n\nTime: 0.168 ms\n \n\nTime: 0.117 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.149 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.171 ms\n \n\nTime: 0.128 ms\n \n\nTime: 0.148 ms\n \n\nTime: 0.128 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.095 ms\n \n\nTime: 0.093 ms\n \n\nTime: 0.205 ms\n \n\nTime: 0.128 ms\n \n\nTime: 0.110 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.163 ms\n \n\nTime: 0.175 ms\n \n\nTime: 0.212 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.186 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.162 ms\n \n\nTime: 0.183 ms\n \n\nTime: 0.096 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.122 ms\n \n\nTime: 0.168 ms\n \n\nTime: 0.115 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.110 ms\n \n\nTime: 0.091 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.124 ms\n \n\nTime: 0.097 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.194 ms\n \n\nTime: 0.147 ms\n \n\nTime: 0.132 ms\n \n\nTime: 0.163 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.153 ms\n \n\nTime: 0.116 ms\n \n\nTime: 0.117 ms\n \n\nTime: 0.098 ms\n \n\nTime: 0.125 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.127 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.140 ms\n \n\nTime: 0.105 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.115 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.117 ms\n \n\nTime: 0.118 ms\n \n\nTime: 0.097 ms\n \n\nTime: 0.089 ms\n \n\nTime: 0.117 ms\n \n\nTime: 0.092 ms\n \n\nTime: 0.079 ms\n \n\nTime: 0.120 ms\n \n\nTime: 0.099 ms\n \n\nTime: 0.118 ms\n \n\nTime: 0.252 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.110 ms\n \n\nTime: 0.160 ms\n \n\nTime: 0.168 ms\n \n\nTime: 0.191 ms\n \n\nTime: 0.238 ms\n \n\nTime: 0.102 ms\n \n\nTime: 0.289 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.174 ms\n \n\nTime: 0.123 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.101 ms\n \n\nTime: 0.190 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.109 ms\n \n\nTime: 0.186 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.152 ms\n \n\nTime: 0.124 ms\n \n\nTime: 0.101 ms\n \n\nTime: 0.136 ms\n \n\nTime: 0.197 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.172 ms\n \n\nTime: 0.155 ms\n \n\nTime: 0.125 ms\n \n\nTime: 0.095 ms\n \n\nTime: 0.095 ms\n \n\nTime: 0.166 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.208 ms\n"
+      },
+      "sql": "SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 10",
+      "timing": {
+        "max_ms": 0.332,
+        "mean_ms": 0.14421,
+        "measurements": 200,
+        "p50_ms": 0.138,
+        "p95_ms": 0.212,
+        "stddev_ms": 0.03805871647862024
+      }
+    },
+    {
+      "expected": "Allowed structural check",
+      "id": "HM02",
+      "name": "guard_check_join",
+      "passed": true,
+      "psql": {
+        "output_tail": "Time: 0.126 ms\n \n\nTime: 0.135 ms\n \n\nTime: 0.129 ms\n \n\nTime: 0.177 ms\n \n\nTime: 0.309 ms\n \n\nTime: 0.171 ms",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": " \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\nTime: 0.160 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.118 ms\n \n\nTime: 0.160 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.349 ms\n \n\nTime: 0.252 ms\n \n\nTime: 0.205 ms\n \n\nTime: 0.203 ms\n \n\nTime: 0.191 ms\n \n\nTime: 0.190 ms\n \n\nTime: 0.187 ms\n \n\nTime: 0.181 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.148 ms\n \n\nTime: 0.162 ms\n \n\nTime: 0.179 ms\n \n\nTime: 0.169 ms\n \n\nTime: 0.193 ms\n \n\nTime: 0.151 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.194 ms\n \n\nTime: 0.165 ms\n \n\nTime: 0.159 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.160 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.183 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.218 ms\n \n\nTime: 0.157 ms\n \n\nTime: 0.190 ms\n \n\nTime: 0.176 ms\n \n\nTime: 0.331 ms\n \n\nTime: 0.205 ms\n \n\nTime: 0.166 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.198 ms\n \n\nTime: 0.166 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.170 ms\n \n\nTime: 0.170 ms\n \n\nTime: 0.172 ms\n \n\nTime: 0.179 ms\n \n\nTime: 0.156 ms\n \n\nTime: 0.155 ms\n \n\nTime: 0.154 ms\n \n\nTime: 0.173 ms\n \n\nTime: 0.136 ms\n \n\nTime: 0.182 ms\n \n\nTime: 0.171 ms\n \n\nTime: 0.171 ms\n \n\nTime: 0.183 ms\n \n\nTime: 0.212 ms\n \n\nTime: 0.140 ms\n \n\nTime: 0.160 ms\n \n\nTime: 0.172 ms\n \n\nTime: 0.185 ms\n \n\nTime: 0.162 ms\n \n\nTime: 0.159 ms\n \n\nTime: 0.158 ms\n \n\nTime: 0.173 ms\n \n\nTime: 0.174 ms\n \n\nTime: 0.181 ms\n \n\nTime: 0.164 ms\n \n\nTime: 0.174 ms\n \n\nTime: 0.128 ms\n \n\nTime: 0.166 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.170 ms\n \n\nTime: 0.192 ms\n \n\nTime: 0.162 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.192 ms\n \n\nTime: 0.187 ms\n \n\nTime: 0.191 ms\n \n\nTime: 0.177 ms\n \n\nTime: 0.149 ms\n \n\nTime: 0.178 ms\n \n\nTime: 0.174 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.152 ms\n \n\nTime: 0.714 ms\n \n\nTime: 0.152 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.158 ms\n \n\nTime: 0.147 ms\n \n\nTime: 0.124 ms\n \n\nTime: 0.195 ms\n \n\nTime: 0.276 ms\n \n\nTime: 0.170 ms\n \n\nTime: 0.198 ms\n \n\nTime: 0.171 ms\n \n\nTime: 0.160 ms\n \n\nTime: 0.176 ms\n \n\nTime: 0.229 ms\n \n\nTime: 0.168 ms\n \n\nTime: 0.170 ms\n \n\nTime: 0.169 ms\n \n\nTime: 0.132 ms\n \n\nTime: 0.170 ms\n \n\nTime: 0.172 ms\n \n\nTime: 0.171 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.167 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.169 ms\n \n\nTime: 0.207 ms\n \n\nTime: 0.149 ms\n \n\nTime: 0.175 ms\n \n\nTime: 0.197 ms\n \n\nTime: 0.210 ms\n \n\nTime: 0.160 ms\n \n\nTime: 0.177 ms\n \n\nTime: 0.178 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.176 ms\n \n\nTime: 0.253 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.172 ms\n \n\nTime: 0.175 ms\n \n\nTime: 0.158 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.129 ms\n \n\nTime: 0.185 ms\n \n\nTime: 0.170 ms\n \n\nTime: 0.155 ms\n \n\nTime: 0.127 ms\n \n\nTime: 0.189 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.184 ms\n \n\nTime: 0.178 ms\n \n\nTime: 0.234 ms\n \n\nTime: 0.169 ms\n \n\nTime: 0.170 ms\n \n\nTime: 0.246 ms\n \n\nTime: 0.169 ms\n \n\nTime: 0.201 ms\n \n\nTime: 0.171 ms\n \n\nTime: 0.172 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.110 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.177 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.119 ms\n \n\nTime: 0.172 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.170 ms\n \n\nTime: 0.168 ms\n \n\nTime: 0.179 ms\n \n\nTime: 0.258 ms\n \n\nTime: 0.151 ms\n \n\nTime: 0.277 ms\n \n\nTime: 0.173 ms\n \n\nTime: 0.172 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.112 ms\n \n\nTime: 0.182 ms\n \n\nTime: 0.171 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.172 ms\n \n\nTime: 0.143 ms\n \n\nTime: 0.176 ms\n \n\nTime: 0.135 ms\n \n\nTime: 0.175 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.115 ms\n \n\nTime: 0.190 ms\n \n\nTime: 0.163 ms\n \n\nTime: 0.152 ms\n \n\nTime: 0.248 ms\n \n\nTime: 0.253 ms\n \n\nTime: 0.158 ms\n \n\nTime: 0.123 ms\n \n\nTime: 0.152 ms\n \n\nTime: 0.178 ms\n \n\nTime: 0.190 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.165 ms\n \n\nTime: 0.170 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.151 ms\n \n\nTime: 0.156 ms\n \n\nTime: 0.124 ms\n \n\nTime: 0.174 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.150 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.135 ms\n \n\nTime: 0.129 ms\n \n\nTime: 0.177 ms\n \n\nTime: 0.309 ms\n \n\nTime: 0.171 ms\n"
+      },
+      "sql": "\n            SELECT e.expense_id, e.amount, d.department_name\n            FROM expenses e\n            JOIN departments d ON e.department_id = d.department_id\n            ORDER BY e.amount DESC\n            LIMIT 10\n        ",
+      "timing": {
+        "max_ms": 0.714,
+        "mean_ms": 0.171355,
+        "measurements": 200,
+        "p50_ms": 0.169,
+        "p95_ms": 0.248,
+        "stddev_ms": 0.052576791220081125
+      }
+    },
+    {
+      "expected": "Allowed structural check",
+      "id": "HM03",
+      "name": "guard_check_group_by",
+      "passed": true,
+      "psql": {
+        "output_tail": "Time: 0.129 ms\n \n\nTime: 0.111 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.096 ms\n \n\nTime: 0.093 ms\n \n\nTime: 0.144 ms",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": " \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\nTime: 0.129 ms\n \n\nTime: 0.103 ms\n \n\nTime: 0.237 ms\n \n\nTime: 0.162 ms\n \n\nTime: 0.154 ms\n \n\nTime: 0.151 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.147 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.099 ms\n \n\nTime: 0.154 ms\n \n\nTime: 0.167 ms\n \n\nTime: 0.191 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.128 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.096 ms\n \n\nTime: 0.150 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.096 ms\n \n\nTime: 0.152 ms\n \n\nTime: 0.160 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.098 ms\n \n\nTime: 0.112 ms\n \n\nTime: 0.152 ms\n \n\nTime: 0.149 ms\n \n\nTime: 0.151 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.192 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.174 ms\n \n\nTime: 0.140 ms\n \n\nTime: 0.150 ms\n \n\nTime: 0.106 ms\n \n\nTime: 0.143 ms\n \n\nTime: 0.149 ms\n \n\nTime: 0.119 ms\n \n\nTime: 0.115 ms\n \n\nTime: 0.099 ms\n \n\nTime: 0.098 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.132 ms\n \n\nTime: 0.115 ms\n \n\nTime: 0.151 ms\n \n\nTime: 0.249 ms\n \n\nTime: 0.136 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.129 ms\n \n\nTime: 0.151 ms\n \n\nTime: 0.195 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.194 ms\n \n\nTime: 0.120 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.153 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.168 ms\n \n\nTime: 0.114 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.147 ms\n \n\nTime: 0.114 ms\n \n\nTime: 0.150 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.127 ms\n \n\nTime: 0.112 ms\n \n\nTime: 0.099 ms\n \n\nTime: 0.154 ms\n \n\nTime: 0.143 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.154 ms\n \n\nTime: 0.179 ms\n \n\nTime: 0.199 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.196 ms\n \n\nTime: 0.112 ms\n \n\nTime: 0.110 ms\n \n\nTime: 0.248 ms\n \n\nTime: 0.147 ms\n \n\nTime: 0.132 ms\n \n\nTime: 0.109 ms\n \n\nTime: 0.097 ms\n \n\nTime: 0.162 ms\n \n\nTime: 0.129 ms\n \n\nTime: 0.166 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.158 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.143 ms\n \n\nTime: 0.129 ms\n \n\nTime: 0.101 ms\n \n\nTime: 0.100 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.122 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.160 ms\n \n\nTime: 0.122 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.157 ms\n \n\nTime: 0.161 ms\n \n\nTime: 0.174 ms\n \n\nTime: 0.103 ms\n \n\nTime: 0.152 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.109 ms\n \n\nTime: 0.103 ms\n \n\nTime: 0.135 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.160 ms\n \n\nTime: 0.172 ms\n \n\nTime: 0.129 ms\n \n\nTime: 0.106 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.164 ms\n \n\nTime: 0.106 ms\n \n\nTime: 0.094 ms\n \n\nTime: 0.263 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.170 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.122 ms\n \n\nTime: 0.153 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.147 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.127 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.127 ms\n \n\nTime: 0.108 ms\n \n\nTime: 0.152 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.110 ms\n \n\nTime: 0.148 ms\n \n\nTime: 0.173 ms\n \n\nTime: 0.153 ms\n \n\nTime: 0.114 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.118 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.106 ms\n \n\nTime: 0.101 ms\n \n\nTime: 0.167 ms\n \n\nTime: 0.125 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.201 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.165 ms\n \n\nTime: 0.112 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.143 ms\n \n\nTime: 0.106 ms\n \n\nTime: 0.157 ms\n \n\nTime: 0.167 ms\n \n\nTime: 0.112 ms\n \n\nTime: 0.155 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.154 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.136 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.125 ms\n \n\nTime: 0.099 ms\n \n\nTime: 0.195 ms\n \n\nTime: 0.197 ms\n \n\nTime: 0.199 ms\n \n\nTime: 0.157 ms\n \n\nTime: 0.189 ms\n \n\nTime: 0.161 ms\n \n\nTime: 0.115 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.150 ms\n \n\nTime: 0.110 ms\n \n\nTime: 0.129 ms\n \n\nTime: 0.117 ms\n \n\nTime: 0.094 ms\n \n\nTime: 0.154 ms\n \n\nTime: 0.129 ms\n \n\nTime: 0.111 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.096 ms\n \n\nTime: 0.093 ms\n \n\nTime: 0.144 ms\n"
+      },
+      "sql": "\n            SELECT department_name, count(*) AS expense_count, sum(amount) AS total_amount\n            FROM expenses\n            GROUP BY department_name\n            ORDER BY total_amount DESC\n        ",
+      "timing": {
+        "max_ms": 0.263,
+        "mean_ms": 0.1405,
+        "measurements": 200,
+        "p50_ms": 0.139,
+        "p95_ms": 0.195,
+        "stddev_ms": 0.02844521049315684
+      }
+    },
+    {
+      "expected": "Allowed structural check",
+      "id": "HM04",
+      "name": "guard_check_cte_window",
+      "passed": true,
+      "psql": {
+        "output_tail": "Time: 0.116 ms\n \n\nTime: 0.147 ms\n \n\nTime: 0.168 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.119 ms\n \n\nTime: 0.135 ms",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": " \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\n \n\nTime: 0.156 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.148 ms\n \n\nTime: 0.108 ms\n \n\nTime: 0.096 ms\n \n\nTime: 0.086 ms\n \n\nTime: 0.087 ms\n \n\nTime: 0.092 ms\n \n\nTime: 0.152 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.103 ms\n \n\nTime: 0.092 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.210 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.124 ms\n \n\nTime: 0.096 ms\n \n\nTime: 0.148 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.143 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.151 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.113 ms\n \n\nTime: 0.127 ms\n \n\nTime: 0.098 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.129 ms\n \n\nTime: 0.099 ms\n \n\nTime: 0.120 ms\n \n\nTime: 0.128 ms\n \n\nTime: 0.102 ms\n \n\nTime: 0.185 ms\n \n\nTime: 0.098 ms\n \n\nTime: 0.109 ms\n \n\nTime: 0.097 ms\n \n\nTime: 0.090 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.156 ms\n \n\nTime: 0.105 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.106 ms\n \n\nTime: 0.096 ms\n \n\nTime: 0.121 ms\n \n\nTime: 0.098 ms\n \n\nTime: 0.122 ms\n \n\nTime: 0.114 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.143 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.159 ms\n \n\nTime: 0.155 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.096 ms\n \n\nTime: 0.094 ms\n \n\nTime: 0.094 ms\n \n\nTime: 0.143 ms\n \n\nTime: 0.099 ms\n \n\nTime: 0.148 ms\n \n\nTime: 0.111 ms\n \n\nTime: 0.093 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.138 ms\n \n\nTime: 0.269 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.140 ms\n \n\nTime: 0.155 ms\n \n\nTime: 0.112 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.181 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.161 ms\n \n\nTime: 0.144 ms\n \n\nTime: 0.097 ms\n \n\nTime: 0.191 ms\n \n\nTime: 0.108 ms\n \n\nTime: 0.154 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.149 ms\n \n\nTime: 0.115 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.115 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.095 ms\n \n\nTime: 0.153 ms\n \n\nTime: 0.114 ms\n \n\nTime: 0.165 ms\n \n\nTime: 0.163 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.116 ms\n \n\nTime: 0.088 ms\n \n\nTime: 0.140 ms\n \n\nTime: 0.099 ms\n \n\nTime: 0.088 ms\n \n\nTime: 0.135 ms\n \n\nTime: 0.110 ms\n \n\nTime: 0.142 ms\n \n\nTime: 0.128 ms\n \n\nTime: 0.153 ms\n \n\nTime: 0.124 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.154 ms\n \n\nTime: 0.130 ms\n \n\nTime: 0.128 ms\n \n\nTime: 0.104 ms\n \n\nTime: 0.136 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.101 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.111 ms\n \n\nTime: 0.129 ms\n \n\nTime: 0.120 ms\n \n\nTime: 0.179 ms\n \n\nTime: 0.118 ms\n \n\nTime: 0.128 ms\n \n\nTime: 0.102 ms\n \n\nTime: 0.102 ms\n \n\nTime: 0.099 ms\n \n\nTime: 0.140 ms\n \n\nTime: 0.122 ms\n \n\nTime: 0.116 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.140 ms\n \n\nTime: 0.143 ms\n \n\nTime: 0.150 ms\n \n\nTime: 0.123 ms\n \n\nTime: 0.093 ms\n \n\nTime: 0.089 ms\n \n\nTime: 0.139 ms\n \n\nTime: 0.127 ms\n \n\nTime: 0.107 ms\n \n\nTime: 0.102 ms\n \n\nTime: 0.116 ms\n \n\nTime: 0.092 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.152 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.171 ms\n \n\nTime: 0.146 ms\n \n\nTime: 0.131 ms\n \n\nTime: 0.100 ms\n \n\nTime: 0.125 ms\n \n\nTime: 0.100 ms\n \n\nTime: 0.091 ms\n \n\nTime: 0.115 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.119 ms\n \n\nTime: 0.157 ms\n \n\nTime: 0.147 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.122 ms\n \n\nTime: 0.163 ms\n \n\nTime: 0.140 ms\n \n\nTime: 0.099 ms\n \n\nTime: 0.127 ms\n \n\nTime: 0.118 ms\n \n\nTime: 0.145 ms\n \n\nTime: 0.107 ms\n \n\nTime: 0.115 ms\n \n\nTime: 0.155 ms\n \n\nTime: 0.155 ms\n \n\nTime: 0.157 ms\n \n\nTime: 0.153 ms\n \n\nTime: 0.243 ms\n \n\nTime: 0.137 ms\n \n\nTime: 0.169 ms\n \n\nTime: 0.104 ms\n \n\nTime: 0.133 ms\n \n\nTime: 0.125 ms\n \n\nTime: 0.154 ms\n \n\nTime: 0.122 ms\n \n\nTime: 0.157 ms\n \n\nTime: 0.154 ms\n \n\nTime: 0.122 ms\n \n\nTime: 0.147 ms\n \n\nTime: 0.115 ms\n \n\nTime: 0.101 ms\n \n\nTime: 0.140 ms\n \n\nTime: 0.109 ms\n \n\nTime: 0.122 ms\n \n\nTime: 0.126 ms\n \n\nTime: 0.151 ms\n \n\nTime: 0.112 ms\n \n\nTime: 0.106 ms\n \n\nTime: 0.141 ms\n \n\nTime: 0.150 ms\n \n\nTime: 0.116 ms\n \n\nTime: 0.147 ms\n \n\nTime: 0.168 ms\n \n\nTime: 0.134 ms\n \n\nTime: 0.119 ms\n \n\nTime: 0.135 ms\n"
+      },
+      "sql": "\n            WITH ranked AS (\n              SELECT expense_id, department_name, amount,\n                     row_number() OVER (PARTITION BY department_name ORDER BY amount DESC) AS rn\n              FROM expenses\n            )\n            SELECT department_name, expense_id, amount\n            FROM ranked\n            WHERE rn = 1\n        ",
+      "timing": {
+        "max_ms": 0.269,
+        "mean_ms": 0.129865,
+        "measurements": 200,
+        "p50_ms": 0.13,
+        "p95_ms": 0.165,
+        "stddev_ms": 0.026234457779797927
+      }
+    }
+  ],
+  "run": {
+    "case_count": 4,
+    "commit": "0036fe2",
+    "denied_check_count": 2,
+    "failed": 0,
+    "measurement_iterations": 200,
+    "notes": [
+      "Measures public.sessionbound_guard_check(sql), which prepares SQL through PostgreSQL parse/analyze and the sessionbound_guard structural checks.",
+      "The benchmark does not execute result rows and does not measure executor row accounting, receipt insertion, or PL/pgSQL result materialization."
+    ],
+    "passed": 6,
+    "timestamp": "2026-07-08T10:13:04Z",
+    "warmup_iterations": 20
+  }
+}

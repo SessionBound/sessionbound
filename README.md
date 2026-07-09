@@ -12,8 +12,19 @@ to safe views, query/disclosure budgets, and receipts.
 > Note: the current PostgreSQL prototype keeps the `taskbound` SQL schema name
 > for compatibility with the existing demo implementation.
 
-Code availability: the prototype source code and synthetic evaluation dataset
-are available at https://github.com/SessionBound/sessionbound.
+Paper: https://arxiv.org/abs/2607.00751
+
+Code and artifacts: the prototype source code, synthetic evaluation dataset,
+validation reports, benchmark outputs, and LaTeX source for the paper are
+available at https://github.com/SessionBound/sessionbound.
+
+TDSC artifact status: the current TDSC-oriented submission candidate is anchored
+by the `tdsc-submission-2026-07-07` tag and documented in
+[paper/tdsc/ARTIFACT_MANIFEST.md](paper/tdsc/ARTIFACT_MANIFEST.md). The arXiv
+v1 workspace is an earlier public preprint snapshot; use the TDSC tag for the
+current artifact-backed claim contract.
+
+Hosted demo: https://www.sessionbound.org/
 
 ## Why SessionBound
 
@@ -34,7 +45,7 @@ Task Template
   -> Task Application
   -> Task Approval, Grants, Budgets
   -> Signed Task Token
-  -> Agent-generated SQL
+  -> Agent SDK query(sql)
   -> SessionBoundDB Runtime
   -> Safe Views, Budgets, Receipts
   -> Enterprise Data
@@ -47,6 +58,8 @@ The prototype demonstrates:
 - task templates, task applications, approvals, grants, budgets, and TTLs;
 - signed task tokens that bind business intent to database execution;
 - short-lived credentials for agent runtimes;
+- a native agent SDK where `query(sql)` runs safe-view SQL through PostgreSQL
+  hook and executor accounting;
 - safe views that expose business objects without exposing raw tables;
 - denied fields such as salary, phone, and bank account;
 - query and disclosure budgets;
@@ -67,6 +80,13 @@ SELECT department_name, expense_id, category, amount
 FROM ranked
 WHERE rn = 1;
 ```
+
+In the prototype, the SDK submits that SQL through `TaskboundSession.query(sql)`,
+which executes native safe-view `SELECT` on a task-bound PostgreSQL session.
+PostgreSQL hooks validate the approved safe-view OIDs, executor accounting
+counts returned rows and disclosed `expense_id` values before forwarding tuples,
+and evaluated bound-runtime allowed receipts and hook/API denial receipts are
+written through a rollback-surviving audit channel.
 
 But the database rejects access outside the task:
 
@@ -96,6 +116,12 @@ Open:
 http://localhost:8000
 ```
 
+Public demo:
+
+```text
+https://www.sessionbound.org/
+```
+
 Useful pages:
 
 - User-facing demo: `http://localhost:8000/`
@@ -116,7 +142,8 @@ The local `.env` file is ignored by git.
 
 ## Evaluation
 
-The current canonical evaluation passes all public arXiv validation scenarios:
+The current canonical evaluation passes all validation scenarios used by the
+TDSC artifact:
 
 ```text
 SessionBound evaluation
@@ -134,22 +161,40 @@ docker compose up -d --build api
 Run:
 
 ```bash
-python scripts/sessionbound_agent_eval.py --base-url http://localhost:8000 --output-dir paper/arxiv-v1/evaluation/eval_runs
+python scripts/sessionbound_agent_eval.py --base-url http://localhost:8000 --output-dir paper/tdsc/evaluation/eval_runs
 ```
 
 The validation covers allowed analytical SQL, denied sensitive-field access, denied raw-schema access, denied write/DDL attempts, payload-aggregation blocking, transparent scope filtering, query-budget enforcement, and disclosure-budget enforcement.
 
-Detailed validation notes are in [paper/arxiv-v1/evaluation/FUNCTIONAL_VALIDATION.md](paper/arxiv-v1/evaluation/FUNCTIONAL_VALIDATION.md).
+Detailed TDSC validation and hardening notes are in:
+
+- [paper/tdsc/ARTIFACT_MANIFEST.md](paper/tdsc/ARTIFACT_MANIFEST.md)
+- [paper/tdsc/evaluation/FUNCTIONAL_VALIDATION.md](paper/tdsc/evaluation/FUNCTIONAL_VALIDATION.md)
+- [paper/tdsc/ADVERSARIAL_SQL_SUITE.md](paper/tdsc/ADVERSARIAL_SQL_SUITE.md)
 
 ## Benchmark
 
-Benchmark data is recorded in [paper/arxiv-v1/benchmarks/PERFORMANCE_BENCHMARK.md](paper/arxiv-v1/benchmarks/PERFORMANCE_BENCHMARK.md).
+Benchmark and overhead data for the TDSC artifact are recorded in:
 
-The benchmark compares equivalent SQL over raw `app_data` tables with the SessionBound path through signed task-token binding and `taskbound.run(sql)`. Benchmark numbers are not summarized here so that the benchmark report remains the single source for measured results.
+- [paper/tdsc/OVERHEAD_BREAKDOWN.md](paper/tdsc/OVERHEAD_BREAKDOWN.md)
+- [paper/tdsc/experiments/SCALE_CONCURRENCY_RESULTS.md](paper/tdsc/experiments/SCALE_CONCURRENCY_RESULTS.md)
+
+The benchmark compares equivalent SQL over raw `app_data` tables with the SessionBound path through signed task-token binding, SDK-style query execution, and the guarded safe-view runtime. Benchmark numbers are not summarized here so that the benchmark report remains the single source for measured results.
+
+Performance claims are intentionally scoped to the reference artifact. The
+100k-row sweep exposes a PL/pgSQL wrapper materialization/accounting bottleneck,
+while a hook-only structural-guard microbenchmark shows that parse/analyze guard
+checks themselves are not the multi-second bottleneck.
 
 ## Paper
 
-Current arXiv v1 files:
+TDSC-oriented current candidate:
+
+- [paper/tdsc/sessionbound-tdsc.pdf](paper/tdsc/sessionbound-tdsc.pdf)
+- [paper/tdsc/sessionbound-tdsc.tex](paper/tdsc/sessionbound-tdsc.tex)
+- [paper/tdsc/ARTIFACT_MANIFEST.md](paper/tdsc/ARTIFACT_MANIFEST.md)
+
+Earlier arXiv v1 files:
 
 - [paper/arxiv-v1/manuscript/arxiv.pdf](paper/arxiv-v1/manuscript/arxiv.pdf)
 - [paper/arxiv-v1/manuscript/arxiv.tex](paper/arxiv-v1/manuscript/arxiv.tex)
@@ -177,16 +222,18 @@ db/006_commands_and_grants.sql
 docs/                      Architecture, runtime, threat model, and comparison docs
 scripts/sessionbound_agent_eval.py
                            Agent-agnostic evaluation harness
-paper/arxiv-v1/            Current arXiv v1 manuscript, validation, and packaging files
+paper/tdsc/                Current TDSC-oriented manuscript and artifact manifest
+paper/arxiv-v1/            Earlier arXiv v1 manuscript, validation, and packaging files
 ```
 
 ## Prototype Limitations
 
-- SQL validation uses conservative keyword checks, not a full SQL parser.
+- SQL validation now includes AST-level preflight and an experimental
+  PostgreSQL hook path, but production-grade enforcement should move closer to
+  parser/analyzer, planner, or executor integration.
 - Complex single-database `SELECT` queries are supported for the demo, including joins, CTEs, subqueries, and window functions.
-- A production version should validate SQL with an AST parser, planner hooks, or a PostgreSQL extension.
 - Unique-row accounting tracks detail rows that include `expense_id`.
-- Denied queries are surfaced as database errors. In this PL/pgSQL-only demo, denied receipts are not persisted because PostgreSQL rolls back writes in the failing statement.
+- Denied queries are surfaced as database errors. In the evaluated bound runtime path, native hook/API denial receipts and allowed query receipts are written through an autonomous audit channel so they survive rollback of the agent transaction.
 - HMAC keys are stored in the demo database for convenience.
 - The Credential Broker is implemented inside the demo FastAPI service and uses the admin database URL.
 - Cross-database federation is intentionally out of scope for this prototype.

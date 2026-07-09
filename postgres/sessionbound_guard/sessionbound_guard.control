@@ -1,0 +1,4 @@
+comment = 'SessionBound structural SQL guard hook'
+default_version = '0.1'
+module_pathname = '$libdir/sessionbound_guard'
+relocatable = true

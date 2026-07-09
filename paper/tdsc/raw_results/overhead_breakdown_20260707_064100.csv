@@ -1,0 +1,36 @@
+pattern,mode,supported,p50_ms,p95_ms,mean_ms,stddev_ms,rows_returned,error_count,reason
+Q1 SELECT,M0 Raw PostgreSQL,True,0.23324,0.293431,0.24268054,0.09310760932978786,10,0,
+Q1 SELECT,M1 Role-only read-only credential,True,0.241146,0.337909,0.2540562,0.09021200140857091,10,0,
+Q1 SELECT,M2 Safe-view-only,True,14.3334795,16.387673,14.484244429999999,0.9025182240159393,10,0,
+Q1 SELECT,M3 RLS-only,False,,,,,,,Not supported by current prototype.
+Q1 SELECT,M4 SessionBound without receipts,True,,,,,,100,
+Q1 SELECT,M5 SessionBound without budget updates,True,,,,,,100,
+Q1 SELECT,M6 SessionBound full,True,,,,,,100,
+Q2 JOIN,M0 Raw PostgreSQL,True,0.180423,0.27367,0.20106313,0.08259690540724332,10,0,
+Q2 JOIN,M1 Role-only read-only credential,True,0.20264500000000002,0.272449,0.2185904,0.09124800219807555,10,0,
+Q2 JOIN,M2 Safe-view-only,True,18.641448,19.919672,18.52287827,0.8775739576329036,10,0,
+Q2 JOIN,M3 RLS-only,False,,,,,,,Not supported by current prototype.
+Q2 JOIN,M4 SessionBound without receipts,True,,,,,,100,
+Q2 JOIN,M5 SessionBound without budget updates,True,,,,,,100,
+Q2 JOIN,M6 SessionBound full,True,,,,,,100,
+Q3 GROUP BY,M0 Raw PostgreSQL,True,0.2163655,0.450165,0.24982352,0.16801673672551076,24,0,
+Q3 GROUP BY,M1 Role-only read-only credential,True,0.221049,0.291058,0.22595204,0.08374218974840819,24,0,
+Q3 GROUP BY,M2 Safe-view-only,True,14.3137245,15.398811,14.36538794,0.8289373150333482,24,0,
+Q3 GROUP BY,M3 RLS-only,False,,,,,,,Not supported by current prototype.
+Q3 GROUP BY,M4 SessionBound without receipts,True,,,,,,100,
+Q3 GROUP BY,M5 SessionBound without budget updates,True,,,,,,100,
+Q3 GROUP BY,M6 SessionBound full,True,,,,,,100,
+Q4 CTE,M0 Raw PostgreSQL,True,0.1587955,0.252292,0.18333283,0.10111844521857077,21,0,
+Q4 CTE,M1 Role-only read-only credential,True,0.15990500000000002,0.314832,0.1929983,0.09254004302857223,21,0,
+Q4 CTE,M2 Safe-view-only,True,14.200218499999998,15.985451,14.405002569999999,0.9621778508038548,21,0,
+Q4 CTE,M3 RLS-only,False,,,,,,,Not supported by current prototype.
+Q4 CTE,M4 SessionBound without receipts,True,,,,,,100,
+Q4 CTE,M5 SessionBound without budget updates,True,,,,,,100,
+Q4 CTE,M6 SessionBound full,True,,,,,,100,
+Q5 window function,M0 Raw PostgreSQL,True,0.3676815,0.487306,0.38857425,0.11030834044308481,20,0,
+Q5 window function,M1 Role-only read-only credential,True,0.37471750000000004,0.466722,0.38308104,0.09889804591789668,20,0,
+Q5 window function,M2 Safe-view-only,True,14.948332,17.493421,15.2843366,1.166669076902195,20,0,
+Q5 window function,M3 RLS-only,False,,,,,,,Not supported by current prototype.
+Q5 window function,M4 SessionBound without receipts,True,,,,,,100,
+Q5 window function,M5 SessionBound without budget updates,True,,,,,,100,
+Q5 window function,M6 SessionBound full,True,,,,,,100,

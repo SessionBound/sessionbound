@@ -1,0 +1,255 @@
+{
+  "run_id": "1783224624",
+  "warmup": 10,
+  "measured": 60,
+  "variants": {
+    "Full SessionBound": {
+      "count": {
+        "p50_ms": 29.047456497210078,
+        "p95_ms": 34.53856300620828,
+        "mean_ms": 29.699347101025825,
+        "stddev_ms": 3.050967177908327,
+        "rows": 1,
+        "measurements": 60,
+        "errors": 0,
+        "error_samples": [],
+        "state": {
+          "task_id": "tdsc_ablation_1783224624_full_sessionbound_count_measured",
+          "budget_account": "tdsc_ablation_1783224624_full_sessionbound_count_measured",
+          "query_count": 60,
+          "returned_rows": 60,
+          "unique_expense_rows": 0,
+          "revoked": false
+        },
+        "receipt_count": 60,
+        "p50_delta_vs_full_pct": 0.0
+      },
+      "detail_25": {
+        "p50_ms": 30.945087994041387,
+        "p95_ms": 38.14903298916761,
+        "mean_ms": 31.82544513353302,
+        "stddev_ms": 4.595706464040213,
+        "rows": 25,
+        "measurements": 60,
+        "errors": 0,
+        "error_samples": [],
+        "state": {
+          "task_id": "tdsc_ablation_1783224624_full_sessionbound_detail_25_measured",
+          "budget_account": "tdsc_ablation_1783224624_full_sessionbound_detail_25_measured",
+          "query_count": 60,
+          "returned_rows": 1500,
+          "unique_expense_rows": 25,
+          "revoked": false
+        },
+        "receipt_count": 60,
+        "p50_delta_vs_full_pct": 0.0
+      },
+      "group_by": {
+        "p50_ms": 29.763812497549225,
+        "p95_ms": 34.71578500466421,
+        "mean_ms": 30.050987849972444,
+        "stddev_ms": 2.4968298093575325,
+        "rows": 10,
+        "measurements": 60,
+        "errors": 0,
+        "error_samples": [],
+        "state": {
+          "task_id": "tdsc_ablation_1783224624_full_sessionbound_group_by_measured",
+          "budget_account": "tdsc_ablation_1783224624_full_sessionbound_group_by_measured",
+          "query_count": 60,
+          "returned_rows": 600,
+          "unique_expense_rows": 0,
+          "revoked": false
+        },
+        "receipt_count": 60,
+        "p50_delta_vs_full_pct": 0.0
+      }
+    },
+    "Receipts off": {
+      "count": {
+        "p50_ms": 31.400789506733418,
+        "p95_ms": 41.37986099522095,
+        "mean_ms": 32.71411456541197,
+        "stddev_ms": 4.240678234943382,
+        "rows": 1,
+        "measurements": 60,
+        "errors": 0,
+        "error_samples": [],
+        "state": {
+          "task_id": "tdsc_ablation_1783224624_receipts_off_count_measured",
+          "budget_account": "tdsc_ablation_1783224624_receipts_off_count_measured",
+          "query_count": 60,
+          "returned_rows": 60,
+          "unique_expense_rows": 0,
+          "revoked": false
+        },
+        "receipt_count": 0,
+        "p50_delta_vs_full_pct": 8.101683566509069
+      },
+      "detail_25": {
+        "p50_ms": 31.573427499097306,
+        "p95_ms": 41.252041002735496,
+        "mean_ms": 33.19089300154398,
+        "stddev_ms": 5.576348524580177,
+        "rows": 25,
+        "measurements": 60,
+        "errors": 0,
+        "error_samples": [],
+        "state": {
+          "task_id": "tdsc_ablation_1783224624_receipts_off_detail_25_measured",
+          "budget_account": "tdsc_ablation_1783224624_receipts_off_detail_25_measured",
+          "query_count": 60,
+          "returned_rows": 1500,
+          "unique_expense_rows": 25,
+          "revoked": false
+        },
+        "receipt_count": 0,
+        "p50_delta_vs_full_pct": 2.030498362702697
+      },
+      "group_by": {
+        "p50_ms": 33.55941700283438,
+        "p95_ms": 42.75824599608313,
+        "mean_ms": 34.388408816691175,
+        "stddev_ms": 4.941104303565539,
+        "rows": 10,
+        "measurements": 60,
+        "errors": 0,
+        "error_samples": [],
+        "state": {
+          "task_id": "tdsc_ablation_1783224624_receipts_off_group_by_measured",
+          "budget_account": "tdsc_ablation_1783224624_receipts_off_group_by_measured",
+          "query_count": 60,
+          "returned_rows": 600,
+          "unique_expense_rows": 0,
+          "revoked": false
+        },
+        "receipt_count": 0,
+        "p50_delta_vs_full_pct": 12.75241370908948
+      }
+    },
+    "Budget accounting off": {
+      "count": {
+        "p50_ms": 30.85899299912853,
+        "p95_ms": 39.4113600050332,
+        "mean_ms": 31.594107016523292,
+        "stddev_ms": 3.678374194206099,
+        "rows": 1,
+        "measurements": 60,
+        "errors": 0,
+        "error_samples": [],
+        "state": {
+          "task_id": "tdsc_ablation_1783224624_budget_accounting_off_count_measured",
+          "budget_account": "tdsc_ablation_1783224624_budget_accounting_off_count_measured",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "revoked": false
+        },
+        "receipt_count": 60,
+        "p50_delta_vs_full_pct": 6.236472037035141
+      },
+      "detail_25": {
+        "p50_ms": 29.35634149616817,
+        "p95_ms": 34.59360399574507,
+        "mean_ms": 29.735241964954184,
+        "stddev_ms": 2.4775519471982874,
+        "rows": 25,
+        "measurements": 60,
+        "errors": 0,
+        "error_samples": [],
+        "state": {
+          "task_id": "tdsc_ablation_1783224624_budget_accounting_off_detail_25_measured",
+          "budget_account": "tdsc_ablation_1783224624_budget_accounting_off_detail_25_measured",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "revoked": false
+        },
+        "receipt_count": 60,
+        "p50_delta_vs_full_pct": -5.13408298654422
+      },
+      "group_by": {
+        "p50_ms": 30.421334493439645,
+        "p95_ms": 39.910081002744846,
+        "mean_ms": 31.949314449108595,
+        "stddev_ms": 4.292292040225436,
+        "rows": 10,
+        "measurements": 60,
+        "errors": 0,
+        "error_samples": [],
+        "state": {
+          "task_id": "tdsc_ablation_1783224624_budget_accounting_off_group_by_measured",
+          "budget_account": "tdsc_ablation_1783224624_budget_accounting_off_group_by_measured",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "revoked": false
+        },
+        "receipt_count": 60,
+        "p50_delta_vs_full_pct": 2.2091323009932307
+      }
+    },
+    "Receipts and budget off": {
+      "count": {
+        "p50_ms": 30.22119399975054,
+        "p95_ms": 37.28030499769375,
+        "mean_ms": 31.54975531724631,
+        "stddev_ms": 5.714203873980508,
+        "rows": 1,
+        "measurements": 60,
+        "errors": 0,
+        "error_samples": [],
+        "state": {
+          "task_id": "tdsc_ablation_1783224624_receipts_and_budget_off_count_measured",
+          "budget_account": "tdsc_ablation_1783224624_receipts_and_budget_off_count_measured",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "revoked": false
+        },
+        "receipt_count": 0,
+        "p50_delta_vs_full_pct": 4.040758276557521
+      },
+      "detail_25": {
+        "p50_ms": 30.033277995244134,
+        "p95_ms": 36.009319010190666,
+        "mean_ms": 30.16783506585246,
+        "stddev_ms": 3.018387974521947,
+        "rows": 25,
+        "measurements": 60,
+        "errors": 0,
+        "error_samples": [],
+        "state": {
+          "task_id": "tdsc_ablation_1783224624_receipts_and_budget_off_detail_25_measured",
+          "budget_account": "tdsc_ablation_1783224624_receipts_and_budget_off_detail_25_measured",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "revoked": false
+        },
+        "receipt_count": 0,
+        "p50_delta_vs_full_pct": -2.9465419486699336
+      },
+      "group_by": {
+        "p50_ms": 27.781279510236345,
+        "p95_ms": 32.411526000942104,
+        "mean_ms": 28.152507899843233,
+        "stddev_ms": 2.1705560064092304,
+        "rows": 10,
+        "measurements": 60,
+        "errors": 0,
+        "error_samples": [],
+        "state": {
+          "task_id": "tdsc_ablation_1783224624_receipts_and_budget_off_group_by_measured",
+          "budget_account": "tdsc_ablation_1783224624_receipts_and_budget_off_group_by_measured",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "revoked": false
+        },
+        "receipt_count": 0,
+        "p50_delta_vs_full_pct": -6.660883875263368
+      }
+    }
+  }
+}

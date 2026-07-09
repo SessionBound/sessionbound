@@ -120,6 +120,10 @@ SELECT * FROM taskbound.inspect_task_state();
 SELECT * FROM taskbound.receipts();
 ```
 
+Agents normally use the SDK-facing `TaskboundSession.query(sql)` method, which
+wraps the supplied SQL in the `taskbound.run(sql)` accounting entrypoint. Runtime
+credentials are not granted bare `SELECT` on safe views.
+
 The runtime checks:
 
 - task token signature;

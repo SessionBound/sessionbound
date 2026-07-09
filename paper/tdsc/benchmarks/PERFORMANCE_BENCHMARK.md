@@ -1,0 +1,92 @@
+# Performance Benchmark
+
+Status: early benchmark completed; superseded for TDSC claims by the overhead
+breakdown and scale/concurrency reports under `paper/tdsc/experiments/`.
+
+Raw results:
+
+```text
+paper/tdsc/experiments/raw_results/performance_1783221625.json
+paper/tdsc/experiments/raw_results/scale_1783224892.json
+```
+
+## Environment
+
+- Date: 2026-06-25
+- Commit under test: `cb2d4ca`
+- Runtime: Docker Compose
+- PostgreSQL: PostgreSQL 16.14 (Debian 16.14-1.pgdg13+1), 64-bit
+- API container: FastAPI/uvicorn image built from `app/`
+- Warmup iterations: 10
+- Measurement iterations: 100
+
+## Baseline
+
+Baseline option used:
+
+1. Admin/test role executes equivalent SQL over raw `app_data` tables with equivalent tenant/month predicates.
+
+The raw baseline queries include:
+
+```sql
+WHERE e.tenant_id = 'company_a'
+  AND e.expense_month = '2026-06'
+```
+
+SessionBound queries execute through:
+
+```sql
+SELECT * FROM taskbound.run($SQL)
+```
+
+after binding a signed task token with:
+
+```sql
+SELECT taskbound.bind_task($payload_text, $signature)
+```
+
+The benchmark intentionally excludes HTTP latency and dynamic credential creation. It measures database execution overhead for the SessionBound runtime path: SQL validation, session claim enforcement, safe views, budget accounting, row-exposure tracking, and receipt writes.
+
+## Performance Table
+
+| Query Pattern | Raw PG p50 | SessionBound p50 | Overhead | Rows | Notes |
+|---|---:|---:|---:|---:|---|
+| SELECT | 0.063 ms | 1.434 ms | 2168.4% | 3 | p95 raw 0.142 ms; p95 SessionBound 1.760 ms |
+| JOIN | 0.060 ms | 1.503 ms | 2408.0% | 3 | p95 raw 0.135 ms; p95 SessionBound 1.752 ms |
+| GROUP BY | 0.066 ms | 1.450 ms | 2088.7% | 3 | p95 raw 0.139 ms; p95 SessionBound 1.709 ms |
+| CTE | 0.052 ms | 1.457 ms | 2702.8% | 1 | p95 raw 0.102 ms; p95 SessionBound 1.694 ms |
+| Window | 0.074 ms | 1.500 ms | 1937.5% | 5 | p95 raw 0.157 ms; p95 SessionBound 1.814 ms |
+
+## Interpretation
+
+The older measured absolute SessionBound p50 latency is approximately 1.4-1.5
+ms for these small synthetic queries. Relative overhead is high because the raw
+PostgreSQL baseline is extremely small, roughly 0.052-0.074 ms p50. The TDSC
+manuscript uses the later overhead breakdown and scale sweep as its current
+artifact-backed performance evidence.
+
+The likely overhead sources are:
+
+- PL/pgSQL `taskbound.run(sql)` wrapper execution;
+- SQL text policy checks;
+- task-session lookup;
+- safe-view execution through session claims;
+- query budget updates;
+- unique row exposure accounting;
+- receipt insertion.
+
+These early results should not be generalized to larger datasets. The
+TDSC experiment pass adds a separate 1k/10k/100k scoped-row scale
+sweep under `paper/tdsc/experiments/raw_results/scale_1783224892.json`,
+which shows substantial scale-sensitive overhead in the current PL/pgSQL
+prototype.
+
+## Reproduction
+
+For the current TDSC performance and scale scripts, use the commands in
+`paper/tdsc/experiments/README.md`. With Docker services running, the current
+performance command is:
+
+```bash
+docker compose exec -T api sh -lc 'TDSC_OUT_DIR=/tmp/tdsc_experiments/raw_results TDSC_BASE_URL=http://127.0.0.1:8000 python /tmp/tdsc_experiments/scripts/tdsc_performance_eval.py'
+```

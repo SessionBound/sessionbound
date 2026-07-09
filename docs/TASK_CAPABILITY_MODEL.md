@@ -32,7 +32,7 @@ It is:
 - **field-bounded**: denies sensitive fields even if the user may normally access related objects;
 - **row-bounded**: applies tenant, department, month, or other task scopes;
 - **budgeted**: limits queries, rows, and cumulative disclosure;
-- **auditable**: produces receipts for allowed and denied attempts;
+- **auditable**: produces receipts for evaluated allowed executions and bound-runtime denial decisions;
 - **database-enforced**: checked where the data is accessed, not only in application code.
 
 ## Example

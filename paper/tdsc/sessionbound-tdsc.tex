@@ -1,0 +1,1943 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+% Current TDSC draft.
+\documentclass[journal]{IEEEtran}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={SessionBound: Database-Enforced Task-Bound Sessions for Enterprise AI Agents},
+  pdfauthor={Minmin Wu},
+  pdfkeywords={AI agents, access control, database security, dependable computing, secure computing, authorization, SQL security, data governance, auditability},
+  hidelinks,
+  pdfcreator={LaTeX with IEEEtran}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+  commandchars=\\\{\},
+  fontsize=\scriptsize
+}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{#1}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{#1}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{#1}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{#1}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{#1}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{#1}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{#1}}
+\usepackage{longtable,booktabs,array}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\newcounter{algorithm}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{3}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{SessionBound: Database-Enforced Task-Bound Sessions for
+Enterprise AI Agents}
+\author{Minmin~Wu\\
+China Telecom Global Limited\\
+\href{mailto:wuminmin@chinatelecomglobal.com}{wuminmin@chinatelecomglobal.com}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+Enterprise AI agents can write useful exploratory SQL for audit,
+compliance, and operational analysis, but raw database access is too
+broad and fixed SaaS screens are too rigid. SessionBound bridges this
+gap by turning an approved business task into a short-lived, budgeted,
+and auditable database session. A control plane defines task templates,
+applications, approvals, TTLs, budgets, and signed task tokens; a
+database runtime, SessionBoundDB, binds the token to an agent session and
+enforces safe views, row scope, denied fields, read-only SQL policy,
+query/disclosure budgets, and receipts.
+
+The prototype is implemented over PostgreSQL with API-layer AST
+preflight and an experimental parse/analyze hook path. Evaluation
+validates 24 of 24 canonical scenarios and a 28-case adversarial SQL
+suite with 22 blocked cases, 5 allowed safe-view analytical cases, and 1
+known limitation. On the default synthetic seed, full SessionBound p50
+latency is 14.6--18.6 ms across representative query patterns; a 100k-row
+scale sweep exposes multi-second latency in the PL/pgSQL wrapper path,
+while hook-only structural checks are 0.130--0.169 ms p50, indicating a
+wrapper materialization/accounting bottleneck rather than parse/analyze
+guard cost.
+
+SessionBound is not a replacement for RLS, ABAC, delegation, data
+catalogs, or differential privacy. It composes database-side enforcement
+with a task-control-plane contract: business users approve tasks, agents
+generate SQL, and the database decides whether each attempt stays inside
+the approved boundary. Code, synthetic data, validation reports,
+benchmark outputs, and LaTeX source are available at
+\url{https://github.com/SessionBound/sessionbound}.
+\end{abstract}
+
+\begin{IEEEkeywords}
+AI agents, access control, database security, dependable computing,
+secure computing, authorization, SQL security, data governance,
+auditability.
+\end{IEEEkeywords}
+
+\hypertarget{introduction}{%
+\section{Introduction}\label{introduction}}
+
+AI agents change how enterprise users interact with data. A user no
+longer needs to know which report exists, which dashboard to open, or
+which API endpoint to call. Instead, the user can ask an agent:
+
+\begin{quote}
+Analyze June 2026 travel reimbursements for the Sales department. Find
+unusual merchants, repeated claims, employee-level monthly totals, and
+claims near approval thresholds. Exclude salary and bank data.
+\end{quote}
+
+This is exactly the kind of task agents are good at: temporary,
+exploratory, cross-table, and under-specified. It is also exactly the
+kind of task traditional enterprise software handles poorly. Building a
+permanent SaaS page or API for every low-frequency internal analysis
+task is expensive. Giving the agent raw database access is unsafe.
+Relying on prompts is not a security boundary. Relying on the
+application layer alone becomes fragile when SQL is generated
+dynamically.
+
+Existing systems cover important pieces: delegated identity and OAuth
+scopes~\cite{rfc6749,south2025authenticateddelegation}, task-scoped tool
+authorization~\cite{sharma2026pauth}, data-product
+governance~\cite{tonnarelli2026dataproductmcp,mcp2025specification},
+database-native policy enforcement~\cite{postgresql2026rowsecurity,oracle2026vpd,oracle2026deepdatasecuritydocs},
+and large-scale relationship authorization~\cite{pang2019zanzibar}.
+They do not, by themselves, turn one approved analytical task into a
+temporary SQL session with safe views, denied fields, budgets, and
+receipts. That is the gap SessionBound addresses.
+
+This paper argues for the following principle: business users approve
+tasks, not database policies. Agents generate SQL, but databases enforce
+the approved boundary. This paper frames the problem as a
+database-enforced authorization boundary for enterprise AI agents,
+rather than as an agent-planning or multi-agent coordination problem.
+
+SessionBound separates three concerns.
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Task control plane. Defines task templates, accepts task
+  applications, evaluates grants and approvals, assigns budgets and
+  TTLs, and signs task tokens.
+\item
+  Agent execution. Lets an LLM-powered agent decide what SQL to
+  try, which hypotheses to test, and how to construct a temporary
+  workspace.
+\item
+  Database runtime. Binds the signed task token to a database
+  session and enforces safe views, scope, denied fields, operation
+  limits, query budgets, disclosure budgets, and receipts.
+\end{enumerate}
+
+The central design rule is that agents may explore only within a
+structured boundary that the database enforces deterministically.
+
+This makes SessionBound a contract layer between enterprise approval and
+agentic database execution. The control plane records what the
+organization approved; the runtime enforces how that approval may be
+spent through SQL. This contract is not a database policy written by a
+DBA, nor a natural-language instruction interpreted by an LLM. It is a
+structured, signed, and accountable representation of an approved
+business task that both the agent runtime and the database can interpret
+deterministically.
+
+SessionBoundDB is our PostgreSQL-based reference runtime for
+SessionBound. It does not ask an LLM whether a query is safe. It does
+not depend on the agent correctly interpreting the task. It does not
+trust mutable session variables set by the agent. Instead, it validates
+a signed task token, exposes only registered safe views, rejects raw
+table access and denied fields, tracks query and disclosure budgets, and
+records receipts for evaluated allowed executions and bound-runtime
+denial decisions.
+
+For compatibility with the existing demo implementation, the PostgreSQL
+prototype currently keeps the SQL schema name \texttt{taskbound}.
+
+The novelty is not any single primitive. It is the binding of task
+approval, credential identity, safe-view versioning, SQL surface,
+cumulative disclosure budget, and receipt semantics into one
+database-execution session object: enterprise task approval is compiled
+into an execution-time database session contract rather than scattered
+across separate credentials, views, policies, and audit logs.
+
+\hypertarget{contributions}{%
+\subsection{Contributions}\label{contributions}}
+
+This paper makes five contributions.
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  Enterprise task approval as the missing layer. We identify a
+  gap between agent delegation and database enforcement: real
+  enterprises approve tasks, scopes, and budgets above the database, but
+  need those approvals translated into database-enforceable execution
+  boundaries.
+\item
+  SessionBound control plane. We propose a task control plane
+  with task templates, task applications, task approvals, grants, TTLs,
+  budgets, and signed task tokens. This control plane lets business and
+  data-governance workflows define what work is authorized without
+  requiring managers to write database policies.
+\item
+  Budgeted database sessions. We define a database session
+  model in which an approved task token binds an agent to safe views,
+  row scope, denied fields, allowed operations, TTL, query budget,
+  disclosure budget, and audit receipt policy.
+\item
+  LLM-independent enforcement for open-ended SQL.
+  SessionBoundDB allows agents to generate SQL freely inside a boundary,
+  but the database enforces that boundary deterministically. The
+  database does not parse the natural-language task and does not rely on
+  an LLM to judge safety at query time.
+\item
+  PostgreSQL prototype and evaluation. We implement SessionBoundDB,
+  validate canonical and adversarial SQL scenarios, measure overhead, and
+  analyze the hardening path from the current wrapper/hook prototype to
+  production planner or executor integration.
+\end{enumerate}
+
+
+\hypertarget{motivation-enterprise-tasks-are-approved-above-the-database}{%
+\section{Motivation: Enterprise Tasks Are Approved Above the
+Database}\label{motivation-enterprise-tasks-are-approved-above-the-database}}
+
+SessionBound targets temporary enterprise analysis that is too specific
+for a permanent application screen and too sensitive for raw database
+access: reimbursement audits, vendor-concentration checks, compliance-log
+reviews, or operational investigations. These tasks need joins,
+aggregation, ranking, drill-down, and follow-up SQL, but the exact query
+plan is not known when the task is approved.
+
+Consider one running example. A business user requests:
+
+\begin{samepage}
+\begin{quote}
+\footnotesize
+\textbf{Task type:} monthly expense anomaly review\\
+\textbf{Scope:} June 2026, Sales department\\
+\textbf{Purpose:} travel reimbursement audit\\
+\textbf{Sensitivity:} exclude salary, phone, and bank account fields\\
+\textbf{Budget:} 20 SQL attempts, 5,000 result rows, bounded entity exposure\\
+\textbf{TTL:} 30 minutes
+\end{quote}
+\end{samepage}
+
+A manager or data owner can approve this task without writing RLS
+predicates or database grants. A data platform can expose safe views. A
+compliance policy can tighten budgets. The agent can then generate SQL
+inside the approved boundary, while the database rejects raw tables,
+denied fields, unsafe operations, and over-budget attempts.
+
+\begin{verbatim}
+Business users approve tasks.
+Data platforms register safe views.
+Control planes sign task tokens.
+Databases enforce boundaries.
+Agents explore freely inside
+those boundaries.
+\end{verbatim}
+
+
+\hypertarget{threat-model}{%
+\section{Threat Model}\label{threat-model}}
+
+SessionBound assumes the upper-layer agent is useful but not trusted.
+The agent may be confused, overconfident, prompt-injected, malicious, or
+simply wrong. The database boundary must remain meaningful even when the
+agent tries the wrong thing.
+
+\hypertarget{trusted-components}{%
+\subsection{Trusted components}\label{trusted-components}}
+
+For this prototype, we trust:
+
+\begin{itemize}
+\tightlist
+\item
+  the task control plane that defines templates, evaluates grants,
+  records approvals, and signs task tokens;
+\item
+  the credential broker that issues short-lived database credentials;
+\item
+  the database runtime that validates tokens and enforces policies;
+\item
+  the cryptographic signing key or signing service used for task tokens;
+\item
+  the integrity of registered safe views and runtime functions.
+\end{itemize}
+
+In production, the signing path should be backed by a KMS, JWKS,
+hardware-backed key service, or enterprise identity infrastructure. The
+prototype uses a simpler signing path for demonstration.
+
+\hypertarget{untrusted-or-partially-trusted-components}{%
+\subsection{Untrusted or partially trusted
+components}\label{untrusted-or-partially-trusted-components}}
+
+We do not trust:
+
+\begin{itemize}
+\tightlist
+\item
+  the agent's prompt;
+\item
+  the agent's reasoning;
+\item
+  the agent's SQL generation;
+\item
+  the agent's natural-language interpretation of the task;
+\item
+  user-provided or database-provided text that may contain prompt
+  injection;
+\item
+  ordinary client-controlled session variables;
+\item
+  application-layer filtering as the final boundary.
+\end{itemize}
+
+This is the main difference from designs that require an LLM to infer
+the precise intended operation from natural language. SessionBound does
+not ask the database to understand the user's natural-language intent.
+The database consumes structured claims from a signed token.
+
+\hypertarget{in-scope-threats}{%
+\subsection{In-scope threats}\label{in-scope-threats}}
+
+SessionBoundDB is designed to mitigate:
+
+\begin{itemize}
+\tightlist
+\item
+  Sensitive field access: attempts to read salary, bank
+  account, phone, identity number, credentials, or private notes.
+\item
+  Raw table access: attempts to bypass safe views and query
+  application schemas directly.
+\item
+  Scope escape: attempts to read other tenants, months,
+  departments, projects, or users.
+\item
+  Unauthorized mutations: write, DDL, or other high-impact operations
+  outside controlled commands.
+\item
+  Prompt injection effects: data or user text instructs the
+  agent to ignore policy or reveal secrets.
+\item
+  Budget evasion: repeated queries, pagination, or alternate
+  SQL forms attempt to disclose more detail rows than the task allows.
+\item
+  Credential-token mismatch: attempts to combine one runtime
+  credential with another task token.
+\end{itemize}
+
+\hypertarget{out-of-scope}{%
+\subsection{Out of scope}\label{out-of-scope}}
+
+The prototype does not solve:
+
+\begin{itemize}
+\tightlist
+\item
+  malicious database administrators;
+\item
+  compromised database host operating systems;
+\item
+  compromised signing infrastructure;
+\item
+  side-channel attacks;
+\item
+  complete formal verification of SQL equivalence;
+\item
+  production-grade planner/executor-level SQL enforcement;
+\item
+  cross-database federation;
+\item
+  full differential privacy for statistical releases;
+\item
+  arbitrary semantic inference across all allowed query answers.
+\end{itemize}
+
+SessionBound reduces and accounts for what an agent can discover. It
+does not claim to eliminate all inference.
+
+
+\hypertarget{sessionbound-model}{%
+\section{SessionBound Model}\label{sessionbound-model}}
+
+SessionBound has two major layers: a task control plane and a database
+runtime. Figure~\ref{fig:sessionbound-architecture} shows the main
+SessionBound control-plane and runtime boundary.
+
+\begin{figure*}[t]
+\centering
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=9mm and 14mm,
+  box/.style={
+    draw,
+    rounded corners,
+    align=center,
+    minimum width=32mm,
+    minimum height=9mm,
+    font=\small
+  },
+  smallbox/.style={
+    draw,
+    rounded corners,
+    align=center,
+    minimum width=31mm,
+    minimum height=8mm,
+    font=\scriptsize
+  },
+  arrow/.style={-{Latex[length=2mm]}, thick},
+  edgelabel/.style={font=\tiny, fill=white, inner sep=1pt}
+]
+\node[box] (business) {Business User\\Manager / Data Owner};
+\node[box, right=of business] (control) {SessionBound\\Control Plane};
+\node[box, right=of control] (token) {Signed\\Task Token};
+
+\node[smallbox, above=of control] (template) {Task Templates\\Applications\\Approvals\\Budgets};
+
+\node[box, below=18mm of control] (runtime) {SessionBoundDB\\Runtime};
+\node[box, left=of runtime] (data) {Enterprise\\Data};
+\node[box, right=of runtime] (agent) {AI Agent\\Generates SQL};
+
+\node[smallbox, below=of runtime] (enforce) {Safe Views\\Denied Fields\\Budgets\\Receipts};
+
+\draw[arrow] (business) -- node[above, edgelabel]{applies / approves} (control);
+\draw[arrow] (control) -- node[above, edgelabel]{issues} (token);
+\draw[arrow] (token) -- node[right, edgelabel]{binds session} (agent);
+\draw[arrow] (agent) -- node[above, edgelabel]{SQL attempts} (runtime);
+\draw[arrow] (runtime) -- node[above, edgelabel]{bounded access} (data);
+\draw[arrow] (template) -- (control);
+\draw[arrow] (runtime) -- (enforce);
+\end{tikzpicture}
+}
+\caption{SessionBound architecture. The control plane turns enterprise task approval into a signed task token; the agent may generate SQL freely, but SessionBoundDB enforces safe views, denied fields, budgets, and receipts inside the database session.}
+\label{fig:sessionbound-architecture}
+\end{figure*}
+
+\hypertarget{task-template}{%
+\subsection{Task template}\label{task-template}}
+
+A task template is defined by a data platform or application team. It
+describes a class of work that can be safely delegated to agents once
+scoped and approved.
+
+Example:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"task\_type"}\FunctionTok{:} \StringTok{"monthly\_expense\_anomaly\_review"}\FunctionTok{,}
+  \DataTypeTok{"purpose"}\FunctionTok{:} \StringTok{"travel\_reimbursement\_audit"}\FunctionTok{,}
+  \DataTypeTok{"allowed\_views"}\FunctionTok{:} \OtherTok{[}\StringTok{"expenses"}\OtherTok{,} \StringTok{"employees"}\OtherTok{,} \StringTok{"departments"}\OtherTok{]}\FunctionTok{,}
+  \DataTypeTok{"denied\_columns"}\FunctionTok{:} \OtherTok{[}
+    \StringTok{"employees.salary"}\OtherTok{,}
+    \StringTok{"employees.bank\_account"}\OtherTok{,}
+    \StringTok{"employees.phone"}
+  \OtherTok{]}\FunctionTok{,}
+  \DataTypeTok{"required\_scope"}\FunctionTok{:} \OtherTok{[}\StringTok{"tenant\_id"}\OtherTok{,} \StringTok{"expense\_month"}\OtherTok{,} \StringTok{"department\_id"}\OtherTok{]}\FunctionTok{,}
+  \DataTypeTok{"allowed\_operations"}\FunctionTok{:} \OtherTok{[}\StringTok{"SELECT"}\OtherTok{]}\FunctionTok{,}
+  \DataTypeTok{"default\_ttl\_minutes"}\FunctionTok{:} \DecValTok{30}\FunctionTok{,}
+  \DataTypeTok{"default\_budget"}\FunctionTok{:} \FunctionTok{\{}
+    \DataTypeTok{"max\_queries"}\FunctionTok{:} \DecValTok{20}\FunctionTok{,}
+    \DataTypeTok{"max\_result\_rows"}\FunctionTok{:} \DecValTok{5000}\FunctionTok{,}
+    \DataTypeTok{"max\_unique\_entities"}\FunctionTok{:} \FunctionTok{\{}
+      \DataTypeTok{"expense\_id"}\FunctionTok{:} \DecValTok{5000}\FunctionTok{,}
+      \DataTypeTok{"employee\_id"}\FunctionTok{:} \DecValTok{200}
+    \FunctionTok{\}}
+  \FunctionTok{\}}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+The template is not generated by the agent. It is part of enterprise
+governance.
+
+\hypertarget{task-application}{%
+\subsection{Task application}\label{task-application}}
+
+A task application is a concrete request to perform work under a
+template.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"task\_type"}\FunctionTok{:} \StringTok{"monthly\_expense\_anomaly\_review"}\FunctionTok{,}
+  \DataTypeTok{"requested\_by"}\FunctionTok{:} \StringTok{"user:alice"}\FunctionTok{,}
+  \DataTypeTok{"actor"}\FunctionTok{:} \StringTok{"agent:travel{-}expense{-}analyst"}\FunctionTok{,}
+  \DataTypeTok{"scope"}\FunctionTok{:} \FunctionTok{\{}
+    \DataTypeTok{"tenant\_id"}\FunctionTok{:} \StringTok{"company\_a"}\FunctionTok{,}
+    \DataTypeTok{"expense\_month"}\FunctionTok{:} \StringTok{"2026{-}06"}\FunctionTok{,}
+    \DataTypeTok{"department\_id"}\FunctionTok{:} \StringTok{"dep\_sales"}
+  \FunctionTok{\},}
+  \DataTypeTok{"reason"}\FunctionTok{:} \StringTok{"Review unusual travel reimbursement patterns."}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{task-approval}{%
+\subsection{Task approval}\label{task-approval}}
+
+A task approval evaluates whether the requester may run this task with
+this scope and budget. Approval may be automatic, role-based, or manual.
+For sensitive tasks, a manager, data owner, or compliance reviewer may
+approve it.
+
+The approval does not require the approver to write SQL policies. It
+decides whether this scoped task should exist.
+
+\hypertarget{task-token}{%
+\subsection{Task token}\label{task-token}}
+
+A signed task token is the structured authorization object consumed by
+the database runtime.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"task\_id"}\FunctionTok{:} \StringTok{"task\_456"}\FunctionTok{,}
+  \DataTypeTok{"task\_type"}\FunctionTok{:} \StringTok{"monthly\_expense\_anomaly\_review"}\FunctionTok{,}
+  \DataTypeTok{"delegator"}\FunctionTok{:} \StringTok{"user:alice"}\FunctionTok{,}
+  \DataTypeTok{"actor"}\FunctionTok{:} \StringTok{"agent:travel{-}expense{-}analyst"}\FunctionTok{,}
+  \DataTypeTok{"credential\_id"}\FunctionTok{:} \StringTok{"cred\_123"}\FunctionTok{,}
+  \DataTypeTok{"tenant\_id"}\FunctionTok{:} \StringTok{"company\_a"}\FunctionTok{,}
+  \DataTypeTok{"purpose"}\FunctionTok{:} \StringTok{"travel\_reimbursement\_audit"}\FunctionTok{,}
+  \DataTypeTok{"allowed\_views"}\FunctionTok{:} \OtherTok{[}\StringTok{"expenses"}\OtherTok{,} \StringTok{"employees"}\OtherTok{,} \StringTok{"departments"}\OtherTok{]}\FunctionTok{,}
+  \DataTypeTok{"denied\_columns"}\FunctionTok{:} \OtherTok{[}
+    \StringTok{"employees.salary"}\OtherTok{,}
+    \StringTok{"employees.bank\_account"}\OtherTok{,}
+    \StringTok{"employees.phone"}
+  \OtherTok{]}\FunctionTok{,}
+  \DataTypeTok{"row\_scope"}\FunctionTok{:} \FunctionTok{\{}
+    \DataTypeTok{"expense\_month"}\FunctionTok{:} \StringTok{"2026{-}06"}\FunctionTok{,}
+    \DataTypeTok{"department\_id"}\FunctionTok{:} \StringTok{"dep\_sales"}
+  \FunctionTok{\},}
+  \DataTypeTok{"operations"}\FunctionTok{:} \OtherTok{[}\StringTok{"SELECT"}\OtherTok{]}\FunctionTok{,}
+  \DataTypeTok{"budget"}\FunctionTok{:} \FunctionTok{\{}
+    \DataTypeTok{"max\_queries"}\FunctionTok{:} \DecValTok{20}\FunctionTok{,}
+    \DataTypeTok{"max\_result\_rows"}\FunctionTok{:} \DecValTok{5000}\FunctionTok{,}
+    \DataTypeTok{"max\_unique\_entities"}\FunctionTok{:} \FunctionTok{\{}
+      \DataTypeTok{"expense\_id"}\FunctionTok{:} \DecValTok{5000}\FunctionTok{,}
+      \DataTypeTok{"employee\_id"}\FunctionTok{:} \DecValTok{200}
+    \FunctionTok{\}}
+  \FunctionTok{\},}
+  \DataTypeTok{"safe\_view\_registry\_version"}\FunctionTok{:} \StringTok{"travel{-}demo{-}v1"}\FunctionTok{,}
+  \DataTypeTok{"policy\_version"}\FunctionTok{:} \StringTok{"expense{-}review{-}v1"}\FunctionTok{,}
+  \DataTypeTok{"audience"}\FunctionTok{:} \StringTok{"sessionbounddb"}\FunctionTok{,}
+  \DataTypeTok{"expires\_at"}\FunctionTok{:} \StringTok{"2026{-}06{-}24T10:30:00Z"}\FunctionTok{,}
+  \DataTypeTok{"nonce"}\FunctionTok{:} \StringTok{"..."}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{budgeted-database-session}{%
+\subsection{Budgeted database
+session}\label{budgeted-database-session}}
+
+A budgeted database session is a database session bound to one active
+task token. The session may issue open-ended SQL, but every attempt is
+checked against the token, safe view registry, operation policy, and
+remaining budget.
+
+In the current prototype, a direct database connection may issue native
+\texttt{SELECT} over approved safe views after binding a signed task
+token. The PostgreSQL extension checks SQL shape and safe-view OIDs,
+then executor accounting counts rows and disclosed \texttt{expense\_id}
+values before tuples are released. The same path covers SDK
+\texttt{query(sql)}, bound direct \texttt{SELECT}, prepared statements,
+cursor/\texttt{FETCH}, \texttt{COPY (SELECT)}, and non-\texttt{ANALYZE}
+\texttt{EXPLAIN}. Raw table \texttt{SELECT} remains ungranted; schema
+resolution is allowed only so the hook can fail closed and emit receipts.
+Pooled connections can rebind only with a fresh valid token and can call
+\texttt{unbind\_task()} at check-in.
+
+
+\hypertarget{control-plane-templates-applications-approvals-and-budgets}{%
+\section{Control Plane: Templates, Applications, Approvals, and
+Budgets}\label{control-plane-templates-applications-approvals-and-budgets}}
+
+The control plane is the SaaS-like layer that makes SessionBound
+realistic for enterprises. This is where SessionBound differs most
+clearly from database-only security systems.
+
+\hypertarget{business-users-approve-tasks-not-policies}{%
+\subsection{Business users approve tasks, not
+policies}\label{business-users-approve-tasks-not-policies}}
+
+A data owner should see:
+
+\begin{verbatim}
+Alice requests a June Sales
+travel reimbursement anomaly review.
+Scope: Sales department, June 2026.
+Denied: salary, bank account, phone.
+Budget: 20 queries, bounded
+entity exposure.
+TTL: 30 minutes.
+\end{verbatim}
+
+The data owner should not see:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{CREATE}\NormalTok{ POLICY }\OperatorTok{..}\NormalTok{.}
+\KeywordTok{ALTER} \KeywordTok{ROLE} \OperatorTok{..}\NormalTok{.}
+\KeywordTok{GRANT} \KeywordTok{SELECT} \KeywordTok{ON} \OperatorTok{..}\NormalTok{.}
+\end{Highlighting}
+\end{Shaded}
+
+The control plane converts the business approval into a signed token
+that the runtime can enforce.
+
+\hypertarget{grants-and-eligibility}{%
+\subsection{Grants and
+eligibility}\label{grants-and-eligibility}}
+
+Roles do not grant direct database access. They grant eligibility to
+request task templates. For example, a finance reviewer may be eligible
+to request finance-review tasks; a department manager may be eligible to
+request department-scoped analysis tasks.
+
+This avoids broad database roles such as:
+
+\begin{verbatim}
+finance_user can access all finance tables
+\end{verbatim}
+
+Instead, the database sees a concrete task token: agent X may analyze
+June 2026 Sales reimbursements using views A, B, C under budget Y.
+
+\hypertarget{budget-assignment}{%
+\subsection{Budget assignment}\label{budget-assignment}}
+
+Budget assignment is a control-plane decision. A low-risk task might
+receive a larger aggregate budget; a sensitive task may receive a small
+detail-row budget and a short TTL. Budgets can be adjusted by role, data
+classification, task purpose, and approval route.
+
+The database runtime enforces the budget; the control plane decides what
+budget is appropriate.
+
+
+\hypertarget{sessionbounddb-runtime}{%
+\section{SessionBoundDB Runtime}\label{sessionbounddb-runtime}}
+
+SessionBoundDB is the PostgreSQL-based database runtime for
+SessionBound.
+
+\hypertarget{session-binding-and-credential-token-binding}{%
+\subsection{Session binding and credential-token
+binding}\label{session-binding-and-credential-token-binding}}
+
+The runtime begins with two objects:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  a short-lived database credential issued by the credential broker;
+\item
+  a signed task token issued by the control plane.
+\end{enumerate}
+
+The credential authenticates the runtime connection. The task token
+authorizes the work.
+
+At \texttt{bind\_task}, the runtime checks:
+
+\begin{itemize}
+\tightlist
+\item
+  the task token signature is valid;
+\item
+  the task token is unexpired and not revoked;
+\item
+  the credential is unexpired and not revoked;
+\item
+  the token \texttt{credential\_id} matches the current session
+  credential;
+\item
+  the token \texttt{actor} matches the credential actor;
+\item
+  the session login role matches the broker-issued database user;
+\item
+  the token audience is \texttt{sessionbounddb};
+\item
+  no other active task is already bound to this database
+  backend/session.
+\end{itemize}
+
+A production implementation should make a stolen credential without a
+matching token insufficient, and a stolen token without the matching
+credential insufficient. Credential-token binding is intended to reduce
+cross-task credential misuse.
+
+PostgreSQL nuance: inside \texttt{SECURITY\ DEFINER} functions,
+\texttt{current\_user} may refer to the function owner. Therefore, a
+production implementation should use \texttt{session\_user} and/or an
+explicit credential registry mapping rather than relying on
+\texttt{current\_user} alone. The measured prototype validates token
+signatures, token expiration, revoked task state, credential-id-to-token
+matching, actor matching, audience validation, cross-credential token
+replay rejection, and same-session rebind rejection in the tested
+prototype path; Section~\ref{evaluation} reports those tests explicitly.
+Production deployments still require hardened credential brokerage, key
+management, and audit-retention integration outside this demo.
+
+\hypertarget{safe-views-as-the-query-surface}{%
+\subsection{Safe views as the query
+surface}\label{safe-views-as-the-query-surface}}
+
+Agents do not query raw application tables. They query registered safe
+views. Safe views expose business objects, not internal schemas. This is
+complementary to database-native mechanisms such as PostgreSQL
+row-level security policies, which provide row filtering at the database
+layer~\cite{postgresql2026rowsecurity}.
+
+Example safe views:
+
+\begin{verbatim}
+expenses
+employees
+departments
+approval_events
+ledger_entries
+\end{verbatim}
+
+A safe view may:
+
+\begin{itemize}
+\tightlist
+\item
+  join raw tables into business objects;
+\item
+  remove sensitive fields;
+\item
+  apply tenant, department, month, or project scope;
+\item
+  expose workflow hints;
+\item
+  include stable business identifiers for budget accounting.
+\end{itemize}
+
+Safe views are not a complete inference-control solution. They reduce
+the discoverable surface and make it governable.
+
+\hypertarget{operation-policy}{%
+\subsection{Operation policy}\label{operation-policy}}
+
+Native PostgreSQL \texttt{SELECT} is the database accounting entrypoint
+for read-only analytical SQL. The agent-facing SDK exposes this as
+\texttt{query(sql)}: the agent supplies ordinary SQL over approved
+safe-view names, and PostgreSQL hook and executor paths enforce the task
+boundary, debit query and disclosure budgets, and emit receipts.
+\texttt{taskbound.run(sql)} remains as a compatibility wrapper. High-value
+writes should use controlled commands or stored procedures. The runtime
+rejects mutations, DDL, unsafe utility commands, raw schema access,
+denied fields, and blocked schemas.
+
+\hypertarget{query-decision-pipeline}{%
+\subsection{Query decision
+pipeline}\label{query-decision-pipeline}}
+
+At runtime, every SQL attempt follows the deterministic decision
+procedure in Algorithm~\ref{alg:sql-decision-pipeline}.
+
+\begin{center}
+\refstepcounter{algorithm}\label{alg:sql-decision-pipeline}
+\begin{minipage}{0.9\linewidth}
+Algorithm \thealgorithm. SQL decision pipeline for SessionBoundDB
+
+Input: SQL attempt and bound database session state.
+
+Output: Allowed result with receipt, or denial receipt.
+
+\begin{enumerate}
+\item Require an active task binding for the session.
+\item Validate the signed task token and its TTL.
+\item Resolve all referenced relations against registered safe views.
+\item Reject denied fields and blocked schemas.
+\item Enforce row scope predicates for the bound task.
+\item Reject disallowed operation types, including mutations, DDL, and
+unsafe utility commands.
+\item Check remaining query and disclosure budgets.
+\item If every check passes, execute the query and emit an allow receipt;
+otherwise reject the attempt and emit a denial receipt.
+\end{enumerate}
+\end{minipage}
+\end{center}
+
+The runtime does not ask an LLM whether a query is safe.
+
+
+\hypertarget{security-invariants}{%
+\section{Security Invariants}\label{security-invariants}}
+
+The SessionBoundDB enforcement contract can be described by a state
+
+\begin{equation}
+S=\langle T,C,V,B,R\rangle,
+\end{equation}
+
+where \(T\) is the signed task token, \(C\) is the credential/session
+binding, \(V\) is the safe-view registry and policy version, \(B\) is
+the remaining budget vector, and \(R\) is the receipt chain. Each SQL
+attempt is evaluated by:
+
+\begin{equation}
+\begin{aligned}
+decide(q,S) &\rightarrow allow(result,S')\\
+            &\quad \mathrm{or}\; deny(reason,receipt,S').
+\end{aligned}
+\end{equation}
+
+These invariants define the enforcement contract implemented by the
+prototype and used to structure the adversarial evaluation. They are not
+a formal proof that all semantic inference is impossible.
+
+\begin{itemize}
+\tightlist
+\item
+  I1. No SQL execution occurs without an active task binding.
+\item
+  I2. The bound token must match the session credential, actor,
+  audience, expiry, token digest, and revocation state.
+\item
+  I3. Referenced relations must belong to the approved safe-view
+  registry.
+\item
+  I4. Direct access to denied fields, raw schemas, catalog escape,
+  mutation, DDL, and blocked payload aggregation is denied.
+\item
+  I5. Scope predicates or session-bound claims constrain visible rows.
+\item
+  I6. Budget state is monotonic: an allowed query consumes budget, or
+  the query is denied.
+\item
+  I7. Every allow/deny decision emits a receipt.
+\item
+  I8. Safe-view registry, policy version, or definition-hash drift
+  invalidates the token or requires reapproval.
+\end{itemize}
+
+In the prototype, I1--I2 and I8 are checked during
+\texttt{taskbound.bind\_task}; I3--I4 are checked by API-layer AST
+preflight, the experimental \texttt{sessionbound\_guard} PostgreSQL
+hook path, and database permissions; I5 is enforced by safe-view
+predicates; I6 is implemented through task execution state; and I7 is
+implemented through allow/deny receipts. Production implementations
+should harden these structural checks into always-on planner or executor
+integration, but the invariant set is independent of that implementation
+choice.
+
+\hypertarget{security-guarantees-for-the-prototype-sql-fragment}{%
+\subsection{Security Guarantees for the Prototype SQL
+Fragment}\label{security-guarantees-for-the-prototype-sql-fragment}}
+
+We state the prototype security contract over a deliberately restricted
+SQL fragment. Let \(\mathrm{SELECT}\text{-}F\) denote single-statement,
+read-only SQL consisting of \texttt{SELECT}, projection, predicates,
+joins, \texttt{GROUP\ BY}/\texttt{HAVING}, ordering and limits,
+non-recursive CTEs, and window functions over registered safe-view
+names. The fragment excludes stacked statements, DDL, DML,
+\texttt{COPY}, \texttt{DO}, \texttt{CALL}, \texttt{CREATE\ FUNCTION},
+temporary object creation, recursive CTEs, set-operation stacking,
+table functions, raw-schema or catalog references, and high-risk payload
+aggregation such as \texttt{json\_agg}, \texttt{jsonb\_agg},
+\texttt{array\_agg}, \texttt{string\_agg}, \texttt{xmlagg},
+\texttt{row\_to\_json}, \texttt{json\_build\_object}, and
+\texttt{jsonb\_build\_object}.
+
+Let \(\mathrm{Rels}(q)\) be the set of relation identifiers in \(q\)
+after database name resolution and before safe-view expansion. Let
+\(\mathrm{Views}(T,V)\) be the approved safe views carried by token \(T\)
+and validated against registry \(V\). Let \(\mathrm{Cols}_{out}(q)\) be
+the direct column references that appear in the output expressions of
+\(q\). A state \(S=\langle T,C,V,B,R\rangle\) is well formed when the
+token is valid and bound to credential \(C\), the safe-view registry and
+policy hashes match the token, the budget vector \(B\) is nonnegative,
+and the receipt chain \(R\) verifies. Under these assumptions, the
+prototype provides the following direct-reference and accounting
+guarantees. These are not guarantees against arbitrary semantic
+inference from allowed answers, and they are not differential privacy.
+
+\noindent\textbf{Proposition 1 (Safe-surface confinement).}
+For any well-formed state \(S\) and query
+\(q \in \mathrm{SELECT}\text{-}F\), if
+\(decide(q,S)=allow(result,S')\), then
+\(\mathrm{Rels}(q)\subseteq \mathrm{Views}(T,V)\). Consequently, every
+raw base relation evaluated during query execution is reached only
+through the definition of a registered safe view approved for the task;
+the query has no direct reference path to raw tables or catalogs.
+
+\emph{Argument.} The decision pipeline resolves relation identifiers and
+checks them against the task's approved safe-view registry before any
+result is released. Database permissions deny raw-schema access, while
+the AST preflight and hook path reject resolved relation OIDs outside
+the approved safe-view set. Therefore any query that names an
+unregistered relation is denied. Raw base tables may still be read by
+trusted safe-view definitions, but not by direct agent-supplied SQL.
+
+\noindent\textbf{Proposition 2 (Denied-field non-disclosure for direct
+references).}
+Let \(D(T)\) be the denied-field set in token \(T\), and let
+\(\mathrm{Cols}(v,V)\) be the registered column list for safe view
+\(v\). If \(decide(q,S)=allow(result,S')\), then every direct output
+column reference \(c \in \mathrm{Cols}_{out}(q)\) is in
+\(\bigcup_{v\in \mathrm{Views}(T,V)} \mathrm{Cols}(v,V)\) and
+\(c\notin D(T)\). Thus a column that is absent from the approved
+safe-view column lists, or that appears in the denied-field set, cannot
+be directly projected by an allowed query.
+
+\emph{Argument.} In \(\mathrm{SELECT}\text{-}F\), output columns must
+resolve against the relations that survived Proposition~1. A column not
+exported by an approved safe view cannot be bound by name. A column name
+or alias in the denied-field set is rejected by the structural policy
+before execution. The guarantee is syntactic and direct: it does not
+rule out inferences about denied fields from permitted columns or
+aggregates.
+
+\noindent\textbf{Proposition 3 (Monotonic budget accounting).}
+Let budgets be ordered componentwise by \(\preceq\), and let
+\(\Delta(q,result)\succeq 0\) be the budget charge for a released
+result. For any allowed query,
+\(decide(q,S)=allow(result,S')\) implies
+\(0 \preceq B' \preceq B\), where \(B'\) is the budget component of
+\(S'\). If a required charge is not covered by the remaining budget,
+then the query is denied and no result is released.
+
+\emph{Argument.} The runtime treats budget dimensions as nonnegative
+counters. Query-count budget is checked before execution, and disclosure
+budget is charged before release using the accounted result shape and
+business identifiers. Updates only subtract nonnegative charges from the
+remaining vector. Therefore the remaining budget cannot increase across
+an allowed transition; an over-budget attempt reaches a denial state
+instead of returning the result.
+
+\noindent\textbf{Proposition 4 (Receipt-chain tamper evidence under
+trusted DB assumptions).}
+Assume collision-resistant hashing and append-only receipt storage
+inside the trusted database boundary. For a receipt chain
+\(R=(r_1,\ldots,r_n)\) where each \(r_i\) stores the hash of
+\(r_{i-1}\) and a hash of its own canonical contents, removing or
+modifying any interior receipt \(r_j\), \(1<j<n\), changes \(r_j\)'s
+hash or breaks the previous-hash value stored in \(r_{j+1}\). The
+change is detected by chain verification unless the adversary can
+violate append-only storage or find a hash collision.
+
+\emph{Argument.} Each receipt commits to the previous receipt hash and
+to the current decision, query hash, timestamp, and budget delta.
+Changing an interior receipt changes its hash; deleting it changes the
+predecessor expected by the next receipt. Under append-only storage, the
+adversary cannot rewrite the downstream chain to hide the mismatch.
+This is a tamper-evidence property for the audit trail, not a Byzantine
+storage guarantee against malicious DBAs or compromised hosts.
+
+
+\hypertarget{anti-evasion-scope}{%
+\section{Anti-Evasion Scope}\label{anti-evasion-scope}}
+
+SessionBound handles direct boundary violations and accounts for bounded
+disclosure; arbitrary semantic inference remains outside its formal
+guarantees.
+
+\hypertarget{direct-boundary-violations}{%
+\subsection{Direct boundary
+violations}\label{direct-boundary-violations}}
+
+SessionBoundDB can directly block:
+
+\begin{itemize}
+\tightlist
+\item
+  access to raw schemas;
+\item
+  access to sensitive fields that are not exposed through safe views;
+\item
+  queries outside row scope;
+\item
+  unsupported operation types;
+\item
+  repeated querying beyond task budgets;
+\item
+  use of credentials without a matching task token;
+\item
+  attempts to continue after token expiry or revocation.
+\end{itemize}
+
+\hypertarget{inference-and-side-channels}{%
+\subsection{Inference and side
+channels}\label{inference-and-side-channels}}
+
+SessionBound does not claim to solve arbitrary inference from allowed
+answers. For example, if a safe view exposes enough correlated
+information, an agent may infer sensitive facts indirectly. Aggregates
+over small groups may leak more than intended. Timing and resource side
+channels are also outside the prototype's formal guarantees.
+Classical database inference-control work studies these risks for
+statistical databases and repeated query answers~\cite{adam1989securitycontrol}.
+
+\hypertarget{adversarial-sql-patterns}{%
+\subsection{Adversarial SQL
+patterns}\label{adversarial-sql-patterns}}
+
+Table~\ref{tab:anti-evasion} summarizes representative evasion
+patterns, defenses, and limitations.
+
+This table defines the prototype's anti-evasion scope and the path
+toward production hardening.
+
+\begin{table*}[!t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Adversarial SQL patterns and SessionBound defenses.}
+\label{tab:anti-evasion}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.21\textwidth}
+  >{\raggedright\arraybackslash}p{0.23\textwidth}
+  >{\raggedright\arraybackslash}p{0.24\textwidth}
+  >{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
+\toprule
+Pattern & Example & Defense & Limitation \\
+\midrule
+Raw table escape & \texttt{SELECT\ *\ FROM\ app\_data.expenses} & no raw
+grants; safe views only & strong in prototype \\
+Sensitive column & \texttt{SELECT\ salary\ FROM\ employees} & denied
+fields; safe view exclusion & direct leakage only \\
+Scope escape & query another month or department & safe-view predicates
+from task claims & strong if views are correct \\
+Mutation & \texttt{DELETE}, \texttt{UPDATE}, \texttt{INSERT} & operation
+policy; read-only \texttt{run} path & writes require controlled
+commands \\
+DDL & \texttt{DROP}, \texttt{ALTER}, \texttt{CREATE} & blocked
+operations & production should use hook-backed validation \\
+Catalog escape & \texttt{pg\_catalog}, \texttt{information\_schema} &
+blocked schemas and no grants & production needs planner/executor hooks \\
+Pagination scraping & repeated \texttt{LIMIT/OFFSET} & query budget and
+disclosure budget & budget model matters \\
+JSON / array payload aggregation & payload aggregation functions &
+result-byte budget, per-query payload cap, optional aggregate allowlist
+/ AST policy & production should detect high-risk aggregation
+functions \\
+Aggregate inference & small-group \texttt{GROUP\ BY} & optional minimum
+group size and aggregate policy & future work \\
+Timing side channel & expensive predicates & statement timeout and
+resource budget & partial \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+
+\hypertarget{budget-semantics}{%
+\section{Budget Semantics}\label{budget-semantics}}
+
+SessionBound disclosure budgets limit how much task-authorized
+information an agent may retrieve during one approved analytical
+session. They are authority accounting, not
+differential-privacy accounting~\cite{dwork2014algorithmic}.
+
+A production deployment should use a vector rather than a single
+unique-row limit. Useful dimensions include query count, result rows,
+result bytes, per-query payload bytes, aggregate payload shape, unique
+business entities, column weights, detail-versus-aggregate multipliers,
+and small-group penalties.
+
+The prototype's unique-row accounting demonstrates the mechanism, while
+the broader model treats budget as a vector of exposure counters tied to
+task authority.
+
+Budget vectors are not mutual-information bounds. They provide
+operational containment, auditability, and a governance lever for
+approved enterprise tasks.
+
+
+\hypertarget{schema-drift-and-safe-view-versioning}{%
+\section{Schema Drift and Safe View
+Versioning}\label{schema-drift-and-safe-view-versioning}}
+
+Task tokens should not silently survive changes to the data boundary
+they approve. If a safe view changes after approval, the token may no
+longer represent the approved task.
+
+A task token should therefore bind safe views by more than name:
+registry version, policy version, database object identifier, view
+definition hash, and exposed-column hash. PostgreSQL views make this
+important: \texttt{CREATE\ OR\ REPLACE\ VIEW} may preserve
+\texttt{pg\_class.oid} while changing the definition, and
+\texttt{relfilenode} is not an appropriate view identity. A task-bound
+session should fail closed if its registry version, policy version, view
+definition hash, or exposed-column hash no longer matches the approved
+boundary.
+
+
+\hypertarget{receipts}{%
+\section{Receipts}\label{receipts}}
+
+SessionBound receipts are structured audit records that bind task
+identity, query decision, and budget impact. They are not merely logs.
+
+Each receipt records the task id, actor, query hash or command name,
+decision, touched safe views, rows returned, budget delta, remaining
+budget, timestamp, previous receipt hash, and current receipt hash.
+
+The prototype implements a lightweight hash chain: each receipt stores
+\texttt{previous\_receipt\_hash} and
+\texttt{receipt\_hash}, where the current hash commits to the task id,
+query hash, decision, budget delta, timestamp, and previous hash. This
+does not provide a full external proof system, but it makes post-hoc
+tampering with the receipt sequence detectable within the database audit
+trail.
+
+
+\hypertarget{prototype-implementation-and-production-hardening}{%
+\section{Prototype Implementation and Production
+Hardening}\label{prototype-implementation-and-production-hardening}}
+
+\hypertarget{prototype}{%
+\subsection{Prototype}\label{prototype}}
+
+The current prototype includes:
+
+\begin{itemize}
+\tightlist
+\item
+  FastAPI control plane;
+\item
+  task template and grant registry;
+\item
+  short-lived PostgreSQL credential broker;
+\item
+  signed task token issuance;
+\item
+  PostgreSQL runtime functions;
+\item
+  safe views over travel reimbursement data;
+\item
+  \texttt{taskbound.bind\_task(payload,\ signature)};
+\item
+  an agent SDK with \texttt{TaskboundSession.query(sql)};
+\item
+  native guarded safe-view \texttt{SELECT} plus compatibility
+  \texttt{taskbound.run(sql)};
+\item
+  sensitive field denial;
+\item
+  blocked raw table access;
+\item
+  query and disclosure budget state;
+\item
+  receipts for evaluated allowed executions and bound-runtime denial
+  decisions;
+\item
+  controlled commands for high-value workflow actions;
+\item
+  an agent-agnostic HTTP evaluation harness.
+\end{itemize}
+
+The prototype demonstrates the SessionBound architecture, not a
+production-grade SQL safety proof.
+
+\hypertarget{implementation-honesty}{%
+\subsection{Implementation
+honesty}\label{implementation-honesty}}
+
+The current hardening prototype uses API-layer AST preflight,
+PostgreSQL hooks, executor result accounting, rollback-surviving audit
+writes, and PostgreSQL permissions. Agents do not receive raw table
+\texttt{SELECT} grants. The SDK's \texttt{query(sql)} executes native SQL
+over the bound safe-view schema; a direct
+\texttt{SELECT ... FROM taskbound.expenses} is allowed only after binding
+and is accounted before rows are released. High-value writes go through
+controlled commands.
+
+The database hook path is implemented by the
+\texttt{sessionbound\_guard} C extension, loaded through
+\texttt{shared\_preload\_libraries}. The extension registers
+\texttt{post\_parse\_analyze\_hook}, \texttt{ProcessUtility\_hook}, and
+executor hooks. Trusted SUSET GUCs populated by
+\texttt{taskbound.bind\_task} carry the task, budgets, receipt flags, and
+approved safe-view OIDs. The executor path wraps the destination
+receiver to count rows and disclosed \texttt{expense\_id} values before
+forwarding tuples. Receipt and budget updates use an autonomous
+same-database audit channel, so receipts for evaluated allowed executions
+and hook/API denials survive agent transaction rollback.
+
+The hook rejects non-\texttt{SELECT} statements, raw
+\texttt{app\_data} relations, catalog access, recursive CTEs,
+\texttt{UNION}/\texttt{INTERSECT}/\texttt{EXCEPT}, unapproved relation
+OIDs, non-view relations, unsafe non-catalog functions, sensitive output
+aliases, and high-risk payload aggregation functions such as
+\texttt{json\_agg}, \texttt{jsonb\_agg}, \texttt{array\_agg},
+\texttt{string\_agg}, \texttt{xmlagg}, \texttt{row\_to\_json},
+\texttt{json\_build\_object}, and \texttt{jsonb\_build\_object}. The API
+AST validator remains defense in depth and provides portable preflight
+feedback before the database runtime is invoked.
+
+This should still be read as an experimental hook path, not a production
+SQL-safety proof. A production implementation should harden the same
+structural policy into:
+
+\begin{itemize}
+\tightlist
+\item
+  always-on PostgreSQL parser/analyzer hooks;
+\item
+  planner hooks;
+\item
+  executor hooks;
+\item
+  extension-level session state and registry management;
+\item
+  deny-by-default schema grants;
+\item
+  blocked unsafe utility commands;
+\item
+  executor-level result accounting for deployments that allow native
+  agent \texttt{SELECT} syntax, including query-budget debit before
+  execution, bounded result materialization or streaming interception,
+  disclosure-budget accounting before client release, and receipt
+  emission through an audit path that survives transaction aborts;
+\item
+  \texttt{statement\_timeout} and resource limits;
+\item
+  cleanup for expired short-lived roles;
+\item
+  denial logging outside user transactions.
+\end{itemize}
+
+The measured AST prototype extracts referenced relations, columns,
+function calls, CTEs, recursive CTEs, subqueries, joins, catalog access,
+operation type, and set operations. It blocks raw schema references,
+catalog access, mutations, DDL, \texttt{COPY}, \texttt{SET},
+\texttt{SHOW}, \texttt{CREATE\ FUNCTION}, \texttt{DO} blocks, recursive
+CTEs, \texttt{UNION}/\texttt{INTERSECT}/\texttt{EXCEPT} stacking,
+unknown functions, denied-field aliases, and high-risk payload
+aggregation functions. The API AST validation evaluation passed 17 of 17
+query-shape cases, and the PostgreSQL hook evaluation passed 11 of 11
+direct database enforcement cases.
+
+\hypertarget{query-example}{%
+\subsection{Query example}\label{query-example}}
+
+Allowed:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{WITH}\NormalTok{ ranked }\KeywordTok{AS}\NormalTok{ (}
+  \KeywordTok{SELECT}\NormalTok{ expense\_id, department\_name, }\KeywordTok{category}\NormalTok{, amount,}
+         \FunctionTok{row\_number}\NormalTok{() }\KeywordTok{OVER}\NormalTok{ (}
+           \KeywordTok{PARTITION} \KeywordTok{BY}\NormalTok{ department\_name }\KeywordTok{ORDER} \KeywordTok{BY}\NormalTok{ amount }\KeywordTok{DESC}
+\NormalTok{         ) }\KeywordTok{AS}\NormalTok{ rn}
+  \KeywordTok{FROM}\NormalTok{ expenses}
+  \KeywordTok{WHERE}\NormalTok{ expense\_month }\OperatorTok{=} \StringTok{\textquotesingle{}2026{-}06\textquotesingle{}}
+\NormalTok{)}
+\KeywordTok{SELECT}\NormalTok{ department\_name, expense\_id, }\KeywordTok{category}\NormalTok{, amount}
+\KeywordTok{FROM}\NormalTok{ ranked}
+\KeywordTok{WHERE}\NormalTok{ rn }\OperatorTok{=} \DecValTok{1}\NormalTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Denied:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{SELECT}\NormalTok{ employee\_name, salary }\KeywordTok{FROM}\NormalTok{ employees;}
+\end{Highlighting}
+\end{Shaded}
+
+Denied:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{SELECT} \OperatorTok{*} \KeywordTok{FROM}\NormalTok{ app\_data.expenses;}
+\end{Highlighting}
+\end{Shaded}
+
+Denied:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{DELETE} \KeywordTok{FROM}\NormalTok{ expenses }\KeywordTok{WHERE}\NormalTok{ expense\_month }\OperatorTok{=} \StringTok{\textquotesingle{}2026{-}06\textquotesingle{}}\NormalTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+
+\hypertarget{evaluation}{%
+\section{Evaluation}\label{evaluation}}
+
+The prototype evaluation has two goals:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  validate that approved analytical queries can run over safe views;
+\item
+  validate that direct boundary violations are denied and accounted for.
+\end{enumerate}
+
+It does not prove production-grade SQL safety or eliminate all inference
+attacks. The evaluation focuses on functional boundary validation,
+security-property comparisons against narrower database controls,
+database-runtime overhead, and concurrency behavior on the default
+synthetic dataset.
+
+\hypertarget{experimental-setup}{%
+\subsection{Experimental setup}\label{experimental-setup}}
+
+The latest hardening run used Docker Compose with PostgreSQL 16.14, the
+FastAPI SessionBoundDB prototype, and the
+\texttt{sessionbound\_guard} extension loaded through
+\texttt{shared\_preload\_libraries}. The repository branch was
+\texttt{tdsc-hardening}. The default seed
+contains 430 expenses, 240 employees, and 124 departments. The raw
+outputs are stored under \texttt{paper/tdsc/raw\_results/}.
+
+The AST and adversarial SQL evaluations exercise the HTTP API, including
+dynamic credential issuance, signed task-token creation, token binding,
+AST preflight, the SDK-backed query path, budget state, and receipts. A
+separate SDK surface evaluation calls \texttt{TaskboundSession.query(sql)}
+directly from the Compose network. The hook evaluation bypasses the API
+query endpoint for agent cases by using generated runtime credentials
+directly against PostgreSQL, and it uses trusted superuser setup for
+hook-only structural checks. The overhead breakdown uses direct
+PostgreSQL connections from the Compose network so that it isolates
+database runtime overhead from HTTP, model calls, dynamic credential
+creation, and API-layer AST parsing. A hook-only microbenchmark measures
+\texttt{sessionbound\_guard\_check(sql)} directly, exercising PostgreSQL
+parse/analyze and the structural guard without executing result rows or
+performing wrapper materialization.
+
+\hypertarget{functional-validation}{%
+\subsection{Functional validation}\label{functional-validation}}
+
+We evaluated the SessionBoundDB PostgreSQL prototype using Docker
+Compose. The public repository contains the evaluation scripts,
+validation reports, benchmark outputs, and source code needed to
+reproduce the results. The canonical validation suite passed 24 of 24
+scenarios; the full scenario matrix and raw receipts are provided in the
+artifact repository rather than reproduced in the main text.
+
+Scope violations over safe views are enforced by filtering rather than
+explicit denial. A query for another approved-view but out-of-scope
+month returns zero rows because the safe view predicate binds the
+session to the task scope. The measured prototype conservatively blocks
+payload aggregation functions such as \texttt{json\_agg},
+\texttt{array\_agg}, \texttt{string\_agg}, and \texttt{row\_to\_json};
+ordinary aggregate analysis such as \texttt{count}, \texttt{sum},
+\texttt{avg}, \texttt{min}, and \texttt{max} remains allowed.
+
+\hypertarget{baseline-security-comparison}{%
+\subsection{Baseline security comparison}\label{baseline-security-comparison}}
+
+We compare SessionBound against four narrower database configurations to
+separate access-surface reduction from task-bound session enforcement:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Raw PostgreSQL}: direct access to application tables using a
+  trusted analyst/admin test role.
+\item
+  \textbf{Role-only}: a constrained database role with coarse grants but
+  no task token, budget vector, receipt chain, or task-specific safe
+  view binding.
+\item
+  \textbf{RLS-only}: PostgreSQL row-level security policies over raw
+  tables, without SessionBound task approval, disclosure accounting, or
+  receipt semantics.
+\item
+  \textbf{Safe-view-only}: curated views and denied-field exclusion,
+  without credential-token binding, query budgets, disclosure budgets,
+  or signed task tokens.
+\item
+  \textbf{SessionBound full}: signed task token, short-lived credential
+  binding, safe views, denied fields, operation policy, query budget,
+  disclosure budget, anti-payload aggregation checks, and receipts.
+\end{itemize}
+
+Table~\ref{tab:security-baselines} summarizes the observed security
+properties. In the updated credential-token test suite, SessionBound
+denies credential-id mismatch, cross-credential token replay, wrong
+audience, wrong actor, expired tokens, revoked tasks, and same-session
+rebind to a second active task. It also rejects tokens whose safe-view
+registry version, policy version, or view-definition hash no longer
+matches the runtime registry.
+
+\hypertarget{adversarial-sql-evaluation}{%
+\subsection{Adversarial SQL evaluation}\label{adversarial-sql-evaluation}}
+
+The latest hardening run adds an adversarial SQL suite with 28 cases across
+direct boundary violations, catalog escape, payload aggregation,
+obfuscation, CTEs, set-operation stacking, small-group aggregate
+inference, and search-path/function abuse. The suite passed all expected
+classifications: 22 cases were blocked, 5 safe-view analytical cases
+were allowed and accounted for, and 1 small-group aggregate query was
+classified as a known limitation.
+
+\begin{table*}[!t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Adversarial SQL evaluation summary from the hardening suite.}
+\label{tab:adversarial-sql}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.22\textwidth}
+  >{\raggedright\arraybackslash}p{0.26\textwidth}
+  >{\raggedright\arraybackslash}p{0.14\textwidth}
+  >{\raggedright\arraybackslash}p{0.23\textwidth}@{}}
+\toprule
+Category & Representative pattern & Result & Notes \\
+\midrule
+Direct boundary violations & denied columns, raw schema, DML, DDL & 5 blocked / 5 & salary, bank account, \texttt{app\_data}, \texttt{DELETE}, and \texttt{DROP} denied \\
+Catalog and metadata escape & \texttt{pg\_catalog}, \texttt{information\_schema}, bare \texttt{pg\_tables} & 3 blocked / 3 & catalog schemas and known catalog relations denied \\
+Payload aggregation / compression & \texttt{json\_agg}, \texttt{array\_agg}, \texttt{string\_agg}, \texttt{row\_to\_json} & 6 blocked / 6 & high-risk one-row payload compression denied \\
+Obfuscation and aliases & harmless aliasing, denied-field alias & 3 allowed, 1 blocked & allowed queries emitted receipts; \texttt{amount AS salary} blocked \\
+Subqueries and CTEs & nonrecursive CTEs and recursive CTE & 2 allowed, 1 blocked & ordinary CTEs allowed; recursive/set-operation shape denied \\
+\texttt{UNION} and stacking & \texttt{UNION}, \texttt{UNION ALL} & 2 blocked / 2 & set-operation stacking denied \\
+Small-group aggregate inference & group by department and employee & 1 known limitation & allowed aggregate; no minimum group-size policy yet \\
+Search path / function abuse & \texttt{SHOW}, \texttt{SET}, \texttt{CREATE FUNCTION}, \texttt{DO} & 4 blocked / 4 & unsafe utility/procedural forms denied \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+This result should not be read as a proof of complete SQL safety. It
+does show that the current prototype is no longer limited to literal string
+checks for the main tested attack families. The remaining small-group
+aggregate case motivates minimum group-size rules, aggregate sensitivity
+scoring, and stronger inference-control work.
+
+We separately evaluated the native SDK surface. A smoke test confirmed
+that \texttt{TaskboundSession.query(sql)} and bound direct
+\texttt{SELECT ... FROM taskbound.expenses} are both accounted, while the
+same query after \texttt{unbind\_task()} fails closed.
+
+We also evaluated the database hook path directly. The
+\texttt{sessionbound\_guard} suite passed 16 of 16 cases. It confirmed
+GUC tamper resistance, allowed bound native \texttt{SELECT}, support for
+prepared statements, cursor/\texttt{FETCH}, \texttt{COPY (SELECT)}, and
+non-\texttt{ANALYZE} \texttt{EXPLAIN}, and blocked set operations,
+catalog/raw access, runtime-helper abuse, payload aggregation,
+unapproved OIDs, and \texttt{EXPLAIN ANALYZE}.
+
+\begin{table*}[!t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{PostgreSQL hook and executor enforcement evaluation. Agent
+cases connect directly as the generated runtime credential and issue
+native SQL after binding a signed task token.}
+\label{tab:postgres-hook}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.24\textwidth}
+  >{\raggedright\arraybackslash}p{0.34\textwidth}
+  >{\raggedright\arraybackslash}p{0.16\textwidth}
+  >{\raggedright\arraybackslash}p{0.16\textwidth}@{}}
+\toprule
+Case group & Enforcement path & Result & Notes \\
+\midrule
+Trusted context & Non-superuser direct DB session & 1 blocked / 1 & Ordinary agent role cannot set SUSET guard GUCs \\
+Native allowed surface & Agent credential direct DB session & 6 allowed / 6 & Bound \texttt{SELECT}, schema-qualified safe-view query, prepared \texttt{EXECUTE}, cursor/\texttt{FETCH}, \texttt{COPY (SELECT)}, and non-\texttt{ANALYZE} \texttt{EXPLAIN} accounted \\
+Native blocked surface & Agent credential direct DB session & 5 blocked / 5 & \texttt{UNION}, catalog access, recursive CTE, private helper access, and \texttt{EXPLAIN ANALYZE} denied \\
+Hook-only structural checks & Trusted-GUC hook check without API preflight & 4 blocked / 4 & Non-\texttt{SELECT}, raw schema, payload aggregation, and unapproved safe-view OID denied \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\hypertarget{performance-overhead-and-ablation}{%
+\subsection{Performance overhead and
+ablation}\label{performance-overhead-and-ablation}}
+
+The latest overhead breakdown measures five query patterns: simple
+\texttt{SELECT}, \texttt{JOIN}, \texttt{GROUP\ BY}, CTE, and window
+function. Each pattern uses 10 warmup iterations and 100 measured
+iterations per mode. The run compares raw PostgreSQL, a temporary
+role-only read-only credential, safe-view-only execution, unsupported
+RLS-only mode, SessionBound without receipts, SessionBound without
+budget updates, and full SessionBound. Table~\ref{tab:performance}
+reports p50 latency in milliseconds.
+
+The RLS-only row is marked \texttt{N/A} in this run because the
+current prototype does not define PostgreSQL RLS policies. Earlier
+experiments separately measured an RLS baseline, but the latest breakdown
+focuses on currently supported ablations and does not invent an RLS
+toggle.
+
+The main observation is that most overhead is already present in the
+safe-view-only mode. Raw and role-only queries are sub-millisecond, while
+safe-view-only p50 is 13.3--18.1 ms. Full SessionBound p50 is
+14.6--18.6 ms. Disabling receipts or budget accounting does not
+consistently reduce latency, so receipt insertion and budget updates do
+not dominate this small-dataset benchmark. This is an important
+interpretation point: for the default seed, SessionBound's measured
+latency is mainly a safe-view/session-runtime cost rather than a
+receipt-chain cost.
+
+\hypertarget{performance-diagnosis}{%
+\subsubsection{Performance diagnosis}\label{performance-diagnosis}}
+
+The database-runtime breakdown isolates direct PostgreSQL execution and
+therefore does not include HTTP latency, model calls, dynamic credential
+creation, or API-layer AST preflight. End-to-end agent requests do incur
+the AST preflight before entering PostgreSQL, so the end-to-end path is
+strictly larger than the database-only numbers in
+Table~\ref{tab:performance}.
+
+Within the historical measured database path, the overhead comes from
+several implementation layers in the wrapper reference prototype. First,
+\texttt{taskbound.run} dispatches each query through a PL/pgSQL wrapper
+rather than through PostgreSQL's native planner and executor path alone.
+Second, each execution repeatedly resolves session claims and task state
+instead of caching a bound task descriptor in trusted backend state.
+Third, safe views add predicate and view-expansion cost even before
+SessionBound receipt or budget logic runs. Fourth, the wrapper path
+materializes result rows so that the runtime can account for returned
+business identifiers. Fifth, receipt insertion and budget accounting add
+state updates, but the no-receipt and no-budget ablations show that
+these updates are not the dominant source on the small default dataset.
+
+To separate structural enforcement from wrapper-era execution cost, we
+also ran a hook-only microbenchmark over the native
+\texttt{sessionbound\_guard\_check(sql)} path. This path prepares SQL
+through PostgreSQL parse/analyze and the structural guard, but does not
+execute result rows, perform executor row accounting, insert receipts, or
+materialize JSON rows through \texttt{taskbound.run}. With 20 warmup and
+200 measured iterations per query shape, allowed structural checks had
+p50 latency of 0.138 ms for SELECT, 0.169 ms for JOIN, 0.139 ms for GROUP
+BY, and 0.130 ms for CTE/window SQL; raw-schema and UNION denial checks
+also passed. This is not an end-to-end performance claim for the native
+executor-accounting path, but it shows that structural parse/analyze
+guarding is not the source of the 100k-row multi-second behavior.
+
+The historical scale results in Table~\ref{tab:scale-sweep} show a different
+regime. At 100k scoped expense rows, safe-view-only execution remains in
+the tens of milliseconds, while full SessionBound reaches 6.7--7.0 s.
+This implicates the PL/pgSQL reference runtime's row materialization and
+per-query accounting path, not safe-view predicates alone. We therefore
+interpret the prototype as a security reference implementation, not an
+optimized execution engine. A production implementation should bind the
+task token once, keep approved safe-view identifiers in trusted backend
+state, and move structural checks and disclosure accounting into
+parser/analyzer, planner, or executor hooks. The native hook/executor
+implementation described above addresses the structural-enforcement part
+of this path, but native executor-accounting overhead and scale behavior
+should be remeasured before replacing the wrapper-era numbers.
+
+\hypertarget{scale-and-concurrency}{%
+\subsection{Scale and concurrency}\label{scale-and-concurrency}}
+
+We separately tested credential-token edge cases. The updated prototype
+denied all tested edge cases: credential A with token B, replaying a
+token with a second credential, binding a second active task in the same
+session, wrong token audience, wrong token actor, expired token, and
+revoked task state. We also tested safe-view drift checks: registry
+version drift, safe-view policy-version drift, and view-definition hash
+mismatch were denied and require re-approval before execution.
+
+The default seed contains 430 expenses, 240 employees, and 124
+departments. A concurrency smoke test over the API completed 1, 5, and
+20 concurrent sessions with zero failed sessions. At 20 concurrent
+sessions, query p50 was 82.896 ms and query p95 was 110.356 ms. This is
+an API-stack smoke test, not a throughput-capacity claim.
+
+We also ran a synthetic scale sweep over 1k, 10k, and 100k scoped
+expense rows. Table~\ref{tab:scale-sweep} reports the p50 latency for
+two representative query shapes. Raw PostgreSQL stays in the
+millisecond-to-tens-of-milliseconds range at 100k rows, and
+safe-view-only execution stays below 33 ms. Full SessionBound reaches
+6.7--7.0 s at 100k rows. These results expose the scale-sensitive
+limitation of the PL/pgSQL reference runtime measured at the time and
+motivate the native hook path discussed above. They should not be read as
+a production-throughput result for the native hook/executor architecture.
+
+\hypertarget{remaining-gaps}{%
+\subsection{Discussion of remaining gaps}\label{remaining-gaps}}
+
+The hardening results improve direct SQL-structure coverage and make the
+overhead source clearer, but several gaps remain. The PostgreSQL hook
+path now includes native executor accounting, but the disclosure unit is
+still demo-specific and the native path needs fresh overhead and scale
+measurement. Small-group aggregate inference remains a known limitation.
+The budget vector is operational and does not provide formal differential
+privacy.
+
+\begin{table*}[!t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\caption{Security-property comparison across measured baselines. Credential-token binding includes credential-id matching, actor matching, audience validation, cross-credential replay rejection, expiration, revocation, and same-session rebind rejection. Schema drift invalidation checks safe-view registry version, policy version, and view-definition hash at bind time.}
+\label{tab:security-baselines}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Property & Raw & Role-only & Safe-view-only & RLS-only & SessionBound \\
+\midrule
+Blocks writes & No & Yes & Yes & Yes & Yes \\
+Blocks raw table access & No & No & Yes & No & Yes \\
+Blocks denied fields & No & No & Yes & No & Yes \\
+Enforces row scope & No & No & Yes & Yes & Yes \\
+Query budget & No & No & No & No & Yes \\
+Disclosure budget & No & No & No & No & Yes \\
+Payload aggregation blocking & No & No & No & No & Yes \\
+Credential-token binding & No & No & No & No & Yes \\
+Receipts & No & No & No & No & Yes \\
+Schema drift token invalidation & Not tested & Not tested & Not tested & Not tested & Yes \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[!t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{2.2pt}
+\caption{V3 overhead breakdown p50 latency in milliseconds. The run used 10 warmup and 100 measured iterations per pattern and mode. RLS-only is not supported by the current prototype and is reported as N/A.}
+\label{tab:performance}
+\begin{tabular}{@{}lrrrrrrr@{}}
+\toprule
+Pattern & Raw & Role & Safe view & RLS & SB no receipt & SB no budget & SB full \\
+\midrule
+SELECT & 0.233 & 0.229 & 14.213 & N/A & 14.899 & 14.333 & 14.630 \\
+JOIN & 0.182 & 0.171 & 18.092 & N/A & 18.497 & 18.238 & 18.581 \\
+GROUP BY & 0.193 & 0.169 & 13.296 & N/A & 14.840 & 15.074 & 15.024 \\
+CTE & 0.176 & 0.175 & 13.525 & N/A & 14.529 & 15.098 & 15.425 \\
+Window & 0.351 & 0.347 & 13.828 & N/A & 15.089 & 14.852 & 15.854 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table}[!t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\caption{Synthetic scale sweep p50 latency in milliseconds. Safe denotes safe-view-only execution; SB denotes full SessionBound.}
+\label{tab:scale-sweep}
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+Rows & Query & Raw & Safe & RLS & SB \\
+\midrule
+1k & Agg. & 0.41 & 0.60 & 0.39 & 84.41 \\
+1k & Top-k & 0.40 & 0.53 & 0.43 & 82.44 \\
+10k & Agg. & 2.70 & 3.76 & 2.38 & 688.66 \\
+10k & Top-k & 2.54 & 3.32 & 2.39 & 661.62 \\
+100k & Agg. & 14.77 & 29.96 & 15.08 & 6742.55 \\
+100k & Top-k & 15.62 & 32.39 & 14.61 & 6965.09 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\hypertarget{discussion}{%
+\section{Discussion}\label{discussion}}
+
+SessionBound separates task approval from database policy authoring.
+Managers and data owners approve work; the control plane translates that
+approval into a template, scope, TTL, budget vector, and signed token;
+the database runtime enforces the resulting session boundary. The
+runtime is not an LLM judge of task intent, and it does not require a
+business approver to write SQL predicates.
+
+The runtime distinguishes filtering from denial. Scope predicates inside
+safe views may make out-of-scope rows disappear under normal SQL
+semantics. Attempts to leave the approved query surface--raw tables,
+denied fields, mutation, DDL, catalog escape, or blocked payload
+aggregation--are denied.
+
+Budgets are authority accounting, not differential privacy. They
+measure how much task-approved information has been released and let
+receipts record how the approved authority was spent. SessionBound
+therefore composes with existing identity, delegation, RLS/VPD, policy,
+and data-catalog systems rather than replacing them.
+
+
+\hypertarget{related-work}{%
+\section{Related Work}\label{related-work}}
+
+Table~\ref{tab:why-not-existing} summarizes the main distinction from
+existing mechanisms. The short answer to ``why not just RLS plus
+short-lived credentials plus audit logs?'' is that those mechanisms can
+implement important pieces of SessionBound, but they do not by
+themselves define the approved task as the unit of database execution.
+SessionBound's claim is the composition: a business approval is compiled
+into a short-lived session whose safe views, denied fields, row scope,
+SQL surface, budget vector, drift checks, and receipts are bound
+together.
+
+\begin{table*}[!t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Why SessionBound is not just an existing access-control or auditing mechanism. The mechanisms listed here are complementary implementation building blocks; SessionBound adds the task-bound database-session contract around them.}
+\label{tab:why-not-existing}
+\begin{tabular}{@{}
+  >{\raggedright\arraybackslash}p{0.19\textwidth}
+  >{\raggedright\arraybackslash}p{0.22\textwidth}
+  >{\raggedright\arraybackslash}p{0.29\textwidth}
+  >{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
+\toprule
+Mechanism & What it provides & Why it is insufficient alone & SessionBound role \\
+\midrule
+RLS / VPD / DDS & Predicates and context-aware policy near data &
+Strong data-plane enforcement, but not a task object that binds approval,
+TTL, safe-view versioning, SQL surface, cumulative budgets, and receipts &
+Uses database enforcement inside a task-session contract \\
+ABAC / XACML / purpose policy & Expressive policy over attributes and
+purpose & Captures standing rules, but not one approved exploratory SQL
+workspace with per-session exposure accounting & Compiles approved task
+attributes into runtime state \\
+JIT credentials / OAuth / delegation & Scoped or time-bounded authority &
+Expiry and delegation do not constrain arbitrary SQL shape or cumulative
+disclosure after a credential is issued & Binds credentials to a task
+token checked at execution \\
+PAuth / Data Product MCP / Zanzibar & Task-operation checks, governed data
+products, and relationship permissions & Authorizes operations, products,
+or relationships rather than a multi-query database session & Supplies
+complementary inputs before issuing a task token \\
+Audit / DP / DLP & After-the-fact records, statistical privacy, or leakage
+detection & Logs do not prevent release; DP has different statistical
+goals; DLP is not a task-session contract & Emits decision receipts and
+accounts budget before release \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\hypertarget{policy-and-delegation}{%
+\subsection{Policy and delegation}\label{policy-and-delegation}}
+
+ABAC, XACML, capabilities, and purpose-aware access control provide
+standing authorization abstractions over attributes, authority objects,
+and stated purposes~\cite{nist2019abac,oasis2013xacml,dennis1966programming,miller2003capability,agrawal2002hippocratic,byun2008purpose}.
+OAuth and authenticated delegation establish delegated
+authority~\cite{rfc6749,south2025authenticateddelegation}. SessionBound
+uses a task token as a database-execution capability, but binds it to a
+credential, safe-view registry, budget vector, and receipt chain.
+
+\hypertarget{agent-and-data-product-governance}{%
+\subsection{Agent and data-product
+governance}\label{agent-and-data-product-governance}}
+
+PAuth checks whether concrete tool operations are implied by a task
+description~\cite{sharma2026pauth}; Data Product MCP governs discovery
+and access to enterprise data products through
+MCP~\cite{tonnarelli2026dataproductmcp,mcp2025specification}. SessionBound
+assumes approval has already been reduced to structure and then governs
+the exploratory SQL session created from that approval.
+
+\hypertarget{agent-security-and-database-enforcement}{%
+\subsection{Agent security and database
+enforcement}\label{agent-security-and-database-enforcement}}
+
+Prompt-injection work shows that agent prompts are not reliable security
+boundaries~\cite{greshake2023indirect,liu2023promptinjection,owasp2025llm01};
+information-flow work explores stronger controls for agent
+actions~\cite{myers1997difc,costa2025ifcagents}. Database mechanisms
+such as RLS, Oracle VPD, and Oracle DDS enforce policy close to
+data~\cite{postgresql2026rowsecurity,oracle2026vpd,oracle2026deepdatasecuritydocs,oracle2026deepdatasecuritybrief}.
+SessionBound uses database enforcement but makes the approved task
+session, not the standing identity or relation, the runtime object.
+
+\hypertarget{query-structure-auditing-and-inference}{%
+\subsection{Query structure, auditing, and
+inference}\label{query-structure-auditing-and-inference}}
+
+SQLrand and SQLCHECK motivate parser-mediated query-structure
+validation~\cite{boyd2004sqlrand,su2006essence}. Query auditing,
+inference-control, differential privacy, and DLP study disclosure from
+answers or data movement~\cite{kleinberg2000auditing,nabar2006robustness,adam1989securitycontrol,dwork2014algorithmic,alneyadi2016dlps,nist2026dlpglossary}.
+SessionBound's disclosure budgets are operational accounting for a
+delegated task, not a formal DP guarantee.
+
+\hypertarget{relationship-authorization}{%
+\subsection{Relationship authorization}\label{relationship-authorization}}
+
+Zanzibar provides globally consistent relationship-based authorization
+checks~\cite{pang2019zanzibar}. Such checks can help decide whether a
+user or agent may request a task; SessionBound addresses the subsequent
+question of how the resulting database session should be scoped,
+budgeted, and audited.
+
+
+\hypertarget{future-work}{%
+\section{Future Work}\label{future-work}}
+
+Future work falls into five directions. First, cross-database and
+lakehouse federation should preserve one approval, budget, and receipt
+chain across PostgreSQL, warehouses, vector stores, and lakehouse tables.
+Second, production SQL enforcement should move from the current
+wrapper/hook prototype toward planner- or executor-level integration
+that binds task state to resolved relations and accounts for returned
+business objects. Third, disclosure accounting should add
+sensitivity-aware budgets, aggregate leakage controls, minimum-group
+policies, and reconstruction-risk checks. Fourth, receipts can be
+strengthened with Merkle trees, append-only transparency logs,
+cryptographic accumulators, or external notarization. Fifth, safe-view
+authoring should become a developer workflow with linting, definition
+hashing, adversarial tests, and migration-driven token invalidation.
+
+
+\hypertarget{limitations}{%
+\section{Limitations}\label{limitations}}
+
+SessionBound is a research prototype and reference architecture with the
+following limitations:
+
+\begin{itemize}
+\tightlist
+\item
+  SQL validation now includes AST-level API preflight and an experimental
+  PostgreSQL parse/analyze hook path, but it is not production-grade
+  planner/executor-level enforcement;
+\item
+  the prototype targets a single PostgreSQL database and demo signing
+  should be replaced with KMS/JWKS-backed signing;
+\item
+  disclosure budgets are operational authority accounting, not formal
+  differential privacy or complete semantic inference control;
+\item
+  out-of-scope predicates over safe views return no rows through
+  transparent scope filtering rather than producing an explicit denial;
+\item
+  payload aggregation functions are conservatively blocked rather than
+  governed by a per-template allowlist in the measured prototype;
+\item
+  safe views and drift invalidation require production migration,
+  review, and re-approval workflows;
+\item
+  current performance results include microbenchmarks, overhead
+  ablations, and a prior 1k/10k/100k synthetic scale sweep, but should
+  not be generalized to production workloads or an optimized
+  planner/executor-hook implementation;
+\item
+  evaluated native paths persist allowed receipts and hook/API denial
+  receipts through a same-database autonomous audit channel, including
+  across agent transaction rollback; external audit retention, lifecycle
+  cleanup, credential brokerage, and key management remain production
+  infrastructure outside this demo;
+\item
+  cross-database enforcement, malicious DBAs, and compromised hosts are
+  out of scope.
+\end{itemize}
+
+\hypertarget{conclusion}{%
+\section{Conclusion}\label{conclusion}}
+
+SessionBound turns enterprise task approval into budgeted database
+sessions for AI agents. It addresses a gap between business governance
+and database enforcement: business users approve tasks, data platforms
+register safe views, agents generate SQL, and databases enforce the
+approved boundary.
+
+SessionBound is not a replacement for OAuth, authenticated delegation,
+PAuth, Data Product MCP, Oracle DDS, Zanzibar, or differential privacy.
+It is a complementary architecture for enterprise-internal analytical
+work: temporary tasks that are too flexible for fixed SaaS screens and
+too sensitive for raw database access.
+
+SessionBoundDB, our PostgreSQL runtime, demonstrates how signed task
+tokens, safe views, denied fields, row scope, query budgets, disclosure
+budgets, and receipts can be bound to one database session. The result
+is a practical contract between enterprise task approval and agentic
+database execution:
+
+\begin{verbatim}
+The agent can try. The database decides.
+\end{verbatim}
+
+The performance results sharpen the implementation lesson. On the
+default dataset, full SessionBound adds little over safe-view-only
+execution, so the small-scale overhead is primarily safe-view and
+session-runtime overhead rather than receipt-chain insertion or budget
+updates. At 100k scoped rows, however, the PL/pgSQL reference runtime
+becomes multi-second while raw PostgreSQL and safe-view-only execution
+remain much faster; the hook-only microbenchmark shows that structural
+parse/analyze guarding is not the multi-second bottleneck. This does not
+change the core task-bound session model, but it does define the
+production engineering path: move from the wrapper-based reference
+runtime toward native executor accounting and optimized PostgreSQL
+integration.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

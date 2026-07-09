@@ -1,0 +1,69 @@
+{
+  "records": [
+    {
+      "id": "SDK01",
+      "name": "sdk_query_wraps_taskbound_run",
+      "expected": "Allowed",
+      "actual": "Allowed",
+      "passed": true,
+      "evidence": {
+        "bound": {
+          "bound": true,
+          "purpose": "monthly_travel_expense_anomaly_review",
+          "task_id": "task_sdk_query_1783419732",
+          "credential_id": null,
+          "budget_account": "task_sdk_query_1783419732"
+        },
+        "rows": [
+          {
+            "amount": 17200.0,
+            "expense_id": "exp_296"
+          },
+          {
+            "amount": 16550.0,
+            "expense_id": "exp_259"
+          }
+        ],
+        "state": [
+          {
+            "task_id": "task_sdk_query_1783419732",
+            "budget_account": "task_sdk_query_1783419732",
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2,
+            "revoked": false
+          }
+        ],
+        "receipts": [
+          {
+            "decision": "allowed",
+            "rows_returned": 2,
+            "unique_rows_added": 2,
+            "remaining_unique_row_budget": 3,
+            "reason": null,
+            "created_at": "2026-07-07 10:22:12.348765+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "SDK02",
+      "name": "bare_safe_view_select_still_denied",
+      "expected": "Blocked",
+      "actual": "Blocked",
+      "passed": true,
+      "evidence": {
+        "ok": false,
+        "error": "permission denied for view expenses"
+      }
+    }
+  ],
+  "run": {
+    "case_count": 2,
+    "passed": 2,
+    "failed": 0,
+    "database_url": "postgresql://agent_app:***@postgres:5432/travel",
+    "commit": "5dbece5",
+    "timestamp": "2026-07-07T10:22:12.367842Z"
+  }
+}

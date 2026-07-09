@@ -1,4 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS dblink;
+CREATE EXTENSION IF NOT EXISTS sessionbound_guard;
 
 CREATE ROLE agent_runtime NOLOGIN;
 CREATE ROLE agent_app LOGIN PASSWORD 'agentpass';
@@ -70,9 +72,30 @@ CREATE TABLE taskbound.signing_keys (
 
 CREATE TABLE taskbound.active_sessions (
   backend_pid int PRIMARY KEY,
+  backend_start timestamptz NOT NULL,
   task_id text NOT NULL,
+  credential_id text,
   payload jsonb NOT NULL,
   bound_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE taskbound.credential_ledger (
+  credential_id text PRIMARY KEY,
+  db_user name UNIQUE NOT NULL,
+  actor text NOT NULL,
+  audience text NOT NULL DEFAULT 'sessionbounddb',
+  issued_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL,
+  revoked boolean NOT NULL DEFAULT false
+);
+
+CREATE TABLE taskbound.task_credential_bindings (
+  task_id text PRIMARY KEY,
+  credential_id text NOT NULL REFERENCES taskbound.credential_ledger(credential_id),
+  token_digest text NOT NULL,
+  first_bound_at timestamptz NOT NULL DEFAULT now(),
+  first_backend_pid int NOT NULL,
+  session_user_name name NOT NULL
 );
 
 CREATE TABLE taskbound.task_execution_state (
@@ -120,5 +143,7 @@ CREATE TABLE taskbound.safe_view_registry (
   workflow_fields text[] NOT NULL,
   sensitive_fields_excluded text[] NOT NULL,
   recommended_commands text[] NOT NULL,
+  registry_version int NOT NULL DEFAULT 1,
+  policy_version text NOT NULL DEFAULT 'travel-demo-v1',
   description text NOT NULL
 );

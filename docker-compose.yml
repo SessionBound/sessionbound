@@ -1,7 +1,9 @@
 services:
   postgres:
-    image: postgres:16
+    build: ./postgres
+    image: taskbound-postgres:16-sessionbound
     container_name: taskbounddb-postgres
+    command: ["postgres", "-c", "shared_preload_libraries=sessionbound_guard"]
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
