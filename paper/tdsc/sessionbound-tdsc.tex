@@ -1042,7 +1042,7 @@ Budget dimension & Prototype charge \\
 \midrule
 \texttt{query\_count} & Wrapper path: one debit on allowed completion. Native path: one debit reserved before executor run. Preflight and policy denials emit denial receipts without result/entity debit in the current prototype. \\
 \texttt{result\_rows} & Number of tuples released to the client and recorded in state/receipts. Join multiplicity is visible here, so duplicate output tuples increase this counter. \\
-\texttt{unique\_entities} & First disclosure of stable business identifiers: new distinct \texttt{expense\_id} values in released detail tuples for the same \texttt{budget\_account}. Seen IDs add no entity charge, but still consume \texttt{query\_count}, \texttt{result\_rows}, and any bytes/column-weight budgets. \\
+\texttt{unique\_entities} & New distinct \texttt{expense\_id} values in released detail tuples for the same \texttt{budget\_account} are charged once. Repeated disclosure of the same ID does not consume additional entity budget, but each query still consumes \texttt{query\_count} and \texttt{result\_rows} budgets, as well as any applicable bytes or column-weight budgets. \\
 \texttt{aggregate\_group} & Aggregate rows are allowed only when the configured entity cardinality is at least \texttt{min\_group\_size}; the prototype does not charge every hidden group member as a released detail entity. \\
 payload aggregation & High-risk payload aggregation functions such as \texttt{json\_agg}, \texttt{array\_agg}, and \texttt{string\_agg} are denied unless a future template explicitly allows them. \\
 over-budget native streaming & The over-budget tuple is not forwarded; the accepted prefix is charged and recorded in a denial receipt with prefix rows, new entities, and remaining budget. \\
@@ -1180,8 +1180,8 @@ The hook is not the sole DDL/DML protection: runtime credentials are
 deny-by-default and lack raw-table and DDL privileges, while
 \texttt{ProcessUtility\_hook} fail-closes and logs utility statements
 that reach the runtime.
-The wrapper reference path instead materializes the candidate result and
-checks group and disclosure policy before returning rows. High-value
+The wrapper reference path instead materializes the candidate result,
+then checks group and disclosure policy before returning rows. High-value
 writes go through controlled commands.
 
 The database hook path is implemented by the
@@ -1546,7 +1546,7 @@ Hook-only structural checks & Trusted-GUC hook check without API preflight & 6 b
 \label{tab:security-baselines}
 \begin{tabular}{@{}lccccc@{}}
 \toprule
-Property & Raw & Role & Safe view & RLS+SV+Audit & SessionBound \\
+Property & Raw & Role & Safe view & RLS+SV+Audit & SB full \\
 \midrule
 Blocks writes & No & Yes & Yes & Yes & Yes \\
 Blocks raw table access & No & No & Yes & Yes & Yes \\
@@ -1732,7 +1732,7 @@ read as a production-throughput claim.
 \begin{table}[!t]
 \centering
 \scriptsize
-\setlength{\tabcolsep}{2pt}
+\setlength{\tabcolsep}{3pt}
 \caption{Diagnostic end-to-end scale benchmark in milliseconds. p50 is
 the range across five query shapes; p95/p99 are maxima. The 1k and 10k
 targets use 10 warmup plus 100 measured iterations; 100k uses 10 warmup
@@ -1740,7 +1740,7 @@ plus 30 measured iterations. The 100k setting uses elevated disclosure
 budgets as a detail-release stress test, not the expected common
 operating mode.}
 \label{tab:scale-sweep}
-\begin{tabular}{@{}llrrrc@{}}
+\begin{tabular}{@{}llcrrr@{}}
 \toprule
 Rows & Mode & p50 range & max p95 & max p99 & Err. \\
 \midrule
