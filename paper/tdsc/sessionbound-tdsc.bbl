@@ -220,28 +220,4 @@ J.~Kleinberg, C.~Papadimitriou, and P.~Raghavan, ``{Auditing Boolean
   [Online]. Available: \url{https://doi.org/10.1145/335168.335210}
 \BIBentrySTDinterwordspacing
 
-\bibitem{nabar2006robustness}
-\BIBentryALTinterwordspacing
-S.~U. Nabar, B.~Marthi, K.~Kenthapadi, N.~Mishra, and R.~Motwani, ``{Towards
-  Robustness in Query Auditing},'' in \emph{Proceedings of the 32nd
-  International Conference on Very Large Data Bases}, 2006, pp. 151--162.
-  [Online]. Available: \url{https://www.vldb.org/conf/2006/p151-nabar.pdf}
-\BIBentrySTDinterwordspacing
-
-\bibitem{alneyadi2016dlps}
-\BIBentryALTinterwordspacing
-S.~Alneyadi, E.~Sithirasenan, and V.~Muthukkumarasamy, ``{A Survey on Data
-  Leakage Prevention Systems},'' \emph{Journal of Network and Computer
-  Applications}, vol.~62, pp. 137--152, 2016. [Online]. Available:
-  \url{https://doi.org/10.1016/j.jnca.2016.01.008}
-\BIBentrySTDinterwordspacing
-
-\bibitem{nist2026dlpglossary}
-\BIBentryALTinterwordspacing
-{National Institute of Standards and Technology}, \emph{{Data Loss
-  Prevention}}, NIST Computer Security Resource Center Glossary, 2026.
-  [Online]. Available:
-  \url{https://csrc.nist.gov/glossary/term/data_loss_prevention}
-\BIBentrySTDinterwordspacing
-
 \end{thebibliography}
