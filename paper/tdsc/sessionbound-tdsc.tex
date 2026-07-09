@@ -1490,7 +1490,7 @@ policy.
 \toprule
 Bucket & Representative pattern & Result & Notes \\
 \midrule
-Blocked direct violations & denied columns, raw schema, catalogs, GUC/session tampering, unsafe functions, prepared/cursor misuse, \texttt{COPY}, \texttt{EXPLAIN ANALYZE}, set operations, DDL/DML, replay/drift/rollback attempts & 115 blocked / 115 & direct attempts to leave the approved task boundary denied \\
+Blocked direct violations & denied columns, raw schema, catalogs, GUC/session tampering, unsafe functions, prepared/cursor misuse, unsafe \texttt{COPY} variants, raw-table \texttt{COPY}, \texttt{EXPLAIN ANALYZE}, set operations, DDL/DML, replay/drift/rollback attempts & 115 blocked / 115 & direct attempts to leave the approved task boundary denied \\
 Blocked payload aggregation & \texttt{json\_agg}, \texttt{array\_agg}, \texttt{string\_agg}, XML/JSON builders, row/composite packing & 6 blocked / 6 & high-risk one-row payload compression denied by default \\
 Blocked small-group aggregate & direct entity grouping, \texttt{HAVING} probes, filtered small group, high configured \(k\) & 5 blocked / 5 & direct small-group aggregate release denied \\
 Allowed safe-view analytics & ordinary safe-view projection, join, aggregate, CTE/window, bounded pagination, harmless aliasing & 14 allowed / 14 & allowed cases emitted receipts and were budget-accounted \\
