@@ -164,6 +164,8 @@ CREATE TABLE taskbound.task_query_receipts (
   unique_rows_added bigint NOT NULL DEFAULT 0,
   remaining_unique_row_budget bigint,
   reason text,
+  previous_receipt_hash text,
+  receipt_hash text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 

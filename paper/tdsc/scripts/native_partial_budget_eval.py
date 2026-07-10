@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate native streaming over-budget prefix accounting."""
+"""Validate atomic native over-budget accounting across projections."""
 
 from __future__ import annotations
 
@@ -70,52 +70,57 @@ def fetch_receipts(cur) -> list[dict[str, Any]]:
 def evaluate(dsn: str) -> dict[str, Any]:
     task_id = f"task_native_partial_budget_{int(time.time())}"
     payload_text, signature = default_task(task_id=task_id, max_queries=5, max_rows=2)
-    sql = "SELECT expense_id, amount FROM expenses ORDER BY expense_id LIMIT 3"
-    error = ""
+    queries = [
+        "SELECT amount FROM expenses ORDER BY expense_id LIMIT 3",
+        "SELECT amount AS renamed_amount FROM expenses ORDER BY expense_id LIMIT 3",
+        "SELECT category, count(*) FROM expenses GROUP BY category",
+    ]
+    observations: list[dict[str, Any]] = []
 
     with psycopg.connect(dsn, autocommit=True) as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT taskbound.bind_task(%s, %s)", (payload_text, signature))
             cur.fetchone()
-            try:
-                cur.execute(sql)
-                cur.fetchall()
-            except Exception as exc:
-                error = str(exc)
-            state = fetch_state(cur)
-            receipts = fetch_receipts(cur)
+            for sql in queries:
+                error = ""
+                try:
+                    cur.execute(sql)
+                    cur.fetchall()
+                except Exception as exc:
+                    error = str(exc)
+                state = fetch_state(cur)
+                receipts = fetch_receipts(cur)
+                observations.append({"sql": sql, "error": error, "state": state, "receipts": receipts})
             cur.execute("SELECT taskbound.unbind_task()")
 
-    latest_state = state[0] if state else {}
-    denial = next(
-        (
-            receipt
-            for receipt in receipts
-            if receipt.get("decision") == "denied"
-            and "unique expense row budget exceeded" in (receipt.get("reason") or "")
-        ),
-        {},
-    )
-    passed = (
-        "unique expense row budget exceeded" in error
-        and latest_state.get("query_count") == 1
-        and latest_state.get("returned_rows") == 2
-        and latest_state.get("unique_expense_rows") == 2
-        and denial.get("rows_returned") == 2
-        and denial.get("unique_rows_added") == 2
-        and denial.get("remaining_unique_row_budget") == 0
-    )
+    passed = True
+    for index, observation in enumerate(observations, start=1):
+        state = observation["state"][0] if observation["state"] else {}
+        denial = next(
+            (
+                receipt
+                for receipt in observation["receipts"]
+                if receipt.get("decision") == "denied"
+                and "result tuple budget exceeded" in (receipt.get("reason") or "")
+            ),
+            {},
+        )
+        passed = passed and (
+            "result tuple budget exceeded" in observation["error"]
+            and state.get("query_count") == index
+            and state.get("returned_rows") == 0
+            and state.get("unique_expense_rows") == 0
+            and denial.get("rows_returned") == 0
+            and denial.get("unique_rows_added") == 0
+        )
     record = {
         "id": "NPB01",
-        "name": "native_over_budget_prefix_charged_with_denial_receipt",
-        "expected": "Denied after charging accepted prefix",
+        "name": "native_over_budget_projection_independent_atomic_denial",
+        "expected": "Projection, alias, and aggregate shapes cannot release a prefix or bypass the conservative tuple budget",
         "actual": "Passed" if passed else "Failed",
         "passed": passed,
         "evidence": {
-            "sql": sql,
-            "error": error,
-            "state": state,
-            "receipts": receipts,
+            "observations": observations,
         },
     }
     return {

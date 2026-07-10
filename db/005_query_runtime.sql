@@ -1,3 +1,9 @@
+/* In-place upgrade for artifact databases initialized before receipt-chain
+ * fields were added.  Fresh databases get these columns from 001_schema.sql. */
+ALTER TABLE taskbound.task_query_receipts
+  ADD COLUMN IF NOT EXISTS previous_receipt_hash text,
+  ADD COLUMN IF NOT EXISTS receipt_hash text;
+
 CREATE OR REPLACE FUNCTION taskbound.audit_connection_name()
 RETURNS text
 LANGUAGE sql
@@ -21,6 +27,123 @@ BEGIN
     PERFORM public.dblink_connect(v_conn, 'dbname=' || current_database());
   END IF;
   PERFORM public.dblink_exec(v_conn, sql_text);
+END;
+$$;
+
+/*
+ * Append a task receipt on the autonomous audit connection.  The advisory
+ * transaction lock serializes writers for one task, so the previous hash is
+ * well-defined even when several agent backends finish concurrently.  This
+ * function deliberately does not use the caller's transaction: denials raised
+ * by the parser or executor must remain observable after ROLLBACK.
+ */
+CREATE OR REPLACE FUNCTION taskbound.audit_append_receipt(
+  v_task_id text,
+  v_budget_account text,
+  v_binding_id uuid,
+  v_fence_token bigint,
+  v_query_digest text,
+  v_decision text,
+  v_rows_returned bigint DEFAULT 0,
+  v_unique_rows_added bigint DEFAULT 0,
+  v_remaining_unique_row_budget bigint DEFAULT NULL,
+  v_reason text DEFAULT NULL,
+  v_receipts_enabled boolean DEFAULT true
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+DECLARE
+  v_conn text := taskbound.audit_connection_name();
+  v_connections text[];
+  v_sql text;
+BEGIN
+  IF NOT COALESCE(v_receipts_enabled, true) OR COALESCE(v_task_id, '') = '' THEN
+    RETURN;
+  END IF;
+
+  SELECT public.dblink_get_connections() INTO v_connections;
+  IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
+    PERFORM public.dblink_connect(v_conn, 'dbname=' || current_database());
+  END IF;
+
+  v_sql := format($sql$
+    BEGIN;
+    SELECT pg_advisory_xact_lock(hashtextextended(%L, 0));
+    WITH owner AS (
+      SELECT taskbound.mutation_fence_ok(%L, %L::uuid, %s) AS ok
+    ), previous AS (
+      SELECT COALESCE((
+        SELECT r.receipt_hash
+        FROM taskbound.task_query_receipts r
+        WHERE r.task_id = %L
+        ORDER BY r.created_at DESC, r.receipt_id DESC
+        LIMIT 1
+      ), '') AS previous_hash
+    ), material AS (
+      SELECT previous_hash,
+             encode(public.digest(
+               concat_ws(chr(31),
+                 %L, %L, %L, %s, %L, %L, %s, %s,
+                 COALESCE(%s::text, ''), COALESCE(%L, ''), previous_hash
+               ), 'sha256'), 'hex') AS current_hash
+      FROM previous
+    )
+    INSERT INTO taskbound.task_query_receipts (
+      task_id, budget_account, binding_id, fence_token, query_digest,
+      decision, rows_returned, unique_rows_added,
+      remaining_unique_row_budget, reason,
+      previous_receipt_hash, receipt_hash
+    )
+    SELECT %L, %L, %L::uuid, %s, %L, %L, %s, %s,
+           %s, %L, previous_hash, current_hash
+    FROM material, owner
+    WHERE owner.ok
+      AND NOT EXISTS (
+      SELECT 1
+      FROM taskbound.task_query_receipts r
+      WHERE r.task_id = %L
+        AND r.binding_id = %L::uuid
+        AND r.decision = %L
+        AND r.reason IS NOT DISTINCT FROM %L
+        AND r.created_at >= clock_timestamp() - interval '1 second'
+    );
+    COMMIT;
+  $sql$,
+    COALESCE(v_task_id, ''),
+    COALESCE(v_task_id, ''),
+    COALESCE(v_binding_id::text, ''),
+    COALESCE(v_fence_token, 0),
+    COALESCE(v_task_id, ''),
+    COALESCE(v_task_id, ''),
+    COALESCE(v_budget_account, v_task_id),
+    COALESCE(v_binding_id::text, ''),
+    COALESCE(v_fence_token, 0),
+    COALESCE(v_query_digest, ''),
+    COALESCE(v_decision, ''),
+    GREATEST(COALESCE(v_rows_returned, 0), 0),
+    GREATEST(COALESCE(v_unique_rows_added, 0), 0),
+    COALESCE(v_remaining_unique_row_budget::text, 'NULL'),
+    COALESCE(v_reason, ''),
+    COALESCE(v_task_id, ''),
+    COALESCE(v_budget_account, v_task_id),
+    COALESCE(v_binding_id::text, ''),
+    COALESCE(v_fence_token, 0),
+    COALESCE(v_query_digest, ''),
+    COALESCE(v_decision, ''),
+    GREATEST(COALESCE(v_rows_returned, 0), 0),
+    GREATEST(COALESCE(v_unique_rows_added, 0), 0),
+    COALESCE(v_remaining_unique_row_budget::text, 'NULL'),
+    COALESCE(v_reason, ''),
+    COALESCE(v_task_id, ''),
+    COALESCE(v_binding_id::text, ''),
+    COALESCE(v_decision, ''),
+    COALESCE(v_reason, '')
+  );
+
+  PERFORM public.dblink_exec(v_conn, v_sql);
 END;
 $$;
 
@@ -85,21 +208,19 @@ BEGIN
     RETURN;
   END IF;
 
-  PERFORM taskbound.audit_exec(format(
-    'INSERT INTO taskbound.task_query_receipts ' ||
-    '(task_id, budget_account, binding_id, fence_token, query_digest, decision, reason) ' ||
-    'SELECT %L, %L, %L::uuid, %s, encode(public.digest(%L, ''sha256''), ''hex''), ''denied'', %L ' ||
-    'WHERE taskbound.mutation_fence_ok(%L, %L::uuid, %s)',
+  PERFORM taskbound.audit_append_receipt(
     v_task_id,
     COALESCE(v_budget_account, v_task_id),
     v_binding_id,
     v_fence_token,
-    COALESCE(sql_text, ''),
-    reason,
-    v_task_id,
-    v_binding_id,
-    v_fence_token
-  ));
+    encode(public.digest(COALESCE(sql_text, ''), 'sha256'), 'hex'),
+    'denied',
+    0,
+    0,
+    NULL,
+    COALESCE(reason, 'query denied'),
+    v_receipts_enabled
+  );
 END;
 $$;
 
@@ -140,24 +261,20 @@ BEGIN
     RETURN;
   END IF;
 
-  INSERT INTO taskbound.task_query_receipts (
-    task_id,
-    budget_account,
-    binding_id,
-    fence_token,
-    query_digest,
-    decision,
-    reason
-  )
-  SELECT
+  /*
+   * A denial is evidence about an attempted operation.  Send it through the
+   * autonomous audit channel before raising so an enclosing agent
+   * transaction cannot erase the evidence with ROLLBACK.
+   */
+  PERFORM taskbound.native_denied_receipt(
     active.task_id,
     COALESCE(p->>'budget_account', active.task_id),
+    sql_text,
+    reason,
+    v_receipts_enabled,
     active.binding_id,
-    active.fence_token,
-    encode(public.digest(COALESCE(sql_text, ''), 'sha256'), 'hex'),
-    'denied',
-    COALESCE(reason, 'query denied')
-  WHERE taskbound.mutation_fence_ok(active.task_id, active.binding_id, active.fence_token);
+    active.fence_token
+  );
 END;
 $$;
 
@@ -292,11 +409,11 @@ AS $$
 DECLARE
   v_conn text := taskbound.audit_connection_name();
   v_connections text[];
-  v_ids_expr text;
-  v_unique_added bigint := 0;
+  v_disclosure_added bigint := 0;
   v_unique_after bigint;
   v_remaining_sql text := 'NULL';
   v_fence_ok boolean := true;
+  v_status text := 'ok';
 BEGIN
   SELECT public.dblink_get_connections() INTO v_connections;
   IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
@@ -304,16 +421,15 @@ BEGIN
   END IF;
 
   IF COALESCE(v_budget_accounting_enabled, true) THEN
-    IF COALESCE(cardinality(v_new_expense_ids), 0) = 0 THEN
-      v_ids_expr := 'ARRAY[]::text[]';
-    ELSE
-      SELECT 'ARRAY[' || string_agg(format('%L', row_id), ',') || ']::text[]'
-      INTO v_ids_expr
-      FROM unnest(v_new_expense_ids) AS u(row_id);
-    END IF;
-
-    SELECT fence_ok, unique_added, unique_after
-    INTO v_fence_ok, v_unique_added, v_unique_after
+    /*
+     * The disclosure unit is an emitted result tuple, not an optionally
+     * projected business key. v_new_expense_ids remains only for wire
+     * compatibility with pre-revision extension binaries and is ignored.
+     * The conditional UPDATE is the final atomic check before C releases its
+     * buffered tuples to the PostgreSQL client receiver.
+     */
+    SELECT status, fence_ok, disclosure_added, unique_after
+    INTO v_status, v_fence_ok, v_disclosure_added, v_unique_after
     FROM public.dblink(
       v_conn,
       format(
@@ -321,91 +437,65 @@ BEGIN
         WITH owner AS (
           SELECT taskbound.mutation_fence_ok(%L, %L::uuid, %s) AS ok
         ),
-        before_count AS (
-          SELECT count(*)::bigint AS n
-          FROM taskbound.task_rows_seen
-          WHERE budget_account = %L
-            AND row_kind = 'expense'
-            AND (SELECT ok FROM owner)
-        ),
-        input AS (
-          SELECT DISTINCT row_id
-          FROM unnest(%s) AS u(row_id)
-          WHERE row_id IS NOT NULL AND row_id <> ''
-        ),
-        ins AS (
-          INSERT INTO taskbound.task_rows_seen (budget_account, row_kind, row_id)
-          SELECT %L, 'expense', row_id
-          FROM input
-          WHERE (SELECT ok FROM owner)
-          ON CONFLICT DO NOTHING
-          RETURNING 1
-        ),
-        after_count AS (
-          SELECT (SELECT n FROM before_count) + (SELECT count(*)::bigint FROM ins) AS n
-        ),
         updated AS (
           UPDATE taskbound.task_execution_state
           SET returned_rows = returned_rows + %s,
-              unique_expense_rows = (SELECT n FROM after_count)
+              unique_expense_rows = unique_expense_rows + %s
           WHERE task_id = %L
             AND (SELECT ok FROM owner)
-          RETURNING 1
+            AND unique_expense_rows + %s <= %s
+          RETURNING unique_expense_rows
+        ),
+        existing AS (
+          SELECT unique_expense_rows
+          FROM taskbound.task_execution_state
+          WHERE task_id = %L
         )
         SELECT
+          CASE
+            WHEN NOT (SELECT ok FROM owner) THEN 'BINDING_FENCED'
+            WHEN EXISTS (SELECT 1 FROM updated) THEN 'ok'
+            WHEN EXISTS (SELECT 1 FROM existing) THEN 'result tuple budget exceeded'
+            ELSE 'task execution state is missing'
+          END AS status,
           (SELECT ok FROM owner) AS fence_ok,
-          (SELECT count(*)::bigint FROM ins) AS unique_added,
-          (SELECT n FROM after_count) AS unique_after
+          CASE WHEN EXISTS (SELECT 1 FROM updated) THEN %s::bigint ELSE 0::bigint END AS disclosure_added,
+          COALESCE((SELECT unique_expense_rows FROM updated), (SELECT unique_expense_rows FROM existing), 0)::bigint AS unique_after
         $sql$,
         v_task_id,
         v_binding_id,
         v_fence_token,
-        v_budget_account,
-        v_ids_expr,
-        v_budget_account,
         GREATEST(COALESCE(v_rows_returned, 0), 0),
-        v_task_id
-      )
-    ) AS t(fence_ok boolean, unique_added bigint, unique_after bigint);
-
-    IF NOT COALESCE(v_fence_ok, false) THEN
-      RAISE EXCEPTION 'SessionBoundDB denied query: BINDING_FENCED';
-    END IF;
-
-    IF v_unique_after > COALESCE(v_max_rows, 0) THEN
-      PERFORM taskbound.native_denied_receipt(
+        GREATEST(COALESCE(v_rows_returned, 0), 0),
         v_task_id,
-        v_budget_account,
-        sql_text,
-        'unique expense row budget exceeded',
-        v_receipts_enabled,
-        v_binding_id,
-        v_fence_token
-      );
-      RAISE EXCEPTION 'SessionBoundDB denied query: unique expense row budget exceeded';
+        GREATEST(COALESCE(v_rows_returned, 0), 0),
+        GREATEST(COALESCE(v_max_rows, 0), 0),
+        v_task_id,
+        GREATEST(COALESCE(v_rows_returned, 0), 0)
+      )
+    ) AS t(status text, fence_ok boolean, disclosure_added bigint, unique_after bigint);
+
+    IF v_status <> 'ok' OR NOT COALESCE(v_fence_ok, false) THEN
+      RAISE EXCEPTION 'SessionBoundDB denied query: %', COALESCE(v_status, 'BINDING_FENCED');
     END IF;
 
     v_remaining_sql := (COALESCE(v_max_rows, 0) - COALESCE(v_unique_after, 0))::text;
   END IF;
 
   IF COALESCE(v_receipts_enabled, true) THEN
-    PERFORM taskbound.audit_exec(format(
-      'INSERT INTO taskbound.task_query_receipts ' ||
-      '(task_id, budget_account, binding_id, fence_token, query_digest, decision, rows_returned, unique_rows_added, remaining_unique_row_budget) ' ||
-      'SELECT %L, %L, %L::uuid, %s, encode(public.digest(%L, ''sha256''), ''hex''), ''allowed'', %s, %s, %s ' ||
-      'WHERE taskbound.mutation_fence_ok(%L, %L::uuid, %s)',
+    PERFORM taskbound.audit_append_receipt(
       v_task_id,
       v_budget_account,
       v_binding_id,
       v_fence_token,
-      COALESCE(sql_text, ''),
+      encode(public.digest(COALESCE(sql_text, ''), 'sha256'), 'hex'),
+      'allowed',
       GREATEST(COALESCE(v_rows_returned, 0), 0),
-      GREATEST(COALESCE(v_unique_added, 0), 0),
-      v_remaining_sql,
-      v_task_id,
-      v_binding_id,
-      v_fence_token
-    ));
+      GREATEST(COALESCE(v_disclosure_added, 0), 0),
+      CASE WHEN v_remaining_sql = 'NULL' THEN NULL ELSE v_remaining_sql::bigint END,
+      NULL,
+      v_receipts_enabled
+    );
   END IF;
 END;
 $$;
@@ -428,112 +518,19 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = taskbound, public, pg_temp
 AS $$
-DECLARE
-  v_conn text := taskbound.audit_connection_name();
-  v_connections text[];
-  v_ids_expr text;
-  v_unique_added bigint := 0;
-  v_unique_after bigint;
-  v_remaining_sql text := 'NULL';
-  v_fence_ok boolean := true;
 BEGIN
-  SELECT public.dblink_get_connections() INTO v_connections;
-  IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
-    PERFORM public.dblink_connect(v_conn, 'dbname=' || current_database());
-  END IF;
-
-  IF COALESCE(v_budget_accounting_enabled, true) THEN
-    IF COALESCE(cardinality(v_new_expense_ids), 0) = 0 THEN
-      v_ids_expr := 'ARRAY[]::text[]';
-    ELSE
-      SELECT 'ARRAY[' || string_agg(format('%L', row_id), ',') || ']::text[]'
-      INTO v_ids_expr
-      FROM unnest(v_new_expense_ids) AS u(row_id);
-    END IF;
-
-    SELECT fence_ok, unique_added, unique_after
-    INTO v_fence_ok, v_unique_added, v_unique_after
-    FROM public.dblink(
-      v_conn,
-      format(
-        $sql$
-        WITH owner AS (
-          SELECT taskbound.mutation_fence_ok(%L, %L::uuid, %s) AS ok
-        ),
-        before_count AS (
-          SELECT count(*)::bigint AS n
-          FROM taskbound.task_rows_seen
-          WHERE budget_account = %L
-            AND row_kind = 'expense'
-            AND (SELECT ok FROM owner)
-        ),
-        input AS (
-          SELECT DISTINCT row_id
-          FROM unnest(%s) AS u(row_id)
-          WHERE row_id IS NOT NULL AND row_id <> ''
-        ),
-        ins AS (
-          INSERT INTO taskbound.task_rows_seen (budget_account, row_kind, row_id)
-          SELECT %L, 'expense', row_id
-          FROM input
-          WHERE (SELECT ok FROM owner)
-          ON CONFLICT DO NOTHING
-          RETURNING 1
-        ),
-        after_count AS (
-          SELECT (SELECT n FROM before_count) + (SELECT count(*)::bigint FROM ins) AS n
-        ),
-        updated AS (
-          UPDATE taskbound.task_execution_state
-          SET returned_rows = returned_rows + %s,
-              unique_expense_rows = (SELECT n FROM after_count)
-          WHERE task_id = %L
-            AND (SELECT ok FROM owner)
-          RETURNING 1
-        )
-        SELECT
-          (SELECT ok FROM owner) AS fence_ok,
-          (SELECT count(*)::bigint FROM ins) AS unique_added,
-          (SELECT n FROM after_count) AS unique_after
-        $sql$,
-        v_task_id,
-        v_binding_id,
-        v_fence_token,
-        v_budget_account,
-        v_ids_expr,
-        v_budget_account,
-        GREATEST(COALESCE(v_rows_returned, 0), 0),
-        v_task_id
-      )
-    ) AS t(fence_ok boolean, unique_added bigint, unique_after bigint);
-
-    IF NOT COALESCE(v_fence_ok, false) THEN
-      RAISE EXCEPTION 'SessionBoundDB denied query: BINDING_FENCED';
-    END IF;
-
-    v_remaining_sql := (COALESCE(v_max_rows, 0) - COALESCE(v_unique_after, 0))::text;
-  END IF;
-
-  IF COALESCE(v_receipts_enabled, true) THEN
-    PERFORM taskbound.audit_exec(format(
-      'INSERT INTO taskbound.task_query_receipts ' ||
-      '(task_id, budget_account, binding_id, fence_token, query_digest, decision, reason, rows_returned, unique_rows_added, remaining_unique_row_budget) ' ||
-      'SELECT %L, %L, %L::uuid, %s, encode(public.digest(%L, ''sha256''), ''hex''), ''denied'', %L, %s, %s, %s ' ||
-      'WHERE taskbound.mutation_fence_ok(%L, %L::uuid, %s)',
-      v_task_id,
-      v_budget_account,
-      v_binding_id,
-      v_fence_token,
-      COALESCE(sql_text, ''),
-      COALESCE(reason, 'query denied'),
-      GREATEST(COALESCE(v_rows_returned, 0), 0),
-      GREATEST(COALESCE(v_unique_added, 0), 0),
-      v_remaining_sql,
-      v_task_id,
-      v_binding_id,
-      v_fence_token
-    ));
-  END IF;
+  /* Compatibility entry point retained for old callers.  Prefix charging is
+   * intentionally retired: rejected executions are recorded as zero-release
+   * denials and never mutate the disclosure counter. */
+  PERFORM taskbound.native_denied_receipt(
+    v_task_id,
+    v_budget_account,
+    sql_text,
+    COALESCE(reason, 'query denied; atomic release withheld'),
+    v_receipts_enabled,
+    v_binding_id,
+    v_fence_token
+  );
 END;
 $$;
 
@@ -689,7 +686,6 @@ DECLARE
   v_receipts_enabled boolean;
   v_budget_accounting_enabled boolean;
   v_min_group_size int;
-  receipt uuid;
   active record;
   v_collect_rows_for_policy boolean;
 BEGIN
@@ -767,18 +763,24 @@ BEGIN
   max_queries := COALESCE((p #>> ARRAY['budgets', 'max_queries'])::int, 100);
   max_rows := COALESCE((p #>> ARRAY['budgets', 'max_unique_expense_rows'])::int, 1000000);
 
-  IF v_budget_accounting_enabled THEN
-    IF (SELECT query_count FROM taskbound.task_execution_state WHERE task_execution_state.task_id = v_task_id) >= max_queries THEN
-      PERFORM taskbound.fail_receipt(sql_text, 'query budget exhausted');
-      RAISE EXCEPTION 'SessionBoundDB denied query: query budget exhausted';
-    END IF;
-  END IF;
+  /* Reserve the query counter through the same fenced autonomous path used by
+   * native SQL.  This keeps wrapper/native query-budget semantics identical
+   * and makes an overflow denial rollback-surviving as well. */
+  PERFORM taskbound.native_reserve_query(
+    v_task_id,
+    v_budget_account,
+    sql_text,
+    max_queries,
+    v_budget_accounting_enabled,
+    v_receipts_enabled,
+    active.binding_id,
+    active.fence_token
+  );
 
   IF v_budget_accounting_enabled THEN
-    SELECT count(*) INTO unique_before
-    FROM taskbound.task_rows_seen
-    WHERE task_rows_seen.budget_account = v_budget_account
-      AND row_kind = 'expense';
+    SELECT unique_expense_rows INTO unique_before
+    FROM taskbound.task_execution_state
+    WHERE task_execution_state.task_id = v_task_id;
   ELSE
     unique_before := 0;
   END IF;
@@ -788,18 +790,9 @@ BEGIN
 
     FOR row_item IN EXECUTE sql_text LOOP
       row_json := to_jsonb(row_item);
-      IF v_collect_rows_for_policy THEN
-        rows := array_append(rows, row_json);
-      END IF;
+      /* Materialize before release so wrapper and native paths are atomic. */
+      rows := array_append(rows, row_json);
       rows_returned := rows_returned + 1;
-
-      IF v_budget_accounting_enabled AND row_json ? 'expense_id' THEN
-        INSERT INTO taskbound.task_rows_seen (budget_account, row_kind, row_id)
-        VALUES (v_budget_account, 'expense', row_json->>'expense_id')
-        ON CONFLICT DO NOTHING;
-      END IF;
-
-      RETURN NEXT row_json;
     END LOOP;
   EXCEPTION WHEN OTHERS THEN
     PERFORM taskbound.fail_receipt(sql_text, SQLERRM);
@@ -814,10 +807,10 @@ BEGIN
   END;
 
   IF v_budget_accounting_enabled THEN
-    SELECT count(*) INTO unique_after
-    FROM taskbound.task_rows_seen
-    WHERE task_rows_seen.budget_account = v_budget_account
-      AND row_kind = 'expense';
+    /* Every returned tuple consumes one disclosure unit independent of its
+     * projection.  The schema's legacy column name is retained for upgrade
+     * compatibility; it now records cumulative released result tuples. */
+    unique_after := unique_before + rows_returned;
   ELSE
     unique_after := 0;
   END IF;
@@ -826,38 +819,32 @@ BEGIN
 
   IF v_budget_accounting_enabled THEN
     IF unique_after > max_rows THEN
-      PERFORM taskbound.fail_receipt(sql_text, 'unique expense row budget exceeded');
-      RAISE EXCEPTION 'SessionBoundDB denied query: unique expense row budget exceeded';
+      PERFORM taskbound.fail_receipt(sql_text, 'result tuple budget exceeded; atomic release withheld');
+      RAISE EXCEPTION 'SessionBoundDB denied query: result tuple budget exceeded';
     END IF;
   END IF;
 
-  IF v_budget_accounting_enabled THEN
-    UPDATE taskbound.task_execution_state
-    SET query_count = query_count + 1,
-        returned_rows = returned_rows + rows_returned,
-        unique_expense_rows = unique_after
-    WHERE task_execution_state.task_id = v_task_id
-      AND taskbound.mutation_fence_ok(v_task_id, active.binding_id, active.fence_token);
-  END IF;
+  /* Use the same autonomous commit path as native SQL.  This keeps wrapper
+   * accounting and the allow receipt alive when the caller later rolls back
+   * its business transaction, and makes wrapper/native semantics identical. */
+  PERFORM taskbound.native_finish_query(
+    v_task_id,
+    v_budget_account,
+    sql_text,
+    rows_returned,
+    ARRAY[]::text[],
+    max_rows,
+    v_budget_accounting_enabled,
+    v_receipts_enabled,
+    active.binding_id,
+    active.fence_token
+  );
 
-  IF v_receipts_enabled THEN
-    INSERT INTO taskbound.task_query_receipts (
-      task_id, budget_account, binding_id, fence_token, query_digest, decision, rows_returned,
-      unique_rows_added, remaining_unique_row_budget
-    )
-    VALUES (
-      v_task_id,
-      v_budget_account,
-      active.binding_id,
-      active.fence_token,
-      encode(public.digest(sql_text, 'sha256'), 'hex'),
-      'allowed',
-      rows_returned,
-      unique_added,
-      CASE WHEN v_budget_accounting_enabled THEN max_rows - unique_after ELSE NULL END
-    )
-    RETURNING receipt_id INTO receipt;
-  END IF;
+  /* This is intentionally last: neither a rejected query nor a failed
+   * accounting/receipt write exposes a result prefix to the caller. */
+  FOREACH row_json IN ARRAY rows LOOP
+    RETURN NEXT row_json;
+  END LOOP;
   RETURN;
 END;
 $$;

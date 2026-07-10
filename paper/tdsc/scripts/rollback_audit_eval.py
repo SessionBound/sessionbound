@@ -118,7 +118,7 @@ def extract_snapshot(stdout: str) -> dict[str, Any]:
                 "revoked": parts[5] == "true",
             }
         elif line.startswith(RECEIPT_MARKER):
-            parts = line[len(RECEIPT_MARKER) :].split("\t", 4)
+            parts = line[len(RECEIPT_MARKER) :].split("\t", 6)
             receipts.append(
                 {
                     "decision": parts[0],
@@ -126,6 +126,8 @@ def extract_snapshot(stdout: str) -> dict[str, Any]:
                     "unique_rows_added": _parse_int(parts[2]),
                     "remaining_unique_row_budget": _parse_int(parts[3]),
                     "reason": parts[4] if len(parts) > 4 else "",
+                    "previous_receipt_hash": parts[5] if len(parts) > 5 else "",
+                    "receipt_hash": parts[6] if len(parts) > 6 else "",
                 }
             )
     if state is None:
@@ -133,7 +135,9 @@ def extract_snapshot(stdout: str) -> dict[str, Any]:
     return {"state": state, "receipts": receipts}
 
 
-def issue_task(base_url: str, run_id: str, suffix: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def issue_task(
+    base_url: str, run_id: str, suffix: str, *, max_rows: int = 5000
+) -> tuple[dict[str, Any], dict[str, Any]]:
     credential = post_json(
         base_url,
         "/credentials",
@@ -153,7 +157,7 @@ def issue_task(base_url: str, run_id: str, suffix: str) -> tuple[dict[str, Any],
             "actor": "agent:travel-expense-analyst",
             "credential_id": credential.get("credential_id"),
             "scope": {"expense_month": "2026-06"},
-            "max_rows": 5000,
+            "max_rows": max_rows,
             "max_queries": 50,
         },
     )
@@ -178,7 +182,9 @@ SELECT '{RECEIPT_MARKER}' ||
        rows_returned::text || chr(9) ||
        unique_rows_added::text || chr(9) ||
        COALESCE(remaining_unique_row_budget::text, '') || chr(9) ||
-       COALESCE(replace(replace(reason, chr(10), ' '), chr(9), ' '), '')
+       COALESCE(replace(replace(reason, chr(10), ' '), chr(9), ' '), '') || chr(9) ||
+       COALESCE(previous_receipt_hash, '') || chr(9) ||
+       COALESCE(receipt_hash, '')
 FROM taskbound.receipts()
 ORDER BY created_at, receipt_id;
 """
@@ -228,7 +234,6 @@ SELECT taskbound.bind_task({sql_literal(task['payload_text'])}, {sql_literal(tas
 BEGIN;
 SELECT * FROM app_data.expenses LIMIT 1;
 ROLLBACK;
-SELECT taskbound.fail_receipt('SELECT * FROM app_data.expenses LIMIT 1', 'raw application schema access is not allowed');
 {receipt_snapshot_sql()}
 """
     result = run_psql(sql_script, credential["db_user"], credential["db_password"])
@@ -254,14 +259,85 @@ SELECT taskbound.fail_receipt('SELECT * FROM app_data.expenses LIMIT 1', 'raw ap
     }
 
 
+def run_wrapper_denied_case(credential: dict[str, Any], task: dict[str, Any]) -> dict[str, Any]:
+    """Exercise the wrapper's hook/parser denial without test-side receipt writes."""
+    sql_script = f"""
+\\set ON_ERROR_STOP off
+\\pset format unaligned
+\\pset tuples_only on
+SELECT taskbound.bind_task({sql_literal(task['payload_text'])}, {sql_literal(task['signature'])});
+SELECT * FROM taskbound.run({sql_literal('SELECT expense_id FROM expenses UNION SELECT employee_id FROM employees')});
+{receipt_snapshot_sql()}
+"""
+    result = run_psql(sql_script, credential["db_user"], credential["db_password"])
+    snapshot = extract_snapshot(result["stdout"]) if result["returncode"] == 0 else {}
+    receipts = snapshot.get("receipts") or []
+    denial_receipt = any(
+        receipt.get("decision") == "denied"
+        and "UNION, INTERSECT, and EXCEPT are not allowed" in (receipt.get("reason") or "")
+        for receipt in receipts
+    )
+    error_seen = "SessionBoundDB denied query" in result["stderr"]
+    passed = result["returncode"] == 0 and error_seen and denial_receipt
+    return {
+        "id": "RA03",
+        "name": "wrapper_parser_denial_emits_receipt_without_test_write",
+        "expected": "Wrapper/parser denial emits an autonomous receipt in autocommit mode",
+        "actual": "passed" if passed else "failed",
+        "passed": passed,
+        "snapshot": snapshot,
+        "psql": result,
+    }
+
+
+def run_native_executor_denied_case(credential: dict[str, Any], task: dict[str, Any]) -> dict[str, Any]:
+    """Exercise executor budget rejection and rollback-surviving denial evidence."""
+    sql_script = f"""
+\\set ON_ERROR_STOP off
+\\pset format unaligned
+\\pset tuples_only on
+SELECT taskbound.bind_task({sql_literal(task['payload_text'])}, {sql_literal(task['signature'])});
+BEGIN;
+SELECT expense_id, amount FROM expenses ORDER BY expense_id LIMIT 3;
+ROLLBACK;
+{receipt_snapshot_sql()}
+"""
+    result = run_psql(sql_script, credential["db_user"], credential["db_password"])
+    snapshot = extract_snapshot(result["stdout"]) if result["returncode"] == 0 else {}
+    state = snapshot.get("state") or {}
+    receipts = snapshot.get("receipts") or []
+    denial_receipt = any(
+        receipt.get("decision") == "denied"
+        and receipt.get("rows_returned") == 0
+        and "result tuple budget exceeded" in (receipt.get("reason") or "")
+        for receipt in receipts
+    )
+    error_seen = "result tuple budget exceeded" in result["stderr"]
+    state_ok = state.get("returned_rows") == 0 and state.get("unique_expense_rows") == 0
+    passed = result["returncode"] == 0 and error_seen and denial_receipt and state_ok
+    return {
+        "id": "RA04",
+        "name": "native_executor_denial_is_atomic_and_survives_rollback",
+        "expected": "Executor denial emits zero-release receipt and no result prefix after ROLLBACK",
+        "actual": "passed" if passed else "failed",
+        "passed": passed,
+        "snapshot": snapshot,
+        "psql": result,
+    }
+
+
 def run_eval(base_url: str) -> dict[str, Any]:
     wait_for_api(base_url)
     run_id = str(int(time.time()))
     allowed_credential, allowed_task = issue_task(base_url, run_id, "allowed")
     denied_credential, denied_task = issue_task(base_url, run_id, "denied")
+    wrapper_credential, wrapper_task = issue_task(base_url, run_id, "wrapper")
+    native_credential, native_task = issue_task(base_url, run_id, "native", max_rows=2)
     records = [
         run_allowed_case(allowed_credential, allowed_task),
         run_denied_case(denied_credential, denied_task),
+        run_wrapper_denied_case(wrapper_credential, wrapper_task),
+        run_native_executor_denied_case(native_credential, native_task),
     ]
     return {
         "run": {

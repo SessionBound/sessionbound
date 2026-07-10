@@ -75,15 +75,18 @@ therefore return zero rows rather than raw out-of-scope data.
 I6. Budget state is monotonic: an allowed query consumes budget, or the query
 is denied.
 
-The prototype increments query count and tracks unique exposed `expense_id`
-values when budget accounting is enabled. The hardening overhead script also measures
+The prototype increments query count and charges every candidate output tuple
+when budget accounting is enabled; the legacy `unique_expense_rows` column is
+retained as the tuple counter. Projection aliases, joins, and aggregates do
+not depend on an `expense_id` column. The hardening overhead script also measures
 the supported budget-disabled ablation to isolate this cost.
 
 I7. Every allow/deny decision emits a receipt.
 
-Allowed `taskbound.run` executions insert allow receipts. Database runtime
-denials call `taskbound.fail_receipt`. API-layer AST preflight denials bind
-the task first, then call `taskbound.fail_receipt` before returning denial.
+Allowed and denied runtime decisions append hash-chained receipts through the
+autonomous same-database audit channel. API-layer AST preflight denials bind
+the task first and use the same runtime append function; evaluation scripts do
+not write receipts themselves.
 
 I8. View registry, policy version, or definition-hash drift invalidates the
 token or requires reapproval.

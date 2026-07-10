@@ -17,7 +17,8 @@ unoptimized.
 - Integrated AST preflight in `/query`, `/agent-query`, and `/agent-question`;
   these API paths now use the accounting-complete `taskbound.run(...)`
   reference path.
-- Recorded API-layer preflight denial receipts through `taskbound.fail_receipt`;
+- Recorded API-layer preflight denial receipts through the autonomous audit
+  channel;
   in the current hardening prototype these are written through the same
   rollback-surviving audit channel as native hook denial receipts.
 - Added the `sessionbound_guard` PostgreSQL C extension, loaded through
@@ -54,7 +55,7 @@ unoptimized.
 - PostgreSQL hook enforcement: 18 / 18 cases passed.
 - Hook-only microbenchmark: 6 / 6 checks passed; allowed structural guard checks
   were 0.125--0.138 ms p50.
-- Rollback audit: 2 / 2 cases passed.
+- Rollback audit: 4 / 4 cases passed; no test-side receipt write.
 - Adversarial SQL: 140 / 140 expected classifications passed.
 - Adversarial classifications: 126 blocked, 14 allowed but accounted, all
   tested direct small-group aggregate-release attempts blocked.
@@ -68,7 +69,8 @@ unoptimized.
   executor accounting, but not a formal SQL safety proof.
 - Minimum-group policy mitigates direct small-group aggregate release; arbitrary
   semantic inference across multiple allowed answers remains out of scope.
-- Disclosure budgets are operational controls, not formal differential privacy.
+- Disclosure budgets are conservative output-tuple operational controls, not
+  formal differential privacy or hidden-entity accounting.
 - The current wrapper and native executor-accounting paths both have high
   scale-sensitive overhead in 100k-row tests. The hook-only microbenchmark
   narrows the bottleneck away from structural parse/analyze guarding, but the
@@ -80,7 +82,8 @@ unoptimized.
 - Production claims require hardened signing/key management, credential
   lifecycle cleanup, external audit retention/WORM storage, and operational
   migration/reapproval workflows. The evaluated bound runtime path already
-  persists API/hook denial receipts outside aborting agent transactions.
+  persists API/hook/executor denial receipts outside aborting agent
+  transactions.
 
 ## Recommendation
 

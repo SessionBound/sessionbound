@@ -5,16 +5,17 @@ SessionBound submission candidate.
 
 ## Canonical Version
 
-- Artifact tag: `high-standard-tdsc-pdsc-revision-2026-07-08`
+- Artifact tag: `tdsc-resubmit-2026-07-10`
+- Final commit: recorded in this manifest and the generated raw-result files
 - Submission branch: `high-standard-tdsc-pdsc-revision`
 - Manuscript source: `paper/tdsc/sessionbound-tdsc.tex`
 - Manuscript PDF: `paper/tdsc/sessionbound-tdsc.pdf`
 - Build command: `cd paper/tdsc && make`
-- Page count after P0 hardening revision: 14 pages
+- Page count after resubmission hardening: 16 pages
 
-No immutable Git tag has been created for this revision yet. The manuscript and
-raw results in this branch are the current submission-candidate artifact set;
-create a tag only after the final PDF and metadata pass.
+The tag is created only after the final PDF, SQL migration, extension build,
+and evaluation scripts pass. Older raw-result files remain in the tree as
+historical records and are not used for current tables.
 
 ## Claim Contract
 
@@ -37,9 +38,9 @@ Core validated claims in the TDSC candidate:
   bound native SELECT, prepared statements, cursor/FETCH, COPY(SELECT),
   EXPLAIN, fail-closed denials, trusted-GUC protection, and conservative
   aggregate-shape denials;
-- rollback-surviving audit: 2 / 2 cases passed, showing that evaluated
-  bound-runtime allowed receipts/accounting and raw-schema denial receipts
-  persist after `BEGIN ... ROLLBACK`;
+- rollback-surviving audit: 4 / 4 cases passed, covering allowed native
+  execution, direct hook/parser denial, wrapper denial, and native executor
+  budget denial; no test-side receipt write is used;
 - adversarial SQL suite: 140 cases, with 126 blocked cases, 14 allowed
   safe-view analytical cases, and all tested direct small-group
   aggregate-release attempts blocked by the minimum-group policy;
@@ -61,7 +62,7 @@ Core validated claims in the TDSC candidate:
 
 - Canonical validation script: `scripts/sessionbound_agent_eval.py`
 - Canonical validation raw result:
-  `paper/tdsc/raw_results/sessionbound_agent_eval_1783653370.json`
+  `paper/tdsc/raw_results/sessionbound_agent_eval_1783658962.json`
 - TDSC hardening scripts: `paper/tdsc/scripts/`
 - TDSC raw results: `paper/tdsc/raw_results/`
 - TDSC experiment reports: `paper/tdsc/experiments/`
@@ -77,9 +78,11 @@ Core validated claims in the TDSC candidate:
 - Hook-only microbenchmark script: `paper/tdsc/scripts/hook_microbenchmark.py`
 - Hook-only microbenchmark raw result:
   `paper/tdsc/raw_results/hook_microbenchmark_20260710_103846.json`
+- Native hook/direct-DB result:
+  `paper/tdsc/raw_results/sessionbound_guard_hook_20260710_124927.json`
 - Rollback audit script: `paper/tdsc/scripts/rollback_audit_eval.py`
 - Rollback audit raw result:
-  `paper/tdsc/raw_results/rollback_audit_20260710_110603.json`
+  `paper/tdsc/raw_results/rollback_audit_20260710_124925.json`
 - Overhead breakdown report: `paper/tdsc/OVERHEAD_BREAKDOWN.md`
 - Overhead breakdown raw result:
   `paper/tdsc/raw_results/overhead_breakdown_20260710_103837.json`
@@ -92,8 +95,12 @@ Core validated claims in the TDSC candidate:
 - Native end-to-end scale raw result:
   `paper/tdsc/raw_results/native_end_to_end_20260710_110541.json`
 - Native partial-budget script: `paper/tdsc/scripts/native_partial_budget_eval.py`
-- Native partial-budget raw result:
-  `paper/tdsc/raw_results/native_partial_budget_20260710_110604.json`
+- Native projection-budget raw result:
+  `paper/tdsc/raw_results/native_partial_budget_20260710_124927.json`
+- Functionally equivalent external-PEP baseline:
+  `paper/tdsc/scripts/functional_equivalent_baseline_eval.py`
+- External-PEP baseline raw result:
+  `paper/tdsc/raw_results/functional_equivalent_baseline_20260710_124931.json`
 - Concurrent isolation raw result:
   `paper/tdsc/raw_results/concurrent_isolation_20260710_030604.json`
 - Credential-token and schema drift raw result:

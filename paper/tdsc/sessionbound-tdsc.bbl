@@ -76,6 +76,38 @@ M.~Tonnarelli, F.~Scaramuzza, S.~Harrer, and L.~W. Dietz, ``{Data Product MCP:
   \url{https://docs.oracle.com/en/database/oracle/oracle-database/26/ddscg/what-is-oracle-deep-data-security.html}
 \BIBentrySTDinterwordspacing
 
+\bibitem{agrawal2002hippocratic}
+\BIBentryALTinterwordspacing
+R.~Agrawal, J.~Kiernan, R.~Srikant, and Y.~Xu, ``{Hippocratic Databases},'' in
+  \emph{Proceedings of the 28th International Conference on Very Large Data
+  Bases}, 2002, pp. 143--154. [Online]. Available:
+  \url{https://www.vldb.org/conf/2002/S05P02.pdf}
+\BIBentrySTDinterwordspacing
+
+\bibitem{byun2008purpose}
+\BIBentryALTinterwordspacing
+J.-W. Byun and N.~Li, ``{Purpose Based Access Control for Privacy Protection in
+  Relational Database Systems},'' \emph{The VLDB Journal}, vol.~17, no.~4, pp.
+  603--619, 2008. [Online]. Available:
+  \url{https://doi.org/10.1007/s00778-006-0023-0}
+\BIBentrySTDinterwordspacing
+
+\bibitem{kleinberg2000auditing}
+\BIBentryALTinterwordspacing
+J.~Kleinberg, C.~Papadimitriou, and P.~Raghavan, ``{Auditing Boolean
+  Attributes},'' in \emph{Proceedings of the Nineteenth ACM
+  SIGMOD-SIGACT-SIGART Symposium on Principles of Database Systems}, 2000.
+  [Online]. Available: \url{https://doi.org/10.1145/335168.335210}
+\BIBentrySTDinterwordspacing
+
+\bibitem{nabar2006robustness}
+\BIBentryALTinterwordspacing
+S.~U. Nabar, B.~Marthi, K.~Kenthapadi, N.~Mishra, and R.~Motwani, ``{Towards
+  Robustness in Query Auditing},'' in \emph{Proceedings of the 32nd
+  International Conference on Very Large Data Bases}, 2006, pp. 151--162.
+  [Online]. Available: \url{https://www.vldb.org/conf/2006/p151-nabar.pdf}
+\BIBentrySTDinterwordspacing
+
 \bibitem{pang2019zanzibar}
 \BIBentryALTinterwordspacing
 R.~Pang, R.~Caceres, M.~Burrows, Z.~Chen, P.~Dave, N.~Germer, A.~Golynski,
@@ -132,22 +164,6 @@ M.~S. Miller, K.-P. Yee, and J.~Shapiro, ``{Capability Myths Demolished},''
   Johns Hopkins University Systems Research Laboratory, Tech. Rep. SRL2003-02,
   2003. [Online]. Available:
   \url{https://classpages.cselabs.umn.edu/Fall-2021/csci5271/papers/SRL2003-02.pdf}
-\BIBentrySTDinterwordspacing
-
-\bibitem{agrawal2002hippocratic}
-\BIBentryALTinterwordspacing
-R.~Agrawal, J.~Kiernan, R.~Srikant, and Y.~Xu, ``{Hippocratic Databases},'' in
-  \emph{Proceedings of the 28th International Conference on Very Large Data
-  Bases}, 2002, pp. 143--154. [Online]. Available:
-  \url{https://www.vldb.org/conf/2002/S05P02.pdf}
-\BIBentrySTDinterwordspacing
-
-\bibitem{byun2008purpose}
-\BIBentryALTinterwordspacing
-J.-W. Byun and N.~Li, ``{Purpose Based Access Control for Privacy Protection in
-  Relational Database Systems},'' \emph{The VLDB Journal}, vol.~17, no.~4, pp.
-  603--619, 2008. [Online]. Available:
-  \url{https://doi.org/10.1007/s00778-006-0023-0}
 \BIBentrySTDinterwordspacing
 
 \bibitem{greshake2023indirect}
@@ -210,14 +226,6 @@ Z.~Su and G.~Wassermann, ``{The Essence of Command Injection Attacks in Web
   Applications},'' in \emph{Proceedings of the 33rd ACM SIGPLAN-SIGACT
   Symposium on Principles of Programming Languages}, 2006, pp. 372--382.
   [Online]. Available: \url{https://doi.org/10.1145/1111037.1111070}
-\BIBentrySTDinterwordspacing
-
-\bibitem{kleinberg2000auditing}
-\BIBentryALTinterwordspacing
-J.~Kleinberg, C.~Papadimitriou, and P.~Raghavan, ``{Auditing Boolean
-  Attributes},'' in \emph{Proceedings of the Nineteenth ACM
-  SIGMOD-SIGACT-SIGART Symposium on Principles of Database Systems}, 2000.
-  [Online]. Available: \url{https://doi.org/10.1145/335168.335210}
 \BIBentrySTDinterwordspacing
 
 \end{thebibliography}

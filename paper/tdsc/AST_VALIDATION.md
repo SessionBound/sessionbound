@@ -66,8 +66,8 @@ The prototype denies:
 ## Integration Notes
 
 The API binds the task token first. If AST preflight denies a query in this
-bound API path, the API records a rollback-surviving denial receipt through
-`taskbound.fail_receipt(...)` and does not invoke native SQL execution.
+bound API path, the runtime records a rollback-surviving denial receipt through
+the autonomous audit channel and does not invoke native SQL execution.
 
 Acceptable wording for the paper:
 

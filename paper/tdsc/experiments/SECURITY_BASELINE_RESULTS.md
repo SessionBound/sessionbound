@@ -36,3 +36,16 @@ It still does not bind a credential to a signed task token, enforce a
 cumulative disclosure budget, emit a decision-bound receipt hash chain, or
 invalidate task tokens on safe-view registry/version/hash drift. Full
 SessionBound adds those mechanisms as one task-bound session contract.
+
+## Functionally equivalent external-PEP composition
+
+To avoid an ablation that removes the very features under test, the artifact
+also evaluates `scripts/functional_equivalent_baseline_eval.py`. This baseline
+composes the RLS/safe-view role, short-lived login, external signature and
+credential PEP, Python-side tuple budget, and the baseline audit procedure.
+It passes the allow, projection/alias budget, and credential-replay cases
+(4/4 including the explicit bypass case). A direct connection using the same
+baseline role can still read the safe view without traversing the PEP; this is
+the measured TCB distinction from SessionBound's database-resident binder and
+executor guard. The composition is therefore functionally equivalent only
+under the assumption that every request reaches the external PEP.

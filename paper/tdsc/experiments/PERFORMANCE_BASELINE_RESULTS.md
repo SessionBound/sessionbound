@@ -1,7 +1,7 @@
 # Performance Baseline Results
 
-Raw files: `../raw_results/overhead_breakdown_20260708_205527.json` and
-`../raw_results/overhead_breakdown_20260708_205527.csv`.
+Raw files: `../raw_results/overhead_breakdown_20260710_103837.json` and
+`../raw_results/overhead_breakdown_20260710_103837.csv`.
 
 All values are measured inside the Docker Compose environment. The
 SessionBound path uses direct database execution of `taskbound.run(sql)`
@@ -26,21 +26,21 @@ disclosure accounting, and receipt insertion.
 | Safe-view-only | GROUP BY | 0.272 | 0.550 | 1 | 0 |
 | Safe-view-only | CTE | 0.254 | 0.490 | 1 | 0 |
 | Safe-view-only | Window | 0.281 | 0.468 | 20 | 0 |
-| RLS+Safe View+Short Credential+Audit | SELECT | 1.067 | 1.952 | 10 | 0 |
-| RLS+Safe View+Short Credential+Audit | JOIN | 0.976 | 1.977 | 10 | 0 |
-| RLS+Safe View+Short Credential+Audit | GROUP BY | 1.100 | 2.017 | 1 | 0 |
-| RLS+Safe View+Short Credential+Audit | CTE | 1.045 | 1.956 | 1 | 0 |
-| RLS+Safe View+Short Credential+Audit | Window | 1.119 | 2.090 | 20 | 0 |
-| Full SessionBound | SELECT | 17.397 | 19.919 | 10 | 0 |
-| Full SessionBound | JOIN | 18.616 | 20.693 | 10 | 0 |
-| Full SessionBound | GROUP BY | 18.289 | 20.830 | 1 | 0 |
-| Full SessionBound | CTE | 17.698 | 20.613 | 1 | 0 |
-| Full SessionBound | Window | 17.639 | 19.538 | 20 | 0 |
+| RLS+Safe View+Short Credential+Audit | SELECT | 1.129 | 2.153 | 10 | 0 |
+| RLS+Safe View+Short Credential+Audit | JOIN | 1.058 | 1.973 | 10 | 0 |
+| RLS+Safe View+Short Credential+Audit | GROUP BY | 1.135 | 2.007 | 1 | 0 |
+| RLS+Safe View+Short Credential+Audit | CTE | 1.208 | 2.079 | 1 | 0 |
+| RLS+Safe View+Short Credential+Audit | Window | 1.313 | 2.252 | 20 | 0 |
+| Full SessionBound | SELECT | 135.736 | 160.638 | 10 | 0 |
+| Full SessionBound | JOIN | 136.056 | 153.343 | 10 | 0 |
+| Full SessionBound | GROUP BY | 128.412 | 142.092 | 1 | 0 |
+| Full SessionBound | CTE | 129.717 | 155.723 | 1 | 0 |
+| Full SessionBound | Window | 134.932 | 153.718 | 20 | 0 |
 
 The relative percentages are large because the raw PostgreSQL baseline is
 sub-millisecond. The absolute Full SessionBound p50 cost is about
-17.4--18.6 ms for the measured small-dataset query patterns. The strong
-RLS+safe-view+short-credential+audit baseline is about 0.98--1.12 ms p50.
+128.4--136.1 ms for the measured small-dataset query patterns. The strong
+RLS+safe-view+short-credential+audit baseline is about 1.06--1.31 ms p50.
 
 Follow-up performance probes are reported separately: receipt/budget
 ablation in the overhead breakdown and the 1k/10k/100k scoped-row scale

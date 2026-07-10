@@ -171,10 +171,17 @@ scopes~\cite{rfc6749,south2025authenticateddelegation}, task-scoped tool
 authorization~\cite{sharma2026pauth}, data-product
 governance~\cite{tonnarelli2026dataproductmcp,mcp2025specification},
 database-native policy enforcement~\cite{postgresql2026rowsecurity,oracle2026vpd,oracle2026deepdatasecuritydocs},
-and large-scale relationship authorization~\cite{pang2019zanzibar}.
+purpose-based database controls~\cite{agrawal2002hippocratic,byun2008purpose},
+query auditing and inference control~\cite{kleinberg2000auditing,nabar2006robustness},
+database proxies/reference monitors, and large-scale relationship authorization
+~\cite{pang2019zanzibar}.
 They do not, by themselves, turn one approved analytical task into a
 temporary SQL session with safe views, denied fields, budgets, and
-receipts. That is the gap SessionBound addresses.
+receipts. We therefore evaluate both a conventional RLS/safe-view/short-login
+baseline and a functionally equivalent composition that adds an external
+signature/credential PEP, tuple budgeting, and audit; the latter is equivalent
+only while every request traverses the external reference monitor. That is the
+gap SessionBound addresses inside the database boundary.
 
 This paper argues for the following principle: business users approve
 tasks, not database policies. Agents generate SQL, but databases enforce
@@ -312,6 +319,28 @@ The global single-active binding guarantee in this prototype is scoped
 to one non-split-brain PostgreSQL primary. Database-cluster split brain
 and cross-cluster global ownership require external primary fencing and
 are not solved by SessionBound's advisory-lock protocol.
+
+The trusted-computing base (TCB) is therefore explicit rather than implicit:
+the signer and credential registry, the single-primary PostgreSQL lock and
+transaction manager, the \texttt{sessionbound\_guard} hooks, the runtime SQL
+functions, the safe-view definitions and registry hashes, and the append-only
+receipt store. A safe-view definition is a policy artifact in this TCB; if it
+is over-broad, the runtime can only detect a hash/version drift, not infer that
+the definition is semantically unsafe. The database-enforced claim is limited
+to the reference-monitor interface below and is not a claim about arbitrary
+SQL or arbitrary semantic inference.
+
+For the evaluated fragment, the reference monitor accepts one parsed
+single-statement \texttt{SELECT} (or the explicitly enumerated
+\texttt{COPY (SELECT)} and \texttt{EXPLAIN} utility forms) whose relation OIDs resolve to the token's approved
+safe-view registry. It rejects set-operation stacking, recursive CTEs, table
+functions, blocked payload aggregation, raw/catalog relations, mutations,
+DDL, and session-state utilities. The executor then stages and charges the
+complete result before release. The wrapper and native paths implement the
+same acceptance predicate and tuple-budget/receipt state transition; their
+only operational difference is PL/pgSQL row materialization versus the C
+executor tuplestore. This is the scope of the reference-monitor argument,
+not a universal PostgreSQL equivalence theorem.
 
 \hypertarget{untrusted-or-partially-trusted-components}{%
 \subsection{Untrusted or partially trusted
@@ -491,8 +520,11 @@ remaining budget.
 In the current prototype, a direct database connection may issue native
 \texttt{SELECT} over approved safe views after binding a signed task
 token. The PostgreSQL extension checks SQL shape and safe-view OIDs,
-then executor accounting counts rows and disclosed \texttt{expense\_id}
-values before tuples are released. The same path covers SDK
+then executor accounting charges every released result tuple (the
+legacy \texttt{unique\_expense\_rows} column is a conservative tuple
+counter) before tuples are released. Projection aliases, joins, and
+aggregate output cannot avoid the output-row charge; hidden source
+entities are not claimed to be counted. The same path covers SDK
 \texttt{query(sql)}, bound direct \texttt{SELECT}, prepared statements,
 cursor/\texttt{FETCH}, \texttt{COPY (SELECT)}, and non-\texttt{ANALYZE}
 \texttt{EXPLAIN}. Raw table \texttt{SELECT} remains ungranted; schema
@@ -689,8 +721,9 @@ Output: Allowed result with receipt, or denial receipt.
 unsafe utility commands.
 \item Reserve query budget before execution.
 \item Execute only after the structural checks pass.
-\item Account result rows and business entities before wrapper release or
-before each native tuple is forwarded.
+\item Account every candidate output tuple before wrapper release or
+before native forwarding; aliases and aggregates use the same conservative
+output-tuple charge.
 \item Emit an allow receipt for a covered release; otherwise reject the
 attempt and emit a denial receipt.
 \end{enumerate}
@@ -720,9 +753,9 @@ The runtime does not ask an LLM whether a query is safe.
 \draw[arr] (guard) -- (deny);
 \draw[arr] (acct) -- (deny);
 \end{tikzpicture}
-\caption{Bind/query decision pipeline. The wrapper path materializes and
-checks the candidate result before returning it; the native path
-intercepts each outgoing tuple and checks/debits it before forwarding.}
+\caption{Bind/query decision pipeline. Both paths stage and account the
+candidate result before release; the native path uses a private tuplestore
+so an over-budget query releases no prefix.}
 \label{fig:bind-query-pipeline}
 \end{figure}
 
@@ -878,31 +911,24 @@ Let budgets be ordered componentwise by \(\preceq\), and let
 prototype semantics in Table~\ref{tab:budget-charge}. For any allowed query,
 \(decide(q,S)=allow(result,S')\) implies
 \(0 \preceq B' \preceq B\), where \(B'\) is the budget component of
-\(S'\). If a wrapper query's materialized candidate result is not
-covered by the remaining disclosure budget, the wrapper path denies the
-query before returning result rows. In the native streaming path, each
-tuple is checked against the in-memory entity budget before that tuple is
-forwarded; if adding a tuple would exceed the budget, the runtime
-persists the already accepted prefix and emits a denial receipt before
-raising an error and before forwarding the over-budget tuple. Thus no
-tuple is intentionally released without the corresponding nonnegative
-debit, but native streaming is not an all-or-nothing guarantee for
-earlier tuples in a query that later exceeds budget.
+\(S'\). If a candidate result is not covered by the remaining
+conservative output-tuple budget, both paths deny the query before
+releasing any tuple. The native path stages the complete result in a
+private tuplestore, performs fenced accounting and receipt emission, and
+only then hands the stored tuples to the client. The prototype therefore
+does not claim an \texttt{expense\_id}-derived unique-entity budget:
+projection aliases, joins, and aggregate output are charged by emitted
+tuple count, while semantic leakage from hidden source entities remains
+outside this guarantee.
 
 \emph{Argument.} The runtime treats budget dimensions as nonnegative
-counters. Query-count budget is reserved before execution. The wrapper
-reference path executes into database-owned materialized state, checks
-minimum-group and disclosure-budget policy over the accounted candidate
-result, and only then returns rows. The native hook/executor path wraps
-the destination receiver and observes each outgoing tuple before passing
-it to the client-side receiver. Both paths subtract only nonnegative
-charges and record the resulting state in an allow receipt. Therefore
-the remaining budget cannot increase across an allowed transition; an
-over-budget transition reaches a denial state at the applicable
-materialization or tuple-forwarding boundary. In the native path, the
-destination receiver finalizes charges on normal completion and records a
-partial-denial prefix if execution aborts after some tuples have passed
-the budget check.
+counters. Query-count budget is reserved before execution. Both paths
+stage the candidate result, check minimum-group and tuple-budget policy,
+and update state through the fenced autonomous audit channel before
+release. Both paths subtract only nonnegative charges and record the
+resulting state in an allow receipt. Therefore the remaining budget cannot
+increase across an allowed transition; an over-budget transition reaches
+a denial state before any candidate tuple is released.
 
 \noindent\textbf{Proposition 4 (Receipt-chain tamper evidence under
 trusted DB assumptions).}
@@ -1071,9 +1097,10 @@ result bytes, per-query payload bytes, aggregate payload shape, unique
 business entities, column weights, detail-versus-aggregate multipliers,
 and small-group penalties.
 
-The prototype's unique-row accounting demonstrates the mechanism, while
-the broader model treats budget as a vector of exposure counters tied to
-task authority. The current runtime also carries a configurable
+The prototype uses a conservative output-tuple counter (the legacy
+column name \texttt{unique\_expense\_rows} is retained for schema
+compatibility), while the broader model treats budget as a vector of
+exposure counters tied to task authority. The current runtime also carries a configurable
 \texttt{min\_group\_size} policy in the signed task token. For grouped
 aggregates, direct grouping by sensitive entity identifiers is denied,
 \texttt{HAVING} probes for small groups are denied by default, and the
@@ -1084,7 +1111,7 @@ denial receipts and do not release disclosure rows.
 
 Table~\ref{tab:budget-charge} gives the exact prototype charge
 semantics used for \(\Delta\). It is intentionally operational: it
-counts released tuples and stable business identifiers, not information
+counts candidate output tuples, not information
 theoretic leakage.
 
 \begin{table}[!t]
@@ -1099,10 +1126,10 @@ Budget dimension & Prototype charge \\
 \midrule
 \texttt{query\_count} & Wrapper path: one debit on allowed completion. Native path: one debit reserved before executor run. Preflight and policy denials emit denial receipts without result/entity debit in the current prototype. \\
 \texttt{result\_rows} & Number of tuples released to the client and recorded in state/receipts. Join multiplicity is visible here, so duplicate output tuples increase this counter. \\
-\texttt{unique\_entities} & New distinct \texttt{expense\_id} values in released detail tuples for the same \texttt{budget\_account} are charged once. Repeated disclosure of the same ID does not consume additional entity budget, but each query still consumes \texttt{query\_count} and \texttt{result\_rows} budgets, as well as any applicable bytes or column-weight budgets. \\
+\texttt{disclosure\_tuples} & Every candidate result tuple consumes one unit, independent of projected names, aliases, joins, or whether an identifier column is present. This is conservative and does not claim to count hidden source entities in aggregate results. \\
 \texttt{aggregate\_group} & Aggregate rows are allowed only when the configured entity cardinality is at least \texttt{min\_group\_size}; the prototype does not charge every hidden group member as a released detail entity. \\
 payload aggregation & High-risk payload aggregation functions such as \texttt{json\_agg}, \texttt{array\_agg}, and \texttt{string\_agg} are denied unless a future template explicitly allows them. \\
-over-budget native streaming & The over-budget tuple is not forwarded; the accepted prefix is charged and recorded in a denial receipt with prefix rows, new entities, and remaining budget. \\
+over-budget native execution & The complete result is staged; if the tuple charge exceeds the remaining budget, no tuple is forwarded and an autonomous zero-release denial receipt is recorded. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1174,8 +1201,8 @@ Hardening}\label{prototype-implementation-and-production-hardening}}
 \toprule
 Path & Purpose & Enforcement and accounting & Used for & Limitation \\
 \midrule
-Wrapper/API reference path & Compatibility and accounting-complete reference implementation & API AST preflight, database permissions, and \texttt{taskbound.run}; PL/pgSQL materialization accounts returned rows and entity exposure; allow/deny receipts are emitted & Canonical validation, adversarial SQL API suite, default p50 overhead, and wrapper scale sweep & Not optimized; 10k-row stress bottleneck is materialization/accounting \\
-Native PostgreSQL hook/executor path & Production hardening direction for direct safe-view SQL & \texttt{post\_parse\_analyze\_hook}, \texttt{ProcessUtility\_hook}, executor hooks, safe-view OID checks, conservative minimum-group shape checks, row/entity accounting, and receipts & Direct DB enforcement suite, prepared statements, cursor/\texttt{FETCH}, \texttt{COPY (SELECT)}, \texttt{EXPLAIN}, rollback audit, SDK smoke tests, and diagnostic native end-to-end benchmark & Current native accounting is measured but unoptimized; broad production workloads remain future work \\
+Wrapper/API reference path & Compatibility and accounting-complete reference implementation & API AST preflight, database permissions, and \texttt{taskbound.run}; PL/pgSQL materialization accounts conservative output tuples; allow/deny receipts are emitted through the autonomous audit channel & Canonical validation, adversarial SQL API suite, default p50 overhead, and wrapper scale sweep & Not optimized; 10k-row stress bottleneck is materialization/accounting \\
+Native PostgreSQL hook/executor path & Production hardening direction for direct safe-view SQL & \texttt{post\_parse\_analyze\_hook}, \texttt{ProcessUtility\_hook}, executor hooks, safe-view OID checks, conservative minimum-group shape checks, staged tuple accounting, and receipts & Direct DB enforcement suite, prepared statements, cursor/\texttt{FETCH}, \texttt{COPY (SELECT)}, \texttt{EXPLAIN}, rollback audit, SDK smoke tests, and diagnostic native end-to-end benchmark & Current native accounting is measured but unoptimized; broad production workloads remain future work \\
 Hook-only structural microbenchmark & Isolate parse/analyze structural guard cost & Structural SQL guard only; no row execution, no disclosure accounting, and no receipts & 0.127--0.176 ms p50 structural-check cost across SELECT/JOIN/GROUP BY/CTE-window shapes & Not an end-to-end SessionBound performance claim \\
 \bottomrule
 \end{tabular}
@@ -1239,7 +1266,7 @@ deny-by-default and lack raw-table and DDL privileges, while
 \texttt{ProcessUtility\_hook} fail-closes and logs utility statements
 that reach the runtime.
 The wrapper reference path instead materializes the candidate result,
-then checks group and disclosure policy before returning rows. High-value
+then checks group and conservative tuple-budget policy before returning rows. High-value
 writes go through controlled commands.
 
 Binding lifetime is session-control state rather than ordinary agent
@@ -1263,8 +1290,9 @@ The database hook path is implemented by the
 executor hooks. Trusted SUSET GUCs populated by
 \texttt{taskbound.bind\_task} carry the task, budgets, receipt flags, and
 approved safe-view OIDs. The executor path wraps the destination
-receiver to count rows and disclosed \texttt{expense\_id} values before
-forwarding tuples. Receipt and budget updates use an autonomous
+receiver and stages the complete result in a private tuplestore. It
+charges output tuples before a single tuple is forwarded; no
+\texttt{expense\_id}-only projection heuristic is used. Receipt and budget updates use an autonomous
 same-database audit channel, so receipts for evaluated allowed executions
 and hook/API denials survive agent transaction rollback.
 
@@ -1447,8 +1475,8 @@ reproduction entrypoints are \texttt{ast\_validation\_eval.py},
 \texttt{single\_active\_binding\_eval.py} exercises same-key races,
 stale recovery, fencing, rollback semantics, and different-key
 concurrency. A targeted
-\texttt{native\_partial\_budget\_eval.py} validates native over-budget
-prefix accounting; \texttt{concurrent\_isolation\_eval.py} validates
+\texttt{native\_partial\_budget\_eval.py} validates projection-, alias-,
+and aggregate-independent atomic tuple accounting; \texttt{concurrent\_isolation\_eval.py} validates
 task isolation. Exact command lines and
 environment variables are recorded in the artifact README and changelog.
 
@@ -1507,6 +1535,13 @@ separate access-surface reduction from task-bound session enforcement:
   binding, safe views, denied fields, operation policy, query budget,
   disclosure budget, minimum-group policy, anti-payload aggregation
   checks, and receipts.
+\item
+  \textbf{Functionally equivalent external PEP composition}: the RLS/safe-view
+  role, short-lived login, an external signature/credential PEP, Python-side
+  tuple budgeting, and baseline audit procedure. The artifact tests this
+  composition separately and also tests a direct-role bypass, making its
+  external PEP part of the stated TCB rather than silently treating the
+  feature-removed baseline as a novelty proof.
 \end{itemize}
 
 For fairness, the safe-view-only baseline uses pre-scoped or manually
@@ -1519,6 +1554,13 @@ binding, credential-token matching, cumulative disclosure budget,
 safe-view drift invalidation, and decision-bound receipts. A
 client-writable RLS scope parameter is unsafe; a protected one becomes
 bespoke control-plane/runtime plumbing rather than plain RLS alone.
+
+The functionally equivalent composition passes the same allow, tuple-budget,
+and credential-replay checks when every request traverses its external PEP.
+The same baseline role can nevertheless bypass that PEP on a direct database
+connection; this explicit bypass case is the reference monitor distinction
+measured by the artifact and is why the result is not presented as a proof that
+the primitives are individually novel.
 
 Table~\ref{tab:security-baselines} summarizes the observed security
 properties. In the updated credential-token test suite, SessionBound
@@ -1794,7 +1836,7 @@ The concurrent isolation script confirmed independent credentials,
 budgets, and task-specific receipts for two active tasks, and denied
 credential A with token B and same-backend double binding. In the
 concurrent isolation run, two active tasks executed interleaved queries
-with independent query-count, result-row, and unique-entity counters;
+with independent query-count, result-row, and conservative tuple counters;
 over-budget denial in one task did not change the other task's remaining
 budget or receipt chain.
 
@@ -1831,7 +1873,7 @@ Socket close & stale recovery succeeds \\
 Backend termination & stale recovery succeeds \\
 Live idle owner & never time-evicted \\
 Old fence mutation & rejected; 2 fenced events \\
-Budget after recovery & preserved at 2 unique rows \\
+Budget after recovery & preserved at 2 output tuples \\
 Receipt chain after recovery & verified \\
 Different binding keys & concurrent success \\
 \bottomrule

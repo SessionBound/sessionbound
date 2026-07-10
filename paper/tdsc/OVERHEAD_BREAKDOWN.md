@@ -3,8 +3,8 @@
 ## Status
 
 - Script: `paper/tdsc/scripts/overhead_breakdown.py`
-- Latest raw JSON: `paper/tdsc/raw_results/overhead_breakdown_20260708_205527.json`
-- Latest raw CSV: `paper/tdsc/raw_results/overhead_breakdown_20260708_205527.csv`
+- Latest raw JSON: `paper/tdsc/raw_results/overhead_breakdown_20260710_103837.json`
+- Latest raw CSV: `paper/tdsc/raw_results/overhead_breakdown_20260710_103837.csv`
 - Hook-only microbenchmark script: `paper/tdsc/scripts/hook_microbenchmark.py`
 - Latest hook-only microbenchmark:
   `paper/tdsc/raw_results/hook_microbenchmark_20260708_205831.json`
@@ -41,11 +41,11 @@ Values are p50 latency in milliseconds.
 
 | Pattern | Raw | Role-only | Safe-view | RLS+SV+Audit | SB no-receipt | SB no-budget | SB full |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Q1 SELECT | 0.230 | 0.227 | 0.233 | 1.067 | 17.075 | 16.699 | 17.397 |
-| Q2 JOIN | 0.201 | 0.181 | 0.209 | 0.976 | 18.712 | 18.197 | 18.616 |
-| Q3 GROUP BY | 0.229 | 0.230 | 0.272 | 1.100 | 18.098 | 17.125 | 18.289 |
-| Q4 CTE | 0.252 | 0.238 | 0.254 | 1.045 | 16.914 | 17.598 | 17.698 |
-| Q5 window function | 0.251 | 0.238 | 0.281 | 1.119 | 16.818 | 17.778 | 17.639 |
+| Q1 SELECT | 0.247 | 0.297 | 0.255 | 1.129 | 134.192 | 134.389 | 135.736 |
+| Q2 JOIN | 0.265 | 0.316 | 0.273 | 1.058 | 147.588 | 136.673 | 136.056 |
+| Q3 GROUP BY | 0.242 | 0.222 | 0.289 | 1.135 | 128.913 | 122.838 | 128.412 |
+| Q4 CTE | 0.232 | 0.230 | 0.269 | 1.208 | 128.148 | 126.448 | 129.717 |
+| Q5 window function | 0.247 | 0.280 | 0.351 | 1.313 | 138.756 | 132.769 | 134.932 |
 
 ## Required Analysis
 
@@ -53,8 +53,8 @@ Where is overhead concentrated?
 
 Raw, role-only, and safe-view-only modes are sub-millisecond on the default seed.
 The strong RLS+safe-view+short-credential+audit baseline adds a measured
-per-query audit/RLS cost and lands at roughly 0.98--1.12 ms p50. Full
-SessionBound in the wrapper reference path is roughly 17.4--18.6 ms p50. This
+per-query audit/RLS cost and lands at roughly 1.06--1.31 ms p50. Full
+SessionBound in the wrapper reference path is roughly 128.4--136.1 ms p50. This
 indicates that the accounting-complete PL/pgSQL wrapper, JSON materialization,
 claim lookup, budget accounting, exposure tracking, and receipt path dominate
 the current small-dataset SessionBound overhead.
@@ -62,22 +62,22 @@ the current small-dataset SessionBound overhead.
 Is it fixed per-query overhead?
 
 Mostly yes on the small default dataset. The raw query complexity range is small
-(0.181--0.281 ms p50 across the simple baselines), while SessionBound wrapper
-modes show a roughly fixed tens-of-milliseconds per-query cost with modest
+(0.222--0.351 ms p50 across the simple baselines), while SessionBound wrapper
+modes show a roughly fixed hundreds-of-milliseconds per-query cost with modest
 variation by query shape.
 
 Does receipt writing dominate?
 
 No. Disabling receipts does not consistently reduce latency. For example,
-Q1 full is 17.397 ms p50 and no-receipt is 17.075 ms; Q5 full is 17.639 ms and
-no-receipt is 16.818 ms. The deltas are small relative to the wrapper jump and
+Q1 full is 135.736 ms p50 and no-receipt is 134.192 ms; Q5 full is 134.932 ms and
+no-receipt is 138.756 ms. The deltas are small relative to the wrapper jump and
 remain noisy.
 
 Does budget update dominate?
 
 No. Disabling budget accounting produces p50 values close to full SessionBound.
-Q1 no-budget is 16.699 ms versus 17.397 ms full; Q4 no-budget is 17.598 ms
-versus 17.698 ms full.
+Q1 no-budget is 134.389 ms versus 135.736 ms full; Q4 no-budget is 126.448 ms
+versus 129.717 ms full.
 
 Which parts are prototype artifacts?
 

@@ -24,11 +24,11 @@
 #include "utils/acl.h"
 #include "utils/builtins.h"
 #include "utils/guc.h"
-#include "utils/hsearch.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
+#include "utils/tuplestore.h"
 
 #include <limits.h>
 #include <stdlib.h>
@@ -44,8 +44,6 @@ PG_FUNCTION_INFO_V1(sessionbound_guard_check);
 PG_FUNCTION_INFO_V1(sessionbound_guard_install_binding);
 PG_FUNCTION_INFO_V1(sessionbound_guard_clear_binding);
 
-#define ROW_ID_KEY_SIZE 256
-
 typedef struct GuardContext
 {
 	List *allowed_view_oids;
@@ -60,11 +58,6 @@ typedef struct RelationScanContext
 	bool saw_guarded_relation;
 	bool saw_private_taskbound_function;
 } RelationScanContext;
-
-typedef struct RowIdEntry
-{
-	char row_id[ROW_ID_KEY_SIZE];
-} RowIdEntry;
 
 typedef struct NativeQueryState NativeQueryState;
 
@@ -82,15 +75,24 @@ struct NativeQueryState
 	GuardDestReceiver receiver;
 	uint64 rows_returned;
 	uint64 unique_seen_count;
-	uint64 unique_new_count;
-	List *new_expense_ids;
-	HTAB *seen_expense_ids;
 	bool budget_accounting_enabled;
 	bool receipts_enabled;
 	bool aborted;
 	bool denied_recorded;
 	bool finished;
 	bool reserved;
+	/*
+	 * Native SELECT results are staged here.  This is deliberately a
+	 * release barrier: no tuple reaches the client until the whole result is
+	 * known to fit the task's result-tuple budget and durable accounting has
+	 * succeeded.  It makes the native path match taskbound.run's atomic
+	 * wrapper semantics and prevents a caller from harvesting a prefix of an
+	 * over-budget result through an error.
+	 */
+	Tuplestorestate *result_store;
+	TupleDesc result_desc;
+	int result_operation;
+	bool original_started;
 	int max_unique_expense_rows;
 	char *task_id;
 	char *budget_account;
@@ -124,6 +126,9 @@ static char *guard_credential_id = NULL;
 static int64 guard_fence_token = 0;
 static int64 guard_advisory_lock_key = 0;
 static bool guard_in_internal_spi = false;
+/* taskbound.run() records the caught error once; avoid one receipt per nested
+ * SPI parse node while its explicit guard check is running. */
+static bool guard_suppress_receipts = false;
 static const char *guard_current_sql = NULL;
 static NativeQueryState *native_states = NULL;
 
@@ -318,9 +323,6 @@ record_denied_receipt(const char *sql_text, const char *reason)
 	if (!valid_guard_task_id() || !valid_guard_binding_identity())
 		return;
 
-	if (IsTransactionBlock())
-		return;
-
 	values[0] = CStringGetTextDatum(guard_task_id);
 	values[1] = CStringGetTextDatum(
 		guard_budget_account != NULL && guard_budget_account[0] != '\0'
@@ -343,7 +345,8 @@ record_denied_receipt(const char *sql_text, const char *reason)
 static void
 guard_deny(const char *detail)
 {
-	record_denied_receipt(guard_current_sql, detail);
+	if (!guard_suppress_receipts)
+		record_denied_receipt(guard_current_sql, detail);
 	ereport(ERROR,
 			(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 			 errmsg("SessionBound guard denied query: %s", detail)));
@@ -1097,6 +1100,32 @@ remove_native_state(NativeQueryState *state)
 	}
 }
 
+/*
+ * ExecutorEnd is not guaranteed to run after an ERROR has escaped the portal
+ * machinery (notably for an over-budget tuple error).  Keep those states out
+ * of the next QueryDesc lookup.  Without this sweep PostgreSQL may recycle a
+ * QueryDesc address and the next statement inherits the previous statement's
+ * tuple counter, causing harmless audit/state queries to be denied.
+ */
+static void
+cleanup_stale_native_states(void)
+{
+	NativeQueryState *state = native_states;
+
+	while (state != NULL)
+	{
+		NativeQueryState *next = state->next;
+
+		if (state->aborted || state->finished || state->query_desc == NULL)
+		{
+			remove_native_state(state);
+			if (state->context != NULL)
+				MemoryContextDelete(state->context);
+		}
+		state = next;
+	}
+}
+
 static bool
 source_is_runtime_helper_call(const char *source)
 {
@@ -1141,119 +1170,6 @@ should_account_query(QueryDesc *query_desc)
 	return true;
 }
 
-static bool
-row_id_hash_contains(NativeQueryState *state, const char *row_id)
-{
-	char key[ROW_ID_KEY_SIZE];
-
-	if (state->seen_expense_ids == NULL || row_id == NULL)
-		return false;
-	if (strlen(row_id) >= ROW_ID_KEY_SIZE)
-		ereport(ERROR,
-				(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
-				 errmsg("SessionBoundDB denied query: expense_id is too large for native accounting")));
-
-	strlcpy(key, row_id, ROW_ID_KEY_SIZE);
-	return hash_search(state->seen_expense_ids, key, HASH_FIND, NULL) != NULL;
-}
-
-static void
-row_id_hash_add(NativeQueryState *state, const char *row_id)
-{
-	char key[ROW_ID_KEY_SIZE];
-
-	if (state->seen_expense_ids == NULL || row_id == NULL)
-		return;
-	if (strlen(row_id) >= ROW_ID_KEY_SIZE)
-		ereport(ERROR,
-				(errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
-				 errmsg("SessionBoundDB denied query: expense_id is too large for native accounting")));
-
-	strlcpy(key, row_id, ROW_ID_KEY_SIZE);
-	hash_search(state->seen_expense_ids, key, HASH_ENTER, NULL);
-}
-
-static void
-native_load_seen_rows(NativeQueryState *state)
-{
-	Oid argtypes[1] = {TEXTOID};
-	Datum values[1];
-	char nulls[1] = {' '};
-	bool old_internal = guard_in_internal_spi;
-	bool connected = false;
-	bool pushed_snapshot = false;
-
-	if (!state->budget_accounting_enabled)
-		return;
-
-	values[0] = CStringGetTextDatum(state->budget_account);
-
-	PG_TRY();
-	{
-		int rc;
-		uint64 i;
-
-		guard_in_internal_spi = true;
-		if (!ActiveSnapshotSet())
-		{
-			PushActiveSnapshot(GetTransactionSnapshot());
-			pushed_snapshot = true;
-		}
-		rc = SPI_connect();
-		if (rc != SPI_OK_CONNECT)
-			elog(ERROR, "SPI_connect failed: %d", rc);
-		connected = true;
-
-		rc = SPI_execute_with_args(
-			"SELECT row_id FROM taskbound.native_seen_expense_rows($1)",
-			1,
-			argtypes,
-			values,
-			nulls,
-			true,
-			0);
-		if (rc != SPI_OK_SELECT)
-			elog(ERROR, "native_seen_expense_rows failed: %d", rc);
-
-		for (i = 0; i < SPI_processed; i++)
-		{
-			bool isnull = false;
-			Datum row_id_datum = SPI_getbinval(SPI_tuptable->vals[i],
-											   SPI_tuptable->tupdesc,
-											   1,
-											   &isnull);
-			if (!isnull)
-			{
-				char *row_id = TextDatumGetCString(row_id_datum);
-				if (!row_id_hash_contains(state, row_id))
-				{
-					row_id_hash_add(state, row_id);
-					state->unique_seen_count++;
-				}
-			}
-		}
-
-		rc = SPI_finish();
-		if (rc != SPI_OK_FINISH)
-			elog(ERROR, "SPI_finish failed: %d", rc);
-		connected = false;
-		if (pushed_snapshot)
-			PopActiveSnapshot();
-		pushed_snapshot = false;
-		guard_in_internal_spi = old_internal;
-	}
-	PG_CATCH();
-	{
-		guard_in_internal_spi = old_internal;
-		if (connected)
-			SPI_finish();
-		if (pushed_snapshot)
-			PopActiveSnapshot();
-		PG_RE_THROW();
-	}
-	PG_END_TRY();
-}
-
 static void
 native_reserve_query(NativeQueryState *state)
 {
@@ -1284,27 +1200,20 @@ native_finish_query(NativeQueryState *state)
 	Oid argtypes[10] = {TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
 	Datum values[10];
 	char nulls[10] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
-	int nids;
-	Datum *elems;
-	ArrayType *array;
-	ListCell *lc;
-	int i = 0;
+	Datum empty_array;
 
-	nids = list_length(state->new_expense_ids);
-	elems = nids > 0 ? palloc(sizeof(Datum) * nids) : NULL;
-	foreach(lc, state->new_expense_ids)
-	{
-		elems[i++] = CStringGetTextDatum((char *) lfirst(lc));
-	}
-	array = nids > 0
-				? construct_array(elems, nids, TEXTOID, -1, false, TYPALIGN_INT)
-				: construct_empty_array(TEXTOID);
+	/*
+	 * v_new_expense_ids remains in the SQL ABI for in-place upgrades. Native
+	 * accounting intentionally never derives a charge from a caller-visible
+	 * identifier: every released result tuple is one conservative unit.
+	 */
+	empty_array = PointerGetDatum(construct_empty_array(TEXTOID));
 
 	values[0] = CStringGetTextDatum(state->task_id);
 	values[1] = CStringGetTextDatum(state->budget_account);
 	values[2] = CStringGetTextDatum(state->source_text != NULL ? state->source_text : "");
 	values[3] = Int64GetDatum((int64) state->rows_returned);
-	values[4] = PointerGetDatum(array);
+	values[4] = empty_array;
 	values[5] = Int32GetDatum(state->max_unique_expense_rows);
 	values[6] = BoolGetDatum(state->budget_accounting_enabled);
 	values[7] = BoolGetDatum(state->receipts_enabled);
@@ -1323,14 +1232,9 @@ native_finish_query(NativeQueryState *state)
 static void
 native_record_state_denial(NativeQueryState *state, const char *reason)
 {
-	Oid argtypes[11] = {TEXTOID, TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
-	Datum values[11];
-	char nulls[11] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
-	int nids;
-	Datum *elems;
-	ArrayType *array;
-	ListCell *lc;
-	int i = 0;
+	Oid argtypes[7] = {TEXTOID, TEXTOID, TEXTOID, TEXTOID, BOOLOID, TEXTOID, INT8OID};
+	Datum values[7];
+	char nulls[7] = {' ', ' ', ' ', ' ', ' ', ' ', ' '};
 
 	if (state == NULL || state->denied_recorded)
 		return;
@@ -1338,31 +1242,17 @@ native_record_state_denial(NativeQueryState *state, const char *reason)
 	if (state->task_id == NULL || state->task_id[0] == '\0')
 		return;
 
-	nids = list_length(state->new_expense_ids);
-	elems = nids > 0 ? palloc(sizeof(Datum) * nids) : NULL;
-	foreach(lc, state->new_expense_ids)
-	{
-		elems[i++] = CStringGetTextDatum((char *) lfirst(lc));
-	}
-	array = nids > 0
-				? construct_array(elems, nids, TEXTOID, -1, false, TYPALIGN_INT)
-				: construct_empty_array(TEXTOID);
-
 	values[0] = CStringGetTextDatum(state->task_id);
 	values[1] = CStringGetTextDatum(state->budget_account);
 	values[2] = CStringGetTextDatum(state->source_text != NULL ? state->source_text : "");
 	values[3] = CStringGetTextDatum(reason != NULL ? reason : "query denied");
-	values[4] = Int64GetDatum((int64) state->rows_returned);
-	values[5] = PointerGetDatum(array);
-	values[6] = Int32GetDatum(state->max_unique_expense_rows);
-	values[7] = BoolGetDatum(state->budget_accounting_enabled);
-	values[8] = BoolGetDatum(state->receipts_enabled);
-	values[9] = CStringGetTextDatum(state->binding_id);
-	values[10] = Int64GetDatum(state->fence_token);
+	values[4] = BoolGetDatum(state->receipts_enabled);
+	values[5] = CStringGetTextDatum(state->binding_id);
+	values[6] = Int64GetDatum(state->fence_token);
 
 	spi_call_void(
-		"SELECT taskbound.native_partial_denied_receipt($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::uuid, $11)",
-		11,
+		"SELECT taskbound.native_denied_receipt($1, $2, $3, $4, $5, $6::uuid, $7)",
+		7,
 		argtypes,
 		values,
 		nulls);
@@ -1372,61 +1262,28 @@ native_record_state_denial(NativeQueryState *state, const char *reason)
 static void
 native_observe_slot(NativeQueryState *state, TupleTableSlot *slot)
 {
-	TupleDesc desc;
-	int attnum;
-	bool isnull = false;
-	Datum value;
-	char *row_id;
-
 	if (state == NULL || slot == NULL)
 		return;
 
-	if (!state->budget_accounting_enabled)
+	/*
+	 * Count every output tuple, regardless of projection, aliasing, join, or
+	 * aggregation shape.  The old expense_id-only scheme was bypassable by
+	 * SELECT amount, aliases, and aggregates.  A tuple quota is conservative:
+	 * repeated entities consume budget rather than becoming free disclosures.
+	 */
+	if (state->budget_accounting_enabled &&
+		state->unique_seen_count + 1 > (uint64) state->max_unique_expense_rows)
 	{
-		state->rows_returned++;
-		return;
-	}
-
-	desc = slot->tts_tupleDescriptor;
-	if (desc == NULL)
-	{
-		state->rows_returned++;
-		return;
-	}
-
-	attnum = SPI_fnumber(desc, "expense_id");
-	if (attnum <= 0)
-	{
-		state->rows_returned++;
-		return;
-	}
-
-	value = slot_getattr(slot, attnum, &isnull);
-	if (isnull)
-	{
-		state->rows_returned++;
-		return;
-	}
-
-	row_id = TextDatumGetCString(value);
-	if (row_id_hash_contains(state, row_id))
-	{
-		state->rows_returned++;
-		return;
-	}
-
-	if (state->unique_seen_count + 1 > (uint64) state->max_unique_expense_rows)
-	{
-		native_record_state_denial(state, "unique expense row budget exceeded");
+		native_record_state_denial(state, "result tuple budget exceeded; atomic release withheld");
 		ereport(ERROR,
 				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-				 errmsg("SessionBoundDB denied query: unique expense row budget exceeded")));
+				 errmsg("SessionBoundDB denied query: result tuple budget exceeded")));
 	}
 
-	row_id_hash_add(state, row_id);
-	state->unique_seen_count++;
-	state->unique_new_count++;
-	state->new_expense_ids = lappend(state->new_expense_ids, MemoryContextStrdup(state->context, row_id));
+	if (state->budget_accounting_enabled)
+	{
+		state->unique_seen_count++;
+	}
 	state->rows_returned++;
 }
 
@@ -1434,8 +1291,21 @@ static void
 guard_dest_startup(DestReceiver *self, int operation, TupleDesc typeinfo)
 {
 	GuardDestReceiver *receiver = (GuardDestReceiver *) self;
-	if (receiver->original != NULL && receiver->original->rStartup != NULL)
-		receiver->original->rStartup(receiver->original, operation, typeinfo);
+	NativeQueryState *state = receiver->state;
+
+	if (state == NULL)
+		return;
+
+	/*
+	 * Do not start the client receiver yet.  The executor writes into a
+	 * tuplestore; ExecutorFinish releases it only after the durable budget
+	 * debit and allow receipt have succeeded.
+	 */
+	state->result_operation = operation;
+	if (typeinfo != NULL && state->result_desc == NULL)
+		state->result_desc = CreateTupleDescCopy(typeinfo);
+	if (state->result_store == NULL)
+		state->result_store = tuplestore_begin_heap(false, false, work_mem);
 }
 
 static bool
@@ -1445,17 +1315,19 @@ guard_dest_receive(TupleTableSlot *slot, DestReceiver *self)
 
 	native_observe_slot(receiver->state, slot);
 
-	if (receiver->original != NULL && receiver->original->receiveSlot != NULL)
-		return receiver->original->receiveSlot(slot, receiver->original);
+	if (receiver->state != NULL && receiver->state->result_store != NULL)
+	{
+		tuplestore_puttupleslot(receiver->state->result_store, slot);
+		return true;
+	}
 	return true;
 }
 
 static void
 guard_dest_shutdown(DestReceiver *self)
 {
-	GuardDestReceiver *receiver = (GuardDestReceiver *) self;
-	if (receiver->original != NULL && receiver->original->rShutdown != NULL)
-		receiver->original->rShutdown(receiver->original);
+	/* The original receiver is started and shut down by native_release_buffer. */
+	(void) self;
 }
 
 static void
@@ -1485,13 +1357,46 @@ native_wrap_dest(NativeQueryState *state, QueryDesc *query_desc)
 	query_desc->dest = (DestReceiver *) &state->receiver;
 }
 
+static void
+native_release_buffer(NativeQueryState *state)
+{
+	TupleTableSlot *slot;
+	DestReceiver *original;
+
+	if (state == NULL || state->result_store == NULL)
+		return;
+
+	original = state->receiver.original;
+	if (original == NULL || state->result_desc == NULL)
+		return;
+
+	if (original->rStartup != NULL)
+	{
+		original->rStartup(original, state->result_operation, state->result_desc);
+		state->original_started = true;
+	}
+
+	slot = MakeSingleTupleTableSlot(state->result_desc, &TTSOpsMinimalTuple);
+	tuplestore_rescan(state->result_store);
+	while (tuplestore_gettupleslot(state->result_store, true, false, slot))
+	{
+		if (original->receiveSlot != NULL && !original->receiveSlot(slot, original))
+			break;
+		ExecClearTuple(slot);
+	}
+	ExecDropSingleTupleTableSlot(slot);
+
+	if (state->original_started && original->rShutdown != NULL)
+		original->rShutdown(original);
+	state->original_started = false;
+}
+
 static NativeQueryState *
 native_create_state(QueryDesc *query_desc)
 {
 	NativeQueryState *state;
 	MemoryContext context;
 	MemoryContext old_context;
-	HASHCTL ctl;
 
 	context = AllocSetContextCreate(TopMemoryContext,
 									"SessionBound native query accounting",
@@ -1514,15 +1419,6 @@ native_create_state(QueryDesc *query_desc)
 	state->advisory_lock_key = guard_advisory_lock_key;
 	state->source_text = pstrdup(query_desc->sourceText != NULL ? query_desc->sourceText : "");
 
-	memset(&ctl, 0, sizeof(ctl));
-	ctl.keysize = ROW_ID_KEY_SIZE;
-	ctl.entrysize = sizeof(RowIdEntry);
-	ctl.hcxt = context;
-	state->seen_expense_ids = hash_create("SessionBound seen expense ids",
-										  1024,
-										  &ctl,
-										  HASH_ELEM | HASH_STRINGS | HASH_CONTEXT);
-
 	state->next = native_states;
 	native_states = state;
 
@@ -1534,6 +1430,8 @@ static void
 sessionbound_guard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 {
 	NativeQueryState *state = NULL;
+
+	cleanup_stale_native_states();
 
 	if (should_account_query(queryDesc))
 	{
@@ -1572,7 +1470,6 @@ sessionbound_guard_ExecutorRun(QueryDesc *queryDesc,
 		if (!state->reserved)
 		{
 			native_reserve_query(state);
-			native_load_seen_rows(state);
 			state->reserved = true;
 		}
 		native_wrap_dest(state, queryDesc);
@@ -1608,6 +1505,35 @@ sessionbound_guard_ExecutorRun(QueryDesc *queryDesc,
 static void
 sessionbound_guard_ExecutorFinish(QueryDesc *queryDesc)
 {
+	NativeQueryState *state = find_native_state(queryDesc);
+
+	/*
+	 * Commit accounting before any buffered tuple is handed to the client.
+	 * A cumulative-budget conflict therefore becomes an automatic denial
+	 * receipt with zero released rows, rather than a late error after a visible
+	 * prefix.
+	 */
+	if (state != NULL && !state->aborted && !state->finished)
+	{
+		PG_TRY();
+		{
+			native_finish_query(state);
+			native_release_buffer(state);
+		}
+		PG_CATCH();
+		{
+			ErrorData *edata;
+
+			MemoryContextSwitchTo(ErrorContext);
+			edata = CopyErrorData();
+			FlushErrorState();
+			state->aborted = true;
+			native_record_state_denial(state, edata->message);
+			ReThrowError(edata);
+		}
+		PG_END_TRY();
+	}
+
 	if (prev_ExecutorFinish_hook)
 		prev_ExecutorFinish_hook(queryDesc);
 	else
@@ -1626,8 +1552,28 @@ sessionbound_guard_ExecutorEnd(QueryDesc *queryDesc)
 		if (queryDesc != NULL && queryDesc->dest == (DestReceiver *) &state->receiver)
 			queryDesc->dest = state->receiver.original;
 
+		/* ExecutorFinish is the normal release barrier.  This fallback is for
+		 * unusual executor lifecycles and preserves the same atomic ordering. */
 		if (!state->aborted && !state->finished)
-			native_finish_query(state);
+		{
+			PG_TRY();
+			{
+				native_finish_query(state);
+				native_release_buffer(state);
+			}
+			PG_CATCH();
+			{
+				ErrorData *edata;
+
+				MemoryContextSwitchTo(ErrorContext);
+				edata = CopyErrorData();
+				FlushErrorState();
+				state->aborted = true;
+				native_record_state_denial(state, edata->message);
+				ReThrowError(edata);
+			}
+			PG_END_TRY();
+		}
 		remove_native_state(state);
 	}
 
@@ -1719,7 +1665,7 @@ _PG_init(void)
 
 	DefineCustomIntVariable(
 		"sessionbound_guard.max_unique_expense_rows",
-		"Maximum unique expense rows allowed for the bound task.",
+		"Maximum conservative output tuples allowed (legacy setting name).",
 		NULL,
 		&guard_max_unique_expense_rows,
 		0,
@@ -1835,6 +1781,7 @@ sessionbound_guard_check(PG_FUNCTION_ARGS)
 	text *sql_text = PG_GETARG_TEXT_PP(0);
 	char *sql = text_to_cstring(sql_text);
 	bool old_guard_enabled = guard_enabled;
+	bool old_suppress_receipts = guard_suppress_receipts;
 	bool spi_connected = false;
 	SPIPlanPtr plan = NULL;
 
@@ -1848,11 +1795,13 @@ sessionbound_guard_check(PG_FUNCTION_ARGS)
 		spi_connected = true;
 
 		guard_enabled = true;
+		guard_suppress_receipts = true;
 		plan = SPI_prepare(sql, 0, NULL);
 		if (plan == NULL)
 			elog(ERROR, "SPI_prepare failed for SessionBound guard check: %d", SPI_result);
 		SPI_freeplan(plan);
 		guard_enabled = old_guard_enabled;
+		guard_suppress_receipts = old_suppress_receipts;
 
 		rc = SPI_finish();
 		if (rc != SPI_OK_FINISH)
@@ -1862,6 +1811,7 @@ sessionbound_guard_check(PG_FUNCTION_ARGS)
 	PG_CATCH();
 	{
 		guard_enabled = old_guard_enabled;
+		guard_suppress_receipts = old_suppress_receipts;
 		if (spi_connected)
 			SPI_finish();
 		PG_RE_THROW();

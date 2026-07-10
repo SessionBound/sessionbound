@@ -1,0 +1,49 @@
+{
+  "cases": [
+    {
+      "id": "EQ01",
+      "name": "external_pep_allows_bound_query",
+      "result": {
+        "decision": "allowed",
+        "reason": "",
+        "rows": 2
+      }
+    },
+    {
+      "id": "EQ02",
+      "name": "external_pep_charges_projection_independent_tuple_budget",
+      "result": {
+        "decision": "denied",
+        "reason": "external PEP tuple budget exceeded",
+        "rows": 0
+      }
+    },
+    {
+      "id": "EQ03",
+      "name": "external_pep_denies_credential_replay",
+      "result": {
+        "decision": "denied",
+        "reason": "credential-token mismatch",
+        "rows": 0
+      }
+    },
+    {
+      "id": "EQ04",
+      "name": "direct_role_bypass_is_outside_external_pep",
+      "result": {
+        "decision": "allowed",
+        "reason": "baseline role can bypass PEP",
+        "rows": 3
+      }
+    }
+  ],
+  "interpretation": "The composition is functionally equivalent only while every request traverses the external PEP; the direct-role bypass is the explicit TCB distinction from database-resident SessionBound enforcement.",
+  "run": {
+    "case_count": 4,
+    "commit": "25e2373",
+    "dsn": "postgresql://tdsc_rls_safe_audit:***@localhost:15432/travel",
+    "failed": 0,
+    "passed": 4,
+    "timestamp": "2026-07-10T04:49:31.312639+00:00"
+  }
+}

@@ -6,12 +6,12 @@ completed.
 
 ## Canonical Artifact
 
-- Artifact tag: `high-standard-tdsc-pdsc-revision-2026-07-08`
+- Artifact tag: `tdsc-resubmit-2026-07-10` (created after the final clean build)
 - Working branch: `high-standard-tdsc-pdsc-revision`
 - Manifest: `paper/tdsc/ARTIFACT_MANIFEST.md`
 - Manuscript source: `paper/tdsc/sessionbound-tdsc.tex`
 - Manuscript PDF: `paper/tdsc/sessionbound-tdsc.pdf`
-- Current compiled length: 14 pages
+- Current compiled length: 16 pages
 
 The TDSC manuscript is the canonical claim contract for this candidate. The
 arXiv v1 workspace is an earlier preprint snapshot unless and until an arXiv v2
@@ -30,6 +30,13 @@ is prepared from the TDSC text.
   with conservative native hook shape checks.
 - Added experiment reports and raw-result references under `raw_results/` and
   `experiments/`.
+- Replaced the test-side denial receipt write with parser, wrapper/hook, and
+  executor denial cases that verify autonomous receipts after rollback.
+- Unified wrapper/native disclosure accounting as an atomic conservative
+  output-tuple budget; projection aliases, joins, and aggregates are covered
+  by the projection attack suite.
+- Added receipt-chain fields and autonomous append serialization for the audit
+  channel.
 - Implemented and measured strict credential-token binding:
   credential-id matching, actor matching, audience validation,
   cross-credential replay rejection, expiration, revocation, and
@@ -40,7 +47,7 @@ is prepared from the TDSC text.
 - Switched the manuscript entrypoint to `\documentclass[journal]{IEEEtran}`.
 - Added IEEE keywords.
 - Compressed the TDSC manuscript from an over-explanatory long draft into a
-  14-page candidate by shortening motivation, discussion, related work, future
+  16-page candidate by shortening motivation, discussion, related work, future
   work, and limitations.
 - Moved the full canonical validation table out of the manuscript body and into
   the artifact evidence.

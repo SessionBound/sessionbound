@@ -30,14 +30,13 @@ view-definition hash mismatch, and exposed-column hash mismatch.
 
 Performance baselines show sub-millisecond p50 for raw, role-only, and
 safe-view-only configurations on the small seed dataset. The
-RLS+Safe View+Short Credential+Audit baseline measured about 0.98--1.12 ms p50.
-Full SessionBound p50 measured about 17.4--18.6 ms across the five query
+RLS+Safe View+Short Credential+Audit baseline measured 1.06--1.31 ms p50.
+Full SessionBound p50 measured 128.4--136.1 ms across the five query
 patterns because the wrapper reference path includes runtime dispatch, policy
-checks, budget and disclosure accounting, receipt insertion, and result
-materialization.
+checks, autonomous budget/receipt accounting, and result materialization.
 
 Receipt/budget ablation was measured in
-`../raw_results/overhead_breakdown_20260708_205527.json`. Receipt-disabled
+`../raw_results/overhead_breakdown_20260710_103837.json`. Receipt-disabled
 variants emitted no receipts, budget-disabled variants left budget counters
 unchanged, and small-dataset p50 deltas were noisy rather than a stable
 attribution to a single component.
@@ -50,8 +49,7 @@ confirms that the wrapper reference path is a security reference path and still
 needs lower-level executor-accounting engineering before production-scale
 claims. The hook-only microbenchmark isolates native structural guard checks at
 0.125--0.138 ms p50, so the multi-second 100k result should be attributed to
-the wrapper materialization/accounting path rather than parse/analyze guarding
-alone.
+the wrapper/native accounting path rather than parse/analyze guarding alone.
 
 Concurrency smoke testing passed at 1, 5, and 20 concurrent sessions with
 0 failures. At 20 concurrent sessions, query p50 was 82.896 ms and query

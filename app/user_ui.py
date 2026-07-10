@@ -435,7 +435,7 @@ USER_HTML = r"""
         views: ["expenses", "departments", "employees"],
         commands: [],
         ttl: "30 minute task token",
-        budget: "up to 100 queries / 5000 unique expense rows",
+        budget: "up to 100 queries / 5000 disclosure tuples",
         applicantHint: "Best for managers or analysts who need temporary analytical access."
       },
       finance_compliance_review: {
@@ -444,7 +444,7 @@ USER_HTML = r"""
         views: ["expenses", "departments", "employees", "approval_events"],
         commands: ["finance_approve", "return_expense_for_more_info"],
         ttl: "20 minute task token",
-        budget: "up to 50 queries / 2000 unique expense rows",
+        budget: "up to 50 queries / 2000 disclosure tuples",
         applicantHint: "Best for finance reviewers; Fiona has this demo grant."
       },
       payment_readiness_audit: {
@@ -453,7 +453,7 @@ USER_HTML = r"""
         views: ["expenses", "departments", "approval_events", "ledger_entries"],
         commands: ["pay_expense"],
         ttl: "15 minute task token",
-        budget: "up to 40 queries / 1000 unique expense rows",
+        budget: "up to 40 queries / 1000 disclosure tuples",
         applicantHint: "Best for finance payment operations; Fiona has this demo grant."
       }
     };
@@ -658,7 +658,7 @@ USER_HTML = r"""
           <span>Denied fields</span><span class="mono">${html((payload.denied_columns || deniedFields).join(", "))}</span>
           <span>Scope</span><span class="mono">${html(JSON.stringify(payload.row_scope || {}))}</span>
           <span>Query budget</span><span>${html(payload.budgets?.max_queries ?? state.maxQueries)} queries</span>
-          <span>Row budget</span><span>${html(payload.budgets?.max_unique_expense_rows ?? state.maxRows)} unique expense rows</span>
+          <span>Disclosure budget</span><span>${html(payload.budgets?.max_unique_expense_rows ?? state.maxRows)} output tuples</span>
           <span>Status</span><span>Task token bound to SessionBoundDB on first query</span>
         </div>
       `;

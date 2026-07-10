@@ -1,0 +1,92 @@
+{
+  "records": [
+    {
+      "actual": "Passed",
+      "evidence": {
+        "observations": [
+          {
+            "error": "SessionBoundDB denied query: result tuple budget exceeded",
+            "receipts": [
+              {
+                "decision": "denied",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "unique_rows_added": 0
+              }
+            ],
+            "sql": "SELECT amount FROM expenses ORDER BY expense_id LIMIT 3",
+            "state": [
+              {
+                "budget_account": "task_native_partial_budget_1783658967",
+                "query_count": 1,
+                "returned_rows": 0,
+                "revoked": false,
+                "task_id": "task_native_partial_budget_1783658967",
+                "unique_expense_rows": 0
+              }
+            ]
+          },
+          {
+            "error": "SessionBoundDB denied query: result tuple budget exceeded",
+            "receipts": [
+              {
+                "decision": "denied",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "unique_rows_added": 0
+              }
+            ],
+            "sql": "SELECT amount AS renamed_amount FROM expenses ORDER BY expense_id LIMIT 3",
+            "state": [
+              {
+                "budget_account": "task_native_partial_budget_1783658967",
+                "query_count": 2,
+                "returned_rows": 0,
+                "revoked": false,
+                "task_id": "task_native_partial_budget_1783658967",
+                "unique_expense_rows": 0
+              }
+            ]
+          },
+          {
+            "error": "SessionBoundDB denied query: result tuple budget exceeded",
+            "receipts": [
+              {
+                "decision": "denied",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "unique_rows_added": 0
+              }
+            ],
+            "sql": "SELECT category, count(*) FROM expenses GROUP BY category",
+            "state": [
+              {
+                "budget_account": "task_native_partial_budget_1783658967",
+                "query_count": 3,
+                "returned_rows": 0,
+                "revoked": false,
+                "task_id": "task_native_partial_budget_1783658967",
+                "unique_expense_rows": 0
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "Projection, alias, and aggregate shapes cannot release a prefix or bypass the conservative tuple budget",
+      "id": "NPB01",
+      "name": "native_over_budget_projection_independent_atomic_denial",
+      "passed": true
+    }
+  ],
+  "run": {
+    "case_count": 1,
+    "commit": "25e2373",
+    "database_url": "postgresql://agent_app:***@localhost:15432/travel",
+    "failed": 0,
+    "passed": 1,
+    "timestamp": "2026-07-10T04:49:27.597797Z"
+  }
+}
