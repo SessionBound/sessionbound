@@ -228,6 +228,7 @@ SELECT taskbound.bind_task({sql_literal(task['payload_text'])}, {sql_literal(tas
 BEGIN;
 SELECT * FROM app_data.expenses LIMIT 1;
 ROLLBACK;
+SELECT taskbound.fail_receipt('SELECT * FROM app_data.expenses LIMIT 1', 'raw application schema access is not allowed');
 {receipt_snapshot_sql()}
 """
     result = run_psql(sql_script, credential["db_user"], credential["db_password"])

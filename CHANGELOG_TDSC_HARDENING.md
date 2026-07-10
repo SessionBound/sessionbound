@@ -3,6 +3,56 @@
 Branch: `high-standard-tdsc-pdsc-revision`
 Date: 2026-07-08
 
+## 2026-07-10 Global Single-Active Binding
+
+- Implemented exact-key global binding ownership for
+  `task_id + token_digest + credential_id`.
+- Added PostgreSQL session-level advisory locks as the authoritative
+  single-active mutex, with non-blocking `pg_try_advisory_lock` denial mapped
+  to `ACTIVE_BINDING_EXISTS` / SQLSTATE `55P03` / HTTP 409.
+- Added protected active binding state with token digest, signed nonce,
+  credential id, `binding_id`, monotonic `fence_token`, advisory-lock key,
+  database OID, lock backend, owner PID/backend-start/postmaster-start/session
+  user, acquisition times, and token expiry.
+- Fenced all budget, receipt, cleanup, and unbind mutations with
+  `binding_id + fence_token`; fence mismatches emit `BINDING_FENCED`.
+- Added crash and disconnect recovery that first reacquires the advisory lock
+  and then verifies owner death using PID, backend start, postmaster start, and
+  database OID. `last_seen_at` is diagnostic only.
+- Hardened the native guard against advisory unlock, `DISCARD ALL`, direct
+  guard-clear calls, untrusted session-state utility commands, and rollback
+  processing from aborted transactions.
+- Added `docs/GLOBAL_SINGLE_ACTIVE_BINDING.md`.
+- Added `paper/tdsc/scripts/single_active_binding_eval.py`.
+- Final full result:
+  `paper/tdsc/raw_results/single_active_binding_20260710_030846.json`.
+  The 1000-round same-key race had 0 dual-success rounds, 0 zero-owner rounds,
+  and 0 unexpected errors; the 20-contender race produced exactly 1 owner and
+  19 deterministic denials; explicit unbind, socket close, backend termination,
+  live-owner non-eviction, PID reuse protection, rollback semantics, old-fence
+  rejection, and different-key concurrency passed.
+
+## 2026-07-10 Result Refresh
+
+- Canonical validation: `sessionbound_agent_eval_1783653370.json`, 24 / 24.
+- AST validation: `ast_validation_20260710_103428.json`, 20 / 20.
+- Adversarial SQL: `adversarial_sql_20260710_110551.json`, 140 / 140.
+- Native hook/executor: `sessionbound_guard_hook_20260710_110558.json`,
+  18 / 18.
+- Rollback audit: `rollback_audit_20260710_110603.json`, 2 / 2.
+- Native partial budget: `native_partial_budget_20260710_110604.json`, 1 / 1.
+- Concurrent isolation: `concurrent_isolation_20260710_030604.json`, 6 / 6.
+- Overhead breakdown: `overhead_breakdown_20260710_103837.json`; full
+  SessionBound p50 is now 128.4--136.1 ms after statement-start owner/fence
+  validation.
+- Hook-only microbenchmark: `hook_microbenchmark_20260710_103846.json`;
+  structural-check p50 is 0.127--0.176 ms.
+- Bounded native end-to-end benchmark:
+  `native_end_to_end_20260710_110541.json`, run with
+  `TDSC_NATIVE_ROWS=1000,10000`, `TDSC_NATIVE_WARMUP=1`, and
+  `TDSC_NATIVE_MEASURED=3`; 10k wrapper p50 is 5.08--5.25 s and 10k native
+  p50 is 5.16--5.38 s.
+
 ## Claim and Manuscript Hardening
 
 - Reframed SessionBound as a task-bound database-session state machine:

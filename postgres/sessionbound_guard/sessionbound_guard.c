@@ -1,6 +1,7 @@
 #include "postgres.h"
 
 #include "access/htup_details.h"
+#include "access/xact.h"
 #include "catalog/namespace.h"
 #include "catalog/pg_class_d.h"
 #include "catalog/pg_namespace.h"
@@ -40,6 +41,8 @@ void _PG_fini(void);
 
 PG_FUNCTION_INFO_V1(sessionbound_guard_status);
 PG_FUNCTION_INFO_V1(sessionbound_guard_check);
+PG_FUNCTION_INFO_V1(sessionbound_guard_install_binding);
+PG_FUNCTION_INFO_V1(sessionbound_guard_clear_binding);
 
 #define ROW_ID_KEY_SIZE 256
 
@@ -91,6 +94,9 @@ struct NativeQueryState
 	int max_unique_expense_rows;
 	char *task_id;
 	char *budget_account;
+	char *binding_id;
+	int64 fence_token;
+	int64 advisory_lock_key;
 	char *source_text;
 	NativeQueryState *next;
 };
@@ -112,10 +118,16 @@ static int guard_min_group_size = 5;
 static char *guard_task_id = NULL;
 static char *guard_budget_account = NULL;
 static char *guard_allowed_view_oids = NULL;
+static char *guard_binding_id = NULL;
+static char *guard_token_digest = NULL;
+static char *guard_credential_id = NULL;
+static int64 guard_fence_token = 0;
+static int64 guard_advisory_lock_key = 0;
 static bool guard_in_internal_spi = false;
 static const char *guard_current_sql = NULL;
 static NativeQueryState *native_states = NULL;
 
+/* Trusted binding state is installed by taskbound.bind_task without transactional SET. */
 static void sessionbound_guard_post_parse_analyze(ParseState *pstate, Query *query,
 												 JumbleState *jstate);
 static void sessionbound_guard_ProcessUtility(PlannedStmt *pstmt,
@@ -167,6 +179,65 @@ valid_guard_task_id(void)
 		   guard_task_id[0] != '\0';
 }
 
+static bool
+valid_guard_binding_identity(void)
+{
+	return valid_guard_task_id() &&
+		   guard_binding_id != NULL &&
+		   guard_binding_id[0] != '\0' &&
+		   guard_fence_token > 0 &&
+		   guard_advisory_lock_key != 0;
+}
+
+static char *
+text_arg_to_top_cstring(PG_FUNCTION_ARGS, int argno)
+{
+	text *value;
+	char *cstring;
+	MemoryContext old_context;
+	char *result;
+
+	if (PG_ARGISNULL(argno))
+		return "";
+
+	value = PG_GETARG_TEXT_PP(argno);
+	cstring = text_to_cstring(value);
+	old_context = MemoryContextSwitchTo(TopMemoryContext);
+	result = pstrdup(cstring);
+	MemoryContextSwitchTo(old_context);
+	return result;
+}
+
+static void
+assign_top_string(char **target, const char *value)
+{
+	MemoryContext old_context;
+
+	old_context = MemoryContextSwitchTo(TopMemoryContext);
+	*target = pstrdup(value != NULL ? value : "");
+	MemoryContextSwitchTo(old_context);
+}
+
+static void
+clear_trusted_binding_state(void)
+{
+	guard_task_bound = false;
+	guard_enabled = false;
+	guard_receipts_enabled = false;
+	guard_budget_accounting_enabled = false;
+	guard_max_queries = 0;
+	guard_max_unique_expense_rows = 0;
+	guard_min_group_size = 5;
+	assign_top_string(&guard_task_id, "");
+	assign_top_string(&guard_budget_account, "");
+	assign_top_string(&guard_allowed_view_oids, "");
+	assign_top_string(&guard_binding_id, "");
+	assign_top_string(&guard_token_digest, "");
+	assign_top_string(&guard_credential_id, "");
+	guard_fence_token = 0;
+	guard_advisory_lock_key = 0;
+}
+
 static void
 spi_call_void(const char *command, int nargs, Oid *argtypes, Datum *values, char *nulls)
 {
@@ -215,13 +286,39 @@ spi_call_void(const char *command, int nargs, Oid *argtypes, Datum *values, char
 }
 
 static void
+validate_active_binding_or_error(void)
+{
+	Oid argtypes[4] = {TEXTOID, TEXTOID, INT8OID, INT8OID};
+	Datum values[4];
+	char nulls[4] = {' ', ' ', ' ', ' '};
+
+	if (!valid_guard_binding_identity())
+		return;
+
+	values[0] = CStringGetTextDatum(guard_task_id);
+	values[1] = CStringGetTextDatum(guard_binding_id);
+	values[2] = Int64GetDatum(guard_fence_token);
+	values[3] = Int64GetDatum(guard_advisory_lock_key);
+
+	spi_call_void(
+		"SELECT taskbound.validate_active_binding($1, $2::uuid, $3, $4)",
+		4,
+		argtypes,
+		values,
+		nulls);
+}
+
+static void
 record_denied_receipt(const char *sql_text, const char *reason)
 {
-	Oid argtypes[5] = {TEXTOID, TEXTOID, TEXTOID, TEXTOID, BOOLOID};
-	Datum values[5];
-	char nulls[5] = {' ', ' ', ' ', ' ', ' '};
+	Oid argtypes[7] = {TEXTOID, TEXTOID, TEXTOID, TEXTOID, BOOLOID, TEXTOID, INT8OID};
+	Datum values[7];
+	char nulls[7] = {' ', ' ', ' ', ' ', ' ', ' ', ' '};
 
-	if (!valid_guard_task_id())
+	if (!valid_guard_task_id() || !valid_guard_binding_identity())
+		return;
+
+	if (IsTransactionBlock())
 		return;
 
 	values[0] = CStringGetTextDatum(guard_task_id);
@@ -232,10 +329,12 @@ record_denied_receipt(const char *sql_text, const char *reason)
 	values[2] = CStringGetTextDatum(sql_text != NULL ? sql_text : "");
 	values[3] = CStringGetTextDatum(reason != NULL ? reason : "query denied");
 	values[4] = BoolGetDatum(guard_receipts_enabled);
+	values[5] = CStringGetTextDatum(guard_binding_id);
+	values[6] = Int64GetDatum(guard_fence_token);
 
 	spi_call_void(
-		"SELECT taskbound.native_denied_receipt($1, $2, $3, $4, $5)",
-		5,
+		"SELECT taskbound.native_denied_receipt($1, $2, $3, $4, $5, $6::uuid, $7)",
+		7,
 		argtypes,
 		values,
 		nulls);
@@ -428,6 +527,13 @@ guard_check_function(Oid funcid)
 
 	if (function_is_payload_aggregation(funcname))
 		guard_deny("payload aggregation function is not allowed");
+
+	if (funcname != NULL &&
+		(pg_strcasecmp(funcname, "pg_advisory_unlock") == 0 ||
+		 pg_strcasecmp(funcname, "pg_advisory_unlock_shared") == 0 ||
+		 pg_strcasecmp(funcname, "pg_advisory_unlock_all") == 0 ||
+		 pg_strcasecmp(funcname, "set_config") == 0))
+		guard_deny("session lock or trusted runtime state cannot be modified by task SQL");
 
 	if (function_is_public_runtime_entrypoint(namespace_name, funcname))
 		return;
@@ -622,6 +728,11 @@ guard_check_utility(Node *utility_stmt, GuardContext *ctx)
 		case T_DeallocateStmt:
 		case T_TransactionStmt:
 			return;
+		case T_VariableSetStmt:
+		case T_VariableShowStmt:
+		case T_DiscardStmt:
+			guard_deny("session state utility command is not allowed in task SQL");
+			break;
 		default:
 			guard_deny("utility statement is not allowed in task SQL");
 	}
@@ -815,6 +926,11 @@ guard_utility_precheck(Node *utility_stmt, const char *query_string)
 		case T_DeallocateStmt:
 		case T_TransactionStmt:
 			break;
+		case T_VariableSetStmt:
+		case T_VariableShowStmt:
+		case T_DiscardStmt:
+			guard_deny("session state utility command is not allowed in task SQL");
+			break;
 		default:
 			if (source_contains_i(query_string, "app_data") ||
 				source_contains_i(query_string, "pg_catalog") ||
@@ -832,11 +948,11 @@ guard_utility_precheck(Node *utility_stmt, const char *query_string)
 static void
 native_reserve_utility_query(const char *query_string)
 {
-	Oid argtypes[6] = {TEXTOID, TEXTOID, TEXTOID, INT4OID, BOOLOID, BOOLOID};
-	Datum values[6];
-	char nulls[6] = {' ', ' ', ' ', ' ', ' ', ' '};
+	Oid argtypes[8] = {TEXTOID, TEXTOID, TEXTOID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
+	Datum values[8];
+	char nulls[8] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
 
-	if (!valid_guard_task_id())
+	if (!valid_guard_task_id() || !valid_guard_binding_identity())
 		return;
 
 	values[0] = CStringGetTextDatum(guard_task_id);
@@ -848,10 +964,12 @@ native_reserve_utility_query(const char *query_string)
 	values[3] = Int32GetDatum(guard_max_queries);
 	values[4] = BoolGetDatum(guard_budget_accounting_enabled);
 	values[5] = BoolGetDatum(guard_receipts_enabled);
+	values[6] = CStringGetTextDatum(guard_binding_id);
+	values[7] = Int64GetDatum(guard_fence_token);
 
 	spi_call_void(
-		"SELECT taskbound.native_reserve_query($1, $2, $3, $4, $5, $6)",
-		6,
+		"SELECT taskbound.native_reserve_query($1, $2, $3, $4, $5, $6, $7::uuid, $8)",
+		8,
 		argtypes,
 		values,
 		nulls);
@@ -860,12 +978,12 @@ native_reserve_utility_query(const char *query_string)
 static void
 native_finish_utility_query(const char *query_string)
 {
-	Oid argtypes[8] = {TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, BOOLOID, BOOLOID};
-	Datum values[8];
-	char nulls[8] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
+	Oid argtypes[10] = {TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
+	Datum values[10];
+	char nulls[10] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
 	Datum empty_array;
 
-	if (!valid_guard_task_id())
+	if (!valid_guard_task_id() || !valid_guard_binding_identity())
 		return;
 
 	empty_array = PointerGetDatum(construct_empty_array(TEXTOID));
@@ -880,10 +998,12 @@ native_finish_utility_query(const char *query_string)
 	values[5] = Int32GetDatum(guard_max_unique_expense_rows);
 	values[6] = BoolGetDatum(guard_budget_accounting_enabled);
 	values[7] = BoolGetDatum(guard_receipts_enabled);
+	values[8] = CStringGetTextDatum(guard_binding_id);
+	values[9] = Int64GetDatum(guard_fence_token);
 
 	spi_call_void(
-		"SELECT taskbound.native_finish_query($1, $2, $3, $4, $5, $6, $7, $8)",
-		8,
+		"SELECT taskbound.native_finish_query($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid, $10)",
+		10,
 		argtypes,
 		values,
 		nulls);
@@ -901,17 +1021,26 @@ sessionbound_guard_ProcessUtility(PlannedStmt *pstmt,
 {
 	Node *utility_stmt = pstmt != NULL ? pstmt->utilityStmt : NULL;
 	bool account_explain = false;
-
-	if (!guard_in_internal_spi && guard_task_bound)
-	{
-		guard_utility_precheck(utility_stmt, queryString);
-		account_explain = utility_stmt != NULL && IsA(utility_stmt, ExplainStmt);
-		if (account_explain)
-			native_reserve_utility_query(queryString);
-	}
+	bool is_transaction_stmt = utility_stmt != NULL && IsA(utility_stmt, TransactionStmt);
+	const char *old_sql = guard_current_sql;
 
 	PG_TRY();
 	{
+		if (!guard_in_internal_spi && guard_task_bound)
+		{
+			/*
+			 * Transaction control can be issued while the current transaction is
+			 * aborted.  Running SPI validation in that state is unsafe and is not
+			 * needed for BEGIN/COMMIT/ROLLBACK themselves.
+			 */
+			if (!is_transaction_stmt && valid_guard_binding_identity())
+				validate_active_binding_or_error();
+			guard_utility_precheck(utility_stmt, queryString);
+			account_explain = utility_stmt != NULL && IsA(utility_stmt, ExplainStmt);
+			if (account_explain)
+				native_reserve_utility_query(queryString);
+		}
+
 		if (prev_ProcessUtility_hook)
 			prev_ProcessUtility_hook(pstmt, queryString, readOnlyTree, context,
 									 params, queryEnv, dest, qc);
@@ -921,11 +1050,14 @@ sessionbound_guard_ProcessUtility(PlannedStmt *pstmt,
 
 		if (account_explain)
 			native_finish_utility_query(queryString);
+
+		guard_current_sql = old_sql;
 	}
 	PG_CATCH();
 	{
 		ErrorData *edata;
 
+		guard_current_sql = old_sql;
 		MemoryContextSwitchTo(ErrorContext);
 		edata = CopyErrorData();
 		FlushErrorState();
@@ -988,6 +1120,9 @@ should_account_query(QueryDesc *query_desc)
 		return false;
 
 	if (!valid_guard_task_id())
+		return false;
+
+	if (!valid_guard_binding_identity())
 		return false;
 
 	if (query_desc->operation != CMD_SELECT)
@@ -1122,9 +1257,9 @@ native_load_seen_rows(NativeQueryState *state)
 static void
 native_reserve_query(NativeQueryState *state)
 {
-	Oid argtypes[6] = {TEXTOID, TEXTOID, TEXTOID, INT4OID, BOOLOID, BOOLOID};
-	Datum values[6];
-	char nulls[6] = {' ', ' ', ' ', ' ', ' ', ' '};
+	Oid argtypes[8] = {TEXTOID, TEXTOID, TEXTOID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
+	Datum values[8];
+	char nulls[8] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
 
 	values[0] = CStringGetTextDatum(state->task_id);
 	values[1] = CStringGetTextDatum(state->budget_account);
@@ -1132,10 +1267,12 @@ native_reserve_query(NativeQueryState *state)
 	values[3] = Int32GetDatum(guard_max_queries);
 	values[4] = BoolGetDatum(state->budget_accounting_enabled);
 	values[5] = BoolGetDatum(state->receipts_enabled);
+	values[6] = CStringGetTextDatum(state->binding_id);
+	values[7] = Int64GetDatum(state->fence_token);
 
 	spi_call_void(
-		"SELECT taskbound.native_reserve_query($1, $2, $3, $4, $5, $6)",
-		6,
+		"SELECT taskbound.native_reserve_query($1, $2, $3, $4, $5, $6, $7::uuid, $8)",
+		8,
 		argtypes,
 		values,
 		nulls);
@@ -1144,9 +1281,9 @@ native_reserve_query(NativeQueryState *state)
 static void
 native_finish_query(NativeQueryState *state)
 {
-	Oid argtypes[8] = {TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, BOOLOID, BOOLOID};
-	Datum values[8];
-	char nulls[8] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
+	Oid argtypes[10] = {TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
+	Datum values[10];
+	char nulls[10] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
 	int nids;
 	Datum *elems;
 	ArrayType *array;
@@ -1171,10 +1308,12 @@ native_finish_query(NativeQueryState *state)
 	values[5] = Int32GetDatum(state->max_unique_expense_rows);
 	values[6] = BoolGetDatum(state->budget_accounting_enabled);
 	values[7] = BoolGetDatum(state->receipts_enabled);
+	values[8] = CStringGetTextDatum(state->binding_id);
+	values[9] = Int64GetDatum(state->fence_token);
 
 	spi_call_void(
-		"SELECT taskbound.native_finish_query($1, $2, $3, $4, $5, $6, $7, $8)",
-		8,
+		"SELECT taskbound.native_finish_query($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid, $10)",
+		10,
 		argtypes,
 		values,
 		nulls);
@@ -1184,9 +1323,9 @@ native_finish_query(NativeQueryState *state)
 static void
 native_record_state_denial(NativeQueryState *state, const char *reason)
 {
-	Oid argtypes[9] = {TEXTOID, TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, BOOLOID, BOOLOID};
-	Datum values[9];
-	char nulls[9] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
+	Oid argtypes[11] = {TEXTOID, TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
+	Datum values[11];
+	char nulls[11] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
 	int nids;
 	Datum *elems;
 	ArrayType *array;
@@ -1218,10 +1357,12 @@ native_record_state_denial(NativeQueryState *state, const char *reason)
 	values[6] = Int32GetDatum(state->max_unique_expense_rows);
 	values[7] = BoolGetDatum(state->budget_accounting_enabled);
 	values[8] = BoolGetDatum(state->receipts_enabled);
+	values[9] = CStringGetTextDatum(state->binding_id);
+	values[10] = Int64GetDatum(state->fence_token);
 
 	spi_call_void(
-		"SELECT taskbound.native_partial_denied_receipt($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		9,
+		"SELECT taskbound.native_partial_denied_receipt($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::uuid, $11)",
+		11,
 		argtypes,
 		values,
 		nulls);
@@ -1368,6 +1509,9 @@ native_create_state(QueryDesc *query_desc)
 		guard_budget_account != NULL && guard_budget_account[0] != '\0'
 			? guard_budget_account
 			: guard_task_id);
+	state->binding_id = pstrdup(guard_binding_id);
+	state->fence_token = guard_fence_token;
+	state->advisory_lock_key = guard_advisory_lock_key;
 	state->source_text = pstrdup(query_desc->sourceText != NULL ? query_desc->sourceText : "");
 
 	memset(&ctl, 0, sizeof(ctl));
@@ -1393,6 +1537,7 @@ sessionbound_guard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 
 	if (should_account_query(queryDesc))
 	{
+		validate_active_binding_or_error();
 		state = native_create_state(queryDesc);
 		PG_TRY();
 		{
@@ -1653,6 +1798,35 @@ Datum
 sessionbound_guard_status(PG_FUNCTION_ARGS)
 {
 	PG_RETURN_TEXT_P(cstring_to_text("sessionbound_guard loaded"));
+}
+
+Datum
+sessionbound_guard_install_binding(PG_FUNCTION_ARGS)
+{
+	assign_top_string(&guard_task_id, text_arg_to_top_cstring(fcinfo, 0));
+	assign_top_string(&guard_budget_account, text_arg_to_top_cstring(fcinfo, 1));
+	assign_top_string(&guard_allowed_view_oids, text_arg_to_top_cstring(fcinfo, 2));
+	guard_max_queries = PG_GETARG_INT32(3);
+	guard_max_unique_expense_rows = PG_GETARG_INT32(4);
+	guard_min_group_size = PG_GETARG_INT32(5);
+	guard_receipts_enabled = PG_GETARG_BOOL(6);
+	guard_budget_accounting_enabled = PG_GETARG_BOOL(7);
+	assign_top_string(&guard_binding_id, text_arg_to_top_cstring(fcinfo, 8));
+	guard_fence_token = PG_GETARG_INT64(9);
+	guard_advisory_lock_key = PG_GETARG_INT64(10);
+	assign_top_string(&guard_token_digest, text_arg_to_top_cstring(fcinfo, 11));
+	assign_top_string(&guard_credential_id, text_arg_to_top_cstring(fcinfo, 12));
+	guard_task_bound = true;
+	guard_enabled = false;
+
+	PG_RETURN_VOID();
+}
+
+Datum
+sessionbound_guard_clear_binding(PG_FUNCTION_ARGS)
+{
+	clear_trusted_binding_state();
+	PG_RETURN_VOID();
 }
 
 Datum

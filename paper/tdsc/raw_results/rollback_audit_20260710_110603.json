@@ -1,0 +1,76 @@
+{
+  "records": [
+    {
+      "actual": "passed",
+      "expected": "Allowed receipt and accounting persist after ROLLBACK",
+      "id": "RA01",
+      "name": "allowed_receipt_and_accounting_survive_rollback",
+      "passed": true,
+      "psql": {
+        "output_tail": "{\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_rollback_audit_1783652763_allowed\", \"binding_id\": \"4b96f847-2f5c-480c-874f-3f9e4780c16d\", \"fence_token\": 4550, \"credential_id\": \"agent_rollback_audit_1783652763_allowed_198224d1\", \"budget_account\": \"task_rollback_audit_1783652763_allowed\", \"stale_recovered\": false, \"advisory_lock_key\": 8819077125543218290}\nexp_296|17200.00\nexp_259|16550.00\nROLLBACK_AUDIT_STATE=task_rollback_audit_1783652763_allowed\ttask_rollback_audit_1783652763_allowed\t1\t2\t2\tfalse\nROLLBACK_AUDIT_RECEIPT=allowed\t2\t2\t4998",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "{\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_rollback_audit_1783652763_allowed\", \"binding_id\": \"4b96f847-2f5c-480c-874f-3f9e4780c16d\", \"fence_token\": 4550, \"credential_id\": \"agent_rollback_audit_1783652763_allowed_198224d1\", \"budget_account\": \"task_rollback_audit_1783652763_allowed\", \"stale_recovered\": false, \"advisory_lock_key\": 8819077125543218290}\nexp_296|17200.00\nexp_259|16550.00\nROLLBACK_AUDIT_STATE=task_rollback_audit_1783652763_allowed\ttask_rollback_audit_1783652763_allowed\t1\t2\t2\tfalse\nROLLBACK_AUDIT_RECEIPT=allowed\t2\t2\t4998\t\n"
+      },
+      "snapshot": {
+        "receipts": [
+          {
+            "decision": "allowed",
+            "reason": "",
+            "remaining_unique_row_budget": 4998,
+            "rows_returned": 2,
+            "unique_rows_added": 2
+          }
+        ],
+        "state": {
+          "budget_account": "task_rollback_audit_1783652763_allowed",
+          "query_count": 1,
+          "returned_rows": 2,
+          "revoked": false,
+          "task_id": "task_rollback_audit_1783652763_allowed",
+          "unique_expense_rows": 2
+        }
+      }
+    },
+    {
+      "actual": "passed",
+      "expected": "Denied raw-schema attempt emits durable receipt after ROLLBACK",
+      "id": "RA02",
+      "name": "denial_receipt_survives_error_and_rollback",
+      "passed": true,
+      "psql": {
+        "output_tail": "{\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_rollback_audit_1783652763_denied\", \"binding_id\": \"20272401-84ff-4f47-a5ab-908fc13d398a\", \"fence_token\": 4551, \"credential_id\": \"agent_rollback_audit_1783652763_denied_3bcc9165\", \"budget_account\": \"task_rollback_audit_1783652763_denied\", \"stale_recovered\": false, \"advisory_lock_key\": -1888520332397408876}\n\nROLLBACK_AUDIT_STATE=task_rollback_audit_1783652763_denied\ttask_rollback_audit_1783652763_denied\t0\t0\t0\tfalse\nROLLBACK_AUDIT_RECEIPT=denied\t0\t0\t\traw application schema access is not allowed\nERROR:  SessionBound guard denied query: raw application schema access is not allowed",
+        "returncode": 0,
+        "stderr": "ERROR:  SessionBound guard denied query: raw application schema access is not allowed\n",
+        "stdout": "{\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_rollback_audit_1783652763_denied\", \"binding_id\": \"20272401-84ff-4f47-a5ab-908fc13d398a\", \"fence_token\": 4551, \"credential_id\": \"agent_rollback_audit_1783652763_denied_3bcc9165\", \"budget_account\": \"task_rollback_audit_1783652763_denied\", \"stale_recovered\": false, \"advisory_lock_key\": -1888520332397408876}\n\nROLLBACK_AUDIT_STATE=task_rollback_audit_1783652763_denied\ttask_rollback_audit_1783652763_denied\t0\t0\t0\tfalse\nROLLBACK_AUDIT_RECEIPT=denied\t0\t0\t\traw application schema access is not allowed\n"
+      },
+      "snapshot": {
+        "receipts": [
+          {
+            "decision": "denied",
+            "reason": "raw application schema access is not allowed",
+            "remaining_unique_row_budget": null,
+            "rows_returned": 0,
+            "unique_rows_added": 0
+          }
+        ],
+        "state": {
+          "budget_account": "task_rollback_audit_1783652763_denied",
+          "query_count": 0,
+          "returned_rows": 0,
+          "revoked": false,
+          "task_id": "task_rollback_audit_1783652763_denied",
+          "unique_expense_rows": 0
+        }
+      }
+    }
+  ],
+  "run": {
+    "base_url": "http://localhost:8000",
+    "case_count": 2,
+    "commit": "c3f9280",
+    "failed": 0,
+    "passed": 2,
+    "timestamp": "2026-07-10T03:06:03Z"
+  }
+}

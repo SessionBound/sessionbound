@@ -308,6 +308,13 @@ def fetch_receipts(cur) -> list[dict[str, Any]]:
     return rows_as_dicts(cur)
 
 
+def is_active_binding_conflict(exc: Exception) -> bool:
+    return (
+        getattr(exc, "sqlstate", None) == "55P03"
+        or "ACTIVE_BINDING_EXISTS" in str(exc)
+    )
+
+
 def fallback_sql_for_question(question: str) -> tuple[str, str]:
     text = question.lower()
     if any(word in text for word in ["bank_account", "bank account", "银行卡", "银行账号", "salary", "工资", "phone", "手机号", "identity_number", "身份证"]):
@@ -1240,6 +1247,8 @@ def query(req: QueryRequest):
                     "receipts": receipts,
                 }
             except Exception as exc:
+                if is_active_binding_conflict(exc):
+                    raise HTTPException(status_code=409, detail="ACTIVE_BINDING_EXISTS") from exc
                 try:
                     state = session.inspect_state()
                     receipts = session.receipts()
@@ -1292,6 +1301,8 @@ def agent_query(req: AgentQueryRequest):
                     "receipts": receipts,
                 }
             except Exception as exc:
+                if is_active_binding_conflict(exc):
+                    raise HTTPException(status_code=409, detail="ACTIVE_BINDING_EXISTS") from exc
                 try:
                     state = session.inspect_state()
                     receipts = session.receipts()
@@ -1389,6 +1400,8 @@ def agent_question(req: AgentQuestionRequest):
                     "receipts": receipts,
                 }
             except Exception as exc:
+                if is_active_binding_conflict(exc):
+                    raise HTTPException(status_code=409, detail="ACTIVE_BINDING_EXISTS") from exc
                 try:
                     state = session.inspect_state()
                     receipts = session.receipts()
@@ -1427,6 +1440,8 @@ def agent_command(req: AgentCommandRequest):
                     "command_result": result,
                 }
             except Exception as exc:
+                if is_active_binding_conflict(exc):
+                    raise HTTPException(status_code=409, detail="ACTIVE_BINDING_EXISTS") from exc
                 return {
                     "ok": False,
                     "used_dynamic_credential": req.credential.db_user,

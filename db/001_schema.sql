@@ -70,13 +70,45 @@ CREATE TABLE taskbound.signing_keys (
   secret text NOT NULL
 );
 
+CREATE SEQUENCE taskbound.binding_fence_token_seq AS bigint;
+
 CREATE TABLE taskbound.active_sessions (
   backend_pid int PRIMARY KEY,
   backend_start timestamptz NOT NULL,
   task_id text NOT NULL,
-  credential_id text,
+  token_digest text NOT NULL,
+  token_nonce text NOT NULL DEFAULT '',
+  credential_id text NOT NULL DEFAULT '',
+  binding_id uuid NOT NULL DEFAULT gen_random_uuid(),
+  fence_token bigint NOT NULL,
+  advisory_lock_key bigint NOT NULL,
+  database_oid oid NOT NULL,
+  lock_backend_pid int NOT NULL,
+  owner_backend_pid int NOT NULL,
+  owner_backend_start timestamptz NOT NULL,
+  owner_postmaster_start timestamptz NOT NULL,
+  owner_session_user name NOT NULL,
   payload jsonb NOT NULL,
-  bound_at timestamptz NOT NULL DEFAULT now()
+  bound_at timestamptz NOT NULL DEFAULT now(),
+  acquired_at timestamptz NOT NULL DEFAULT now(),
+  last_seen_at timestamptz NOT NULL DEFAULT now(),
+  token_expires_at timestamptz NOT NULL,
+  UNIQUE (task_id, token_digest, credential_id),
+  UNIQUE (binding_id)
+);
+
+CREATE TABLE taskbound.binding_events (
+  event_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type text NOT NULL,
+  task_id text,
+  token_digest text,
+  credential_id text,
+  binding_id uuid,
+  fence_token bigint,
+  advisory_lock_key bigint,
+  owner_backend_pid int,
+  reason text,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE taskbound.credential_ledger (
@@ -124,6 +156,8 @@ CREATE TABLE taskbound.task_query_receipts (
   receipt_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   task_id text NOT NULL,
   budget_account text NOT NULL,
+  binding_id uuid,
+  fence_token bigint,
   query_digest text NOT NULL,
   decision text NOT NULL,
   rows_returned bigint NOT NULL DEFAULT 0,

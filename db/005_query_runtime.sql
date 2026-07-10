@@ -24,12 +24,53 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION taskbound.mutation_fence_ok(
+  v_task_id text,
+  v_binding_id uuid,
+  v_fence_token bigint
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, pg_temp
+AS $$
+DECLARE
+  ok boolean;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1
+    FROM taskbound.active_sessions a
+    WHERE a.task_id = v_task_id
+      AND a.binding_id = v_binding_id
+      AND a.fence_token = v_fence_token
+  ) INTO ok;
+
+  IF NOT ok THEN
+    PERFORM taskbound.log_binding_event_local(
+      'BINDING_FENCED',
+      v_task_id,
+      NULL,
+      NULL,
+      v_binding_id,
+      v_fence_token,
+      NULL,
+      NULL,
+      'budget or receipt mutation rejected by binding_id/fence_token mismatch'
+    );
+  END IF;
+
+  RETURN ok;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION taskbound.native_denied_receipt(
   v_task_id text,
   v_budget_account text,
   sql_text text,
   reason text,
-  v_receipts_enabled boolean
+  v_receipts_enabled boolean,
+  v_binding_id uuid,
+  v_fence_token bigint
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -46,12 +87,18 @@ BEGIN
 
   PERFORM taskbound.audit_exec(format(
     'INSERT INTO taskbound.task_query_receipts ' ||
-    '(task_id, budget_account, query_digest, decision, reason) ' ||
-    'VALUES (%L, %L, encode(public.digest(%L, ''sha256''), ''hex''), ''denied'', %L)',
+    '(task_id, budget_account, binding_id, fence_token, query_digest, decision, reason) ' ||
+    'SELECT %L, %L, %L::uuid, %s, encode(public.digest(%L, ''sha256''), ''hex''), ''denied'', %L ' ||
+    'WHERE taskbound.mutation_fence_ok(%L, %L::uuid, %s)',
     v_task_id,
     COALESCE(v_budget_account, v_task_id),
+    v_binding_id,
+    v_fence_token,
     COALESCE(sql_text, ''),
-    reason
+    reason,
+    v_task_id,
+    v_binding_id,
+    v_fence_token
   ));
 END;
 $$;
@@ -65,18 +112,52 @@ AS $$
 DECLARE
   p jsonb;
   v_receipts_enabled boolean;
+  active record;
+  v_backend_start timestamptz;
+  v_postmaster_start timestamptz;
 BEGIN
-  p := taskbound.current_payload();
-  v_receipts_enabled := COALESCE((p #>> ARRAY['runtime_options', 'receipts_enabled'])::boolean, true);
-  IF p IS NOT NULL THEN
-    PERFORM taskbound.native_denied_receipt(
-      p->>'task_id',
-      COALESCE(p->>'budget_account', p->>'task_id'),
-      sql_text,
-      reason,
-      v_receipts_enabled
-    );
+  SELECT backend_start INTO v_backend_start
+  FROM pg_catalog.pg_stat_activity
+  WHERE pid = pg_backend_pid();
+  SELECT pg_catalog.pg_postmaster_start_time() INTO v_postmaster_start;
+
+  SELECT *
+  INTO active
+  FROM taskbound.active_sessions a
+  WHERE a.owner_backend_pid = pg_backend_pid()
+    AND a.owner_backend_start = v_backend_start
+    AND a.owner_postmaster_start = v_postmaster_start
+    AND a.database_oid = taskbound.current_database_oid()
+    AND a.owner_session_user = session_user;
+
+  IF NOT FOUND THEN
+    RETURN;
   END IF;
+
+  p := active.payload;
+  v_receipts_enabled := COALESCE((p #>> ARRAY['runtime_options', 'receipts_enabled'])::boolean, true);
+  IF NOT v_receipts_enabled THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO taskbound.task_query_receipts (
+    task_id,
+    budget_account,
+    binding_id,
+    fence_token,
+    query_digest,
+    decision,
+    reason
+  )
+  SELECT
+    active.task_id,
+    COALESCE(p->>'budget_account', active.task_id),
+    active.binding_id,
+    active.fence_token,
+    encode(public.digest(COALESCE(sql_text, ''), 'sha256'), 'hex'),
+    'denied',
+    COALESCE(reason, 'query denied')
+  WHERE taskbound.mutation_fence_ok(active.task_id, active.binding_id, active.fence_token);
 END;
 $$;
 
@@ -86,7 +167,9 @@ CREATE OR REPLACE FUNCTION taskbound.native_reserve_query(
   sql_text text,
   v_max_queries int,
   v_budget_accounting_enabled boolean,
-  v_receipts_enabled boolean
+  v_receipts_enabled boolean,
+  v_binding_id uuid,
+  v_fence_token bigint
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -112,12 +195,16 @@ BEGIN
     v_conn,
     format(
       $sql$
-      WITH updated AS (
+      WITH owner AS (
+        SELECT taskbound.mutation_fence_ok(%L, %L::uuid, %s) AS ok
+      ),
+      updated AS (
         UPDATE taskbound.task_execution_state
         SET query_count = query_count + 1
         WHERE task_id = %L
           AND revoked = false
           AND query_count < %s
+          AND (SELECT ok FROM owner)
         RETURNING task_id
       ),
       existing AS (
@@ -126,12 +213,16 @@ BEGIN
         WHERE task_id = %L
       )
       SELECT CASE
+        WHEN NOT (SELECT ok FROM owner) THEN 'BINDING_FENCED'
         WHEN EXISTS (SELECT 1 FROM updated) THEN 'ok'
         WHEN EXISTS (SELECT 1 FROM existing WHERE revoked) THEN 'task is revoked'
         WHEN EXISTS (SELECT 1 FROM existing WHERE query_count >= %s) THEN 'query budget exhausted'
         ELSE 'task execution state is missing'
       END AS status
       $sql$,
+      v_task_id,
+      v_binding_id,
+      v_fence_token,
       v_task_id,
       GREATEST(COALESCE(v_max_queries, 0), 0),
       v_task_id,
@@ -145,7 +236,9 @@ BEGIN
       v_budget_account,
       sql_text,
       v_status,
-      v_receipts_enabled
+      v_receipts_enabled,
+      v_binding_id,
+      v_fence_token
     );
     RAISE EXCEPTION 'SessionBoundDB denied query: %', v_status;
   END IF;
@@ -187,7 +280,9 @@ CREATE OR REPLACE FUNCTION taskbound.native_finish_query(
   v_new_expense_ids text[],
   v_max_rows int,
   v_budget_accounting_enabled boolean,
-  v_receipts_enabled boolean
+  v_receipts_enabled boolean,
+  v_binding_id uuid,
+  v_fence_token bigint
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -201,6 +296,7 @@ DECLARE
   v_unique_added bigint := 0;
   v_unique_after bigint;
   v_remaining_sql text := 'NULL';
+  v_fence_ok boolean := true;
 BEGIN
   SELECT public.dblink_get_connections() INTO v_connections;
   IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
@@ -216,17 +312,21 @@ BEGIN
       FROM unnest(v_new_expense_ids) AS u(row_id);
     END IF;
 
-    SELECT unique_added, unique_after
-    INTO v_unique_added, v_unique_after
+    SELECT fence_ok, unique_added, unique_after
+    INTO v_fence_ok, v_unique_added, v_unique_after
     FROM public.dblink(
       v_conn,
       format(
         $sql$
-        WITH before_count AS (
+        WITH owner AS (
+          SELECT taskbound.mutation_fence_ok(%L, %L::uuid, %s) AS ok
+        ),
+        before_count AS (
           SELECT count(*)::bigint AS n
           FROM taskbound.task_rows_seen
           WHERE budget_account = %L
             AND row_kind = 'expense'
+            AND (SELECT ok FROM owner)
         ),
         input AS (
           SELECT DISTINCT row_id
@@ -237,6 +337,7 @@ BEGIN
           INSERT INTO taskbound.task_rows_seen (budget_account, row_kind, row_id)
           SELECT %L, 'expense', row_id
           FROM input
+          WHERE (SELECT ok FROM owner)
           ON CONFLICT DO NOTHING
           RETURNING 1
         ),
@@ -248,19 +349,28 @@ BEGIN
           SET returned_rows = returned_rows + %s,
               unique_expense_rows = (SELECT n FROM after_count)
           WHERE task_id = %L
+            AND (SELECT ok FROM owner)
           RETURNING 1
         )
         SELECT
+          (SELECT ok FROM owner) AS fence_ok,
           (SELECT count(*)::bigint FROM ins) AS unique_added,
           (SELECT n FROM after_count) AS unique_after
         $sql$,
+        v_task_id,
+        v_binding_id,
+        v_fence_token,
         v_budget_account,
         v_ids_expr,
         v_budget_account,
         GREATEST(COALESCE(v_rows_returned, 0), 0),
         v_task_id
       )
-    ) AS t(unique_added bigint, unique_after bigint);
+    ) AS t(fence_ok boolean, unique_added bigint, unique_after bigint);
+
+    IF NOT COALESCE(v_fence_ok, false) THEN
+      RAISE EXCEPTION 'SessionBoundDB denied query: BINDING_FENCED';
+    END IF;
 
     IF v_unique_after > COALESCE(v_max_rows, 0) THEN
       PERFORM taskbound.native_denied_receipt(
@@ -268,7 +378,9 @@ BEGIN
         v_budget_account,
         sql_text,
         'unique expense row budget exceeded',
-        v_receipts_enabled
+        v_receipts_enabled,
+        v_binding_id,
+        v_fence_token
       );
       RAISE EXCEPTION 'SessionBoundDB denied query: unique expense row budget exceeded';
     END IF;
@@ -279,14 +391,20 @@ BEGIN
   IF COALESCE(v_receipts_enabled, true) THEN
     PERFORM taskbound.audit_exec(format(
       'INSERT INTO taskbound.task_query_receipts ' ||
-      '(task_id, budget_account, query_digest, decision, rows_returned, unique_rows_added, remaining_unique_row_budget) ' ||
-      'VALUES (%L, %L, encode(public.digest(%L, ''sha256''), ''hex''), ''allowed'', %s, %s, %s)',
+      '(task_id, budget_account, binding_id, fence_token, query_digest, decision, rows_returned, unique_rows_added, remaining_unique_row_budget) ' ||
+      'SELECT %L, %L, %L::uuid, %s, encode(public.digest(%L, ''sha256''), ''hex''), ''allowed'', %s, %s, %s ' ||
+      'WHERE taskbound.mutation_fence_ok(%L, %L::uuid, %s)',
       v_task_id,
       v_budget_account,
+      v_binding_id,
+      v_fence_token,
       COALESCE(sql_text, ''),
       GREATEST(COALESCE(v_rows_returned, 0), 0),
       GREATEST(COALESCE(v_unique_added, 0), 0),
-      v_remaining_sql
+      v_remaining_sql,
+      v_task_id,
+      v_binding_id,
+      v_fence_token
     ));
   END IF;
 END;
@@ -301,7 +419,9 @@ CREATE OR REPLACE FUNCTION taskbound.native_partial_denied_receipt(
   v_new_expense_ids text[],
   v_max_rows int,
   v_budget_accounting_enabled boolean,
-  v_receipts_enabled boolean
+  v_receipts_enabled boolean,
+  v_binding_id uuid,
+  v_fence_token bigint
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -315,6 +435,7 @@ DECLARE
   v_unique_added bigint := 0;
   v_unique_after bigint;
   v_remaining_sql text := 'NULL';
+  v_fence_ok boolean := true;
 BEGIN
   SELECT public.dblink_get_connections() INTO v_connections;
   IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
@@ -330,17 +451,21 @@ BEGIN
       FROM unnest(v_new_expense_ids) AS u(row_id);
     END IF;
 
-    SELECT unique_added, unique_after
-    INTO v_unique_added, v_unique_after
+    SELECT fence_ok, unique_added, unique_after
+    INTO v_fence_ok, v_unique_added, v_unique_after
     FROM public.dblink(
       v_conn,
       format(
         $sql$
-        WITH before_count AS (
+        WITH owner AS (
+          SELECT taskbound.mutation_fence_ok(%L, %L::uuid, %s) AS ok
+        ),
+        before_count AS (
           SELECT count(*)::bigint AS n
           FROM taskbound.task_rows_seen
           WHERE budget_account = %L
             AND row_kind = 'expense'
+            AND (SELECT ok FROM owner)
         ),
         input AS (
           SELECT DISTINCT row_id
@@ -351,6 +476,7 @@ BEGIN
           INSERT INTO taskbound.task_rows_seen (budget_account, row_kind, row_id)
           SELECT %L, 'expense', row_id
           FROM input
+          WHERE (SELECT ok FROM owner)
           ON CONFLICT DO NOTHING
           RETURNING 1
         ),
@@ -362,19 +488,28 @@ BEGIN
           SET returned_rows = returned_rows + %s,
               unique_expense_rows = (SELECT n FROM after_count)
           WHERE task_id = %L
+            AND (SELECT ok FROM owner)
           RETURNING 1
         )
         SELECT
+          (SELECT ok FROM owner) AS fence_ok,
           (SELECT count(*)::bigint FROM ins) AS unique_added,
           (SELECT n FROM after_count) AS unique_after
         $sql$,
+        v_task_id,
+        v_binding_id,
+        v_fence_token,
         v_budget_account,
         v_ids_expr,
         v_budget_account,
         GREATEST(COALESCE(v_rows_returned, 0), 0),
         v_task_id
       )
-    ) AS t(unique_added bigint, unique_after bigint);
+    ) AS t(fence_ok boolean, unique_added bigint, unique_after bigint);
+
+    IF NOT COALESCE(v_fence_ok, false) THEN
+      RAISE EXCEPTION 'SessionBoundDB denied query: BINDING_FENCED';
+    END IF;
 
     v_remaining_sql := (COALESCE(v_max_rows, 0) - COALESCE(v_unique_after, 0))::text;
   END IF;
@@ -382,15 +517,21 @@ BEGIN
   IF COALESCE(v_receipts_enabled, true) THEN
     PERFORM taskbound.audit_exec(format(
       'INSERT INTO taskbound.task_query_receipts ' ||
-      '(task_id, budget_account, query_digest, decision, reason, rows_returned, unique_rows_added, remaining_unique_row_budget) ' ||
-      'VALUES (%L, %L, encode(public.digest(%L, ''sha256''), ''hex''), ''denied'', %L, %s, %s, %s)',
+      '(task_id, budget_account, binding_id, fence_token, query_digest, decision, reason, rows_returned, unique_rows_added, remaining_unique_row_budget) ' ||
+      'SELECT %L, %L, %L::uuid, %s, encode(public.digest(%L, ''sha256''), ''hex''), ''denied'', %L, %s, %s, %s ' ||
+      'WHERE taskbound.mutation_fence_ok(%L, %L::uuid, %s)',
       v_task_id,
       v_budget_account,
+      v_binding_id,
+      v_fence_token,
       COALESCE(sql_text, ''),
       COALESCE(reason, 'query denied'),
       GREATEST(COALESCE(v_rows_returned, 0), 0),
       GREATEST(COALESCE(v_unique_added, 0), 0),
-      v_remaining_sql
+      v_remaining_sql,
+      v_task_id,
+      v_binding_id,
+      v_fence_token
     ));
   END IF;
 END;
@@ -549,6 +690,8 @@ DECLARE
   v_budget_accounting_enabled boolean;
   v_min_group_size int;
   receipt uuid;
+  active record;
+  v_collect_rows_for_policy boolean;
 BEGIN
   p := taskbound.require_payload();
   v_task_id := p->>'task_id';
@@ -557,6 +700,13 @@ BEGIN
   v_budget_accounting_enabled := COALESCE((p #>> ARRAY['runtime_options', 'budget_accounting_enabled'])::boolean, true);
   v_min_group_size := COALESCE((p #>> ARRAY['aggregate_policy', 'min_group_size'])::int, 5);
   lowered := lower(sql_text);
+  v_collect_rows_for_policy := lowered ~ '\mgroup[[:space:]]+by\M';
+
+  SELECT *
+  INTO active
+  FROM taskbound.active_sessions a
+  WHERE a.owner_backend_pid = pg_backend_pid()
+    AND a.task_id = v_task_id;
 
   IF regexp_replace(sql_text, ';\s*$', '') ~ ';' THEN
     PERFORM taskbound.fail_receipt(sql_text, 'multiple SQL statements are not allowed');
@@ -573,7 +723,7 @@ BEGIN
     RAISE EXCEPTION 'SessionBoundDB denied query: mutating or administrative keyword is not allowed';
   END IF;
 
-  IF lowered ~ '\m(app_data|pg_catalog|information_schema|signing_keys|active_sessions|task_execution_state|task_rows_seen|safe_view_registry)\M' THEN
+  IF lowered ~ '\m(app_data|pg_catalog|information_schema|signing_keys|active_sessions|binding_events|task_execution_state|task_rows_seen|safe_view_registry)\M' THEN
     PERFORM taskbound.fail_receipt(sql_text, 'direct access to internal schemas or state tables is not allowed');
     RAISE EXCEPTION 'SessionBoundDB denied query: direct access to internal schemas or state tables is not allowed';
   END IF;
@@ -638,7 +788,9 @@ BEGIN
 
     FOR row_item IN EXECUTE sql_text LOOP
       row_json := to_jsonb(row_item);
-      rows := array_append(rows, row_json);
+      IF v_collect_rows_for_policy THEN
+        rows := array_append(rows, row_json);
+      END IF;
       rows_returned := rows_returned + 1;
 
       IF v_budget_accounting_enabled AND row_json ? 'expense_id' THEN
@@ -646,6 +798,8 @@ BEGIN
         VALUES (v_budget_account, 'expense', row_json->>'expense_id')
         ON CONFLICT DO NOTHING;
       END IF;
+
+      RETURN NEXT row_json;
     END LOOP;
   EXCEPTION WHEN OTHERS THEN
     PERFORM taskbound.fail_receipt(sql_text, SQLERRM);
@@ -682,17 +836,20 @@ BEGIN
     SET query_count = query_count + 1,
         returned_rows = returned_rows + rows_returned,
         unique_expense_rows = unique_after
-    WHERE task_execution_state.task_id = v_task_id;
+    WHERE task_execution_state.task_id = v_task_id
+      AND taskbound.mutation_fence_ok(v_task_id, active.binding_id, active.fence_token);
   END IF;
 
   IF v_receipts_enabled THEN
     INSERT INTO taskbound.task_query_receipts (
-      task_id, budget_account, query_digest, decision, rows_returned,
+      task_id, budget_account, binding_id, fence_token, query_digest, decision, rows_returned,
       unique_rows_added, remaining_unique_row_budget
     )
     VALUES (
       v_task_id,
       v_budget_account,
+      active.binding_id,
+      active.fence_token,
       encode(public.digest(sql_text, 'sha256'), 'hex'),
       'allowed',
       rows_returned,
@@ -701,10 +858,7 @@ BEGIN
     )
     RETURNING receipt_id INTO receipt;
   END IF;
-
-  FOREACH row_json IN ARRAY rows LOOP
-    RETURN NEXT row_json;
-  END LOOP;
+  RETURN;
 END;
 $$;
 
@@ -725,7 +879,12 @@ AS $$
          s.unique_expense_rows, s.revoked
   FROM taskbound.task_execution_state s
   JOIN taskbound.active_sessions a ON a.task_id = s.task_id
-  WHERE a.backend_pid = pg_backend_pid()
+  WHERE a.owner_backend_pid = pg_backend_pid()
+    AND a.owner_backend_start = (
+      SELECT backend_start FROM pg_catalog.pg_stat_activity WHERE pid = pg_backend_pid()
+    )
+    AND a.owner_postmaster_start = pg_catalog.pg_postmaster_start_time()
+    AND a.database_oid = taskbound.current_database_oid()
 $$;
 
 CREATE OR REPLACE FUNCTION taskbound.receipts()
@@ -738,6 +897,11 @@ AS $$
   FROM taskbound.task_query_receipts r
   JOIN taskbound.active_sessions a
     ON a.task_id = r.task_id
-  WHERE a.backend_pid = pg_backend_pid()
+  WHERE a.owner_backend_pid = pg_backend_pid()
+    AND a.owner_backend_start = (
+      SELECT backend_start FROM pg_catalog.pg_stat_activity WHERE pid = pg_backend_pid()
+    )
+    AND a.owner_postmaster_start = pg_catalog.pg_postmaster_start_time()
+    AND a.database_oid = taskbound.current_database_oid()
   ORDER BY r.created_at DESC
 $$;

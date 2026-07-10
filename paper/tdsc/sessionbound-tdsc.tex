@@ -129,13 +129,13 @@ RLS+safe-view+short-credential+audit baseline shows that conventional
 database controls cover
 important pieces but do not provide task-token binding, cumulative
 disclosure budgets, safe-view drift invalidation, or receipt chains. On
-the default seed, full SessionBound has 17.4--18.6 ms p50 latency in the
-wrapper path. Diagnostic scale benchmarks show that structural guarding
-is sub-millisecond, while unoptimized result accounting becomes the
-bottleneck for large detail-release stress settings. These results
-support SessionBound as a task-session contract for database-enforced
-AI-agent governance, while identifying executor-level accounting
-optimization as future work.
+the default seed, full SessionBound has 128.4--136.1 ms p50 latency in
+the wrapper path after statement-start owner validation. Diagnostic
+scale benchmarks show that structural guarding is sub-millisecond, while
+unoptimized result accounting becomes the bottleneck for larger
+detail-release stress settings. These results support SessionBound as a
+task-session contract for database-enforced AI-agent governance, while
+identifying executor-level accounting optimization as future work.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -293,6 +293,9 @@ For this prototype, we trust:
 \item
   the database runtime that validates tokens and enforces policies;
 \item
+  the PostgreSQL lock manager on one writable primary, including
+  session-level advisory-lock cleanup when a backend exits;
+\item
   the cryptographic signing key or signing service used for task tokens;
 \item
   the integrity of registered safe views, runtime functions, and
@@ -305,6 +308,10 @@ simpler signing path. Receipt-chain tamper evidence assumes trusted
 DB-local append-only storage; DBA-resistant deployments should anchor
 chain heads to external WORM storage, SIEM, transparency logs, or
 enterprise audit infrastructure.
+The global single-active binding guarantee in this prototype is scoped
+to one non-split-brain PostgreSQL primary. Database-cluster split brain
+and cross-cluster global ownership require external primary fencing and
+are not solved by SessionBound's advisory-lock protocol.
 
 \hypertarget{untrusted-or-partially-trusted-components}{%
 \subsection{Untrusted or partially trusted
@@ -560,9 +567,25 @@ At \texttt{bind\_task}, the runtime checks:
 \item
   the token audience is \texttt{sessionbounddb};
 \item
-  no other active task is already bound to this database
-  backend/session.
+  this backend has no other active binding;
+\item
+  no other PostgreSQL backend owns the same
+  \((\texttt{task\_id},\texttt{token\_digest},\texttt{credential\_id})\)
+  binding key.
 \end{itemize}
+
+The last check is global within one writable PostgreSQL primary.
+\texttt{bind\_task} derives a stable 64-bit session advisory-lock key
+from the exact binding key using a fixed SHA-256 prefix, obtains it with
+non-blocking \texttt{pg\_try\_advisory\_lock}, claims a protected active
+row, allocates a fresh \texttt{binding\_id} and monotonic
+\texttt{fence\_token}, and only then installs backend-local trusted
+state. The active row is protected by uniqueness on
+\((\texttt{task\_id},\texttt{token\_digest},\texttt{credential\_id})\)
+and on \texttt{binding\_id}; budget, receipt, cleanup, and unbind
+mutations carry the current \texttt{binding\_id}/\texttt{fence\_token}.
+Hash collisions in the advisory-lock key can cause conservative
+rejection but cannot grant two owners the same exclusive lock.
 
 A production implementation should make a stolen credential without a
 matching token insufficient, and a stolen token without the matching
@@ -656,7 +679,8 @@ Input: SQL attempt and bound database session state.
 Output: Allowed result with receipt, or denial receipt.
 
 \begin{enumerate}
-\item Require an active task binding for the session.
+\item Require ownership of the global active binding and validate
+  \texttt{binding\_id}/\texttt{fence\_token}.
 \item Validate the signed task token and its TTL.
 \item Resolve all referenced relations against registered safe views.
 \item Reject denied fields and blocked schemas.
@@ -709,12 +733,15 @@ intercepts each outgoing tuple and checks/debits it before forwarding.}
 The SessionBoundDB enforcement contract can be described by a state
 
 \begin{equation}
-S=\langle T,C,V,B,R\rangle,
+S=\langle T,C,G,V,B,R\rangle,
 \end{equation}
 
 where \(T\) is the signed task token, \(C\) is the credential/session
-binding, \(V\) is the safe-view registry and policy version, \(B\) is
-the remaining budget vector, and \(R\) is the receipt chain. Each SQL
+binding, \(G\) is global active-binding ownership over
+\((\texttt{task\_id},\texttt{token\_digest},\texttt{credential\_id})\)
+including \texttt{binding\_id}, \texttt{fence\_token}, advisory lock,
+and backend owner metadata, \(V\) is the safe-view registry and policy
+version, \(B\) is the remaining budget vector, and \(R\) is the receipt chain. Each SQL
 attempt is evaluated by:
 
 \begin{equation}
@@ -733,6 +760,9 @@ a formal proof that all semantic inference is impossible.
 \item
   I1. No SQL execution occurs without an active task binding.
 \item
+  I1a. For one exact binding key, at most one PostgreSQL backend may be
+  ACTIVE at any time on the same writable primary.
+\item
   I2. The bound token must match the session credential, actor,
   audience, expiry, token digest, and revocation state.
 \item
@@ -745,7 +775,8 @@ a formal proof that all semantic inference is impossible.
   I5. Scope predicates or session-bound claims constrain visible rows.
 \item
   I6. Budget state is monotonic: an allowed query consumes budget, or
-  the query is denied.
+  the query is denied; all budget and receipt mutations are fenced by
+  the current \texttt{binding\_id}/\texttt{fence\_token}.
 \item
   I7. Every evaluated allowed execution and every bound-runtime denial
   emits a receipt; connection-level failures before task binding may be
@@ -893,6 +924,32 @@ This is a tamper-evidence property for the audit trail under trusted DB
 assumptions, not a Byzantine storage guarantee against malicious DBAs,
 storage administrators, compromised hosts, or compromised signing/audit
 infrastructure.
+
+\noindent\textbf{Proposition 5 (Global single-active binding under a
+trusted PostgreSQL lock manager).}
+Assume one writable PostgreSQL primary with a correct session-level
+advisory lock manager. For one exact
+\((\texttt{task\_id},\texttt{token\_digest},\texttt{credential\_id})\)
+binding key, at most one PostgreSQL backend can be ACTIVE at a time.
+
+\emph{Argument.} The same binding key maps deterministically to the same
+64-bit session advisory-lock key. PostgreSQL grants an exclusive session
+advisory lock for that key to at most one lock-holding backend at a time.
+The SessionBound backend cannot enter ACTIVE until it has acquired the
+lock, claimed the exact protected active row, and installed the resulting
+\texttt{binding\_id}/\texttt{fence\_token} in trusted backend-local
+state. Query execution validates that local state against the active row
+and the still-held advisory lock. If an owner disconnects or is
+terminated, PostgreSQL releases the session lock; a new backend may
+recover the stale row only after acquiring the lock and verifying that
+the recorded old owner no longer appears with the same PID, backend
+start, postmaster start, and database OID. Budget, receipt, cleanup, and
+unbind mutations are fenced by \texttt{binding\_id}/\texttt{fence\_token},
+so delayed operations from an old owner cannot mutate a replacement
+owner. A 64-bit lock-key hash collision can conservatively reject an
+otherwise independent binding, but it does not permit two simultaneous
+owners of the same advisory lock. This is not a distributed consensus
+claim and does not address PostgreSQL HA split brain.
 
 
 \hypertarget{anti-evasion-scope}{%
@@ -1117,9 +1174,9 @@ Hardening}\label{prototype-implementation-and-production-hardening}}
 \toprule
 Path & Purpose & Enforcement and accounting & Used for & Limitation \\
 \midrule
-Wrapper/API reference path & Compatibility and accounting-complete reference implementation & API AST preflight, database permissions, and \texttt{taskbound.run}; PL/pgSQL materialization accounts returned rows and entity exposure; allow/deny receipts are emitted & Canonical validation, adversarial SQL API suite, default p50 overhead, and wrapper scale sweep & Not optimized; 100k-row bottleneck is materialization/accounting \\
+Wrapper/API reference path & Compatibility and accounting-complete reference implementation & API AST preflight, database permissions, and \texttt{taskbound.run}; PL/pgSQL materialization accounts returned rows and entity exposure; allow/deny receipts are emitted & Canonical validation, adversarial SQL API suite, default p50 overhead, and wrapper scale sweep & Not optimized; 10k-row stress bottleneck is materialization/accounting \\
 Native PostgreSQL hook/executor path & Production hardening direction for direct safe-view SQL & \texttt{post\_parse\_analyze\_hook}, \texttt{ProcessUtility\_hook}, executor hooks, safe-view OID checks, conservative minimum-group shape checks, row/entity accounting, and receipts & Direct DB enforcement suite, prepared statements, cursor/\texttt{FETCH}, \texttt{COPY (SELECT)}, \texttt{EXPLAIN}, rollback audit, SDK smoke tests, and diagnostic native end-to-end benchmark & Current native accounting is measured but unoptimized; broad production workloads remain future work \\
-Hook-only structural microbenchmark & Isolate parse/analyze structural guard cost & Structural SQL guard only; no row execution, no disclosure accounting, and no receipts & 0.125--0.138 ms p50 structural-check cost across SELECT/JOIN/GROUP BY/CTE-window shapes & Not an end-to-end SessionBound performance claim \\
+Hook-only structural microbenchmark & Isolate parse/analyze structural guard cost & Structural SQL guard only; no row execution, no disclosure accounting, and no receipts & 0.127--0.176 ms p50 structural-check cost across SELECT/JOIN/GROUP BY/CTE-window shapes & Not an end-to-end SessionBound performance claim \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -1171,7 +1228,8 @@ honesty}\label{implementation-honesty}}
 
 The current hardening prototype uses API-layer AST preflight,
 PostgreSQL hooks, executor result accounting, rollback-surviving audit
-writes, and PostgreSQL permissions. Agents do not receive raw table
+writes, PostgreSQL permissions, and a global single-active binding
+protocol. Agents do not receive raw table
 \texttt{SELECT} grants. The SDK's \texttt{query(sql)} executes native SQL
 over the bound safe-view schema; a direct
 \texttt{SELECT ... FROM taskbound.expenses} is allowed only after binding
@@ -1183,6 +1241,20 @@ that reach the runtime.
 The wrapper reference path instead materializes the candidate result,
 then checks group and disclosure policy before returning rows. High-value
 writes go through controlled commands.
+
+Binding lifetime is session-control state rather than ordinary agent
+transaction state. \texttt{bind\_task} validates the signed token and
+credential, obtains a session-level advisory lock for the exact binding
+key, claims a protected active row, and installs trusted C-local binding
+state. The active row stores the token digest and signed nonce,
+credential id, \texttt{binding\_id}, monotonic \texttt{fence\_token},
+advisory-lock key, lock backend, owner PID, owner backend start,
+postmaster start, database OID, session user, acquisition times, and
+token expiry. \texttt{unbind\_task} releases only the caller's fenced row
+before releasing the advisory lock. Crash recovery first reacquires the
+same advisory lock, then recovers an old row only if the recorded owner
+is not live by PID, backend start, postmaster start, and database OID;
+\texttt{last\_seen\_at} is diagnostic and is not a takeover lease.
 
 The database hook path is implemented by the
 \texttt{sessionbound\_guard} C extension, loaded through
@@ -1371,7 +1443,10 @@ reproduction entrypoints are \texttt{ast\_validation\_eval.py},
 \texttt{sessionbound\_guard\_hook\_eval.py},
 \texttt{overhead\_breakdown.py}, \texttt{hook\_microbenchmark.py},
 \texttt{rollback\_audit\_eval.py}, and
-\texttt{native\_end\_to\_end\_benchmark.py}. A targeted
+\texttt{native\_end\_to\_end\_benchmark.py}. A global
+\texttt{single\_active\_binding\_eval.py} exercises same-key races,
+stale recovery, fencing, rollback semantics, and different-key
+concurrency. A targeted
 \texttt{native\_partial\_budget\_eval.py} validates native over-budget
 prefix accounting; \texttt{concurrent\_isolation\_eval.py} validates
 task isolation. Exact command lines and
@@ -1489,7 +1564,7 @@ Blocked direct violations & denied columns, raw schema, catalogs, GUC/session ta
 Blocked payload aggregation & \texttt{json\_agg}, \texttt{array\_agg}, \texttt{string\_agg}, XML/JSON builders, row/composite packing & 6 blocked / 6 & high-risk one-row payload compression denied by default \\
 Blocked small-group aggregate & direct entity grouping, \texttt{HAVING} probes, filtered small group, high configured \(k\) & 5 blocked / 5 & direct small-group aggregate release denied \\
 Allowed safe-view analytics & ordinary safe-view projection, join, aggregate, CTE/window, bounded pagination, harmless aliasing & 14 allowed / 14 & allowed cases emitted receipts and were budget-accounted \\
-Total & all adversarial cases in \texttt{adversarial\_sql\_20260708\_235742.json} & 140 passed / 140 & zero expected-classification failures \\
+Total & all adversarial cases in \texttt{adversarial\_sql\_20260710\_110551.json} & 140 passed / 140 & zero expected-classification failures \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -1586,23 +1661,26 @@ milliseconds; all listed measurements completed with zero query errors.
 \toprule
 Pattern & Raw & Role & Safe view & RLS+SV+Audit & SB no receipt & SB no budget & SB full \\
 \midrule
-SELECT & 0.230 & 0.227 & 0.233 & 1.067 & 17.075 & 16.699 & 17.397 \\
-JOIN & 0.201 & 0.181 & 0.209 & 0.976 & 18.712 & 18.197 & 18.616 \\
-GROUP BY & 0.229 & 0.230 & 0.272 & 1.100 & 18.098 & 17.125 & 18.289 \\
-CTE & 0.252 & 0.238 & 0.254 & 1.045 & 16.914 & 17.598 & 17.698 \\
-Window & 0.251 & 0.238 & 0.281 & 1.119 & 16.818 & 17.778 & 17.639 \\
+SELECT & 0.247 & 0.297 & 0.255 & 1.129 & 134.192 & 134.389 & 135.736 \\
+JOIN & 0.265 & 0.316 & 0.273 & 1.058 & 147.588 & 136.673 & 136.056 \\
+GROUP BY & 0.242 & 0.222 & 0.289 & 1.135 & 128.913 & 122.838 & 128.412 \\
+CTE & 0.232 & 0.230 & 0.269 & 1.208 & 128.148 & 126.448 & 129.717 \\
+Window & 0.247 & 0.280 & 0.351 & 1.313 & 138.756 & 132.769 & 134.932 \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
 Raw, role-only, and safe-view-only queries are sub-millisecond on the
 default seed. The stronger RLS+safe-view+short-credential+audit baseline
-adds a basic audit insert and measures 0.98--1.12 ms p50. Full
-SessionBound measures 17.4--18.6 ms p50 across the five patterns.
+adds a basic audit insert and measures 1.06--1.31 ms p50. Full
+SessionBound measures 128.4--136.1 ms p50 across the five patterns
+after adding statement-start global-owner validation and fenced
+mutation checks.
 Disabling receipts or budget accounting does not consistently reduce
 latency, so receipt insertion and budget updates do not dominate this
-small-dataset benchmark. The remaining cost is primarily the wrapper
-reference path's session/runtime checks and PL/pgSQL materialization.
+small-dataset benchmark. The remaining cost is primarily repeated
+session-control validation, wrapper runtime checks, and PL/pgSQL
+materialization.
 
 \hypertarget{performance-diagnosis}{%
 \subsubsection{Performance diagnosis}\label{performance-diagnosis}}
@@ -1634,11 +1712,11 @@ through PostgreSQL parse/analyze and the structural guard, but does not
 execute result rows, perform executor row accounting, insert receipts, or
 materialize JSON rows through \texttt{taskbound.run}. With 20 warmup and
 200 measured iterations per query shape, allowed structural checks had
-p50 latency of 0.125 ms for SELECT, 0.131 ms for JOIN, 0.131 ms for GROUP
-BY, and 0.138 ms for CTE/window SQL; raw-schema and UNION denial checks
+p50 latency of 0.127 ms for SELECT, 0.176 ms for JOIN, 0.131 ms for GROUP
+BY, and 0.131 ms for CTE/window SQL; raw-schema and UNION denial checks
 also passed. This is not an end-to-end performance claim for the native
 executor-accounting path, but it shows that structural parse/analyze
-guarding is not the source of the 100k-row multi-second behavior.
+guarding is not the source of the 10k-row multi-second behavior.
 
 \begin{figure}[!t]
 \centering
@@ -1647,21 +1725,22 @@ guarding is not the source of the 100k-row multi-second behavior.
   node distance=2mm,
   box/.style={draw, rounded corners=1pt, align=center, inner sep=2pt, minimum width=0.88\linewidth, minimum height=6mm}
 ]
-\node[box] (h) {Hook-only structural guard: 0.125--0.138 ms p50\\no rows, no receipts, no accounting};
-\node[box, below=of h] (b) {Raw / safe-view / RLS at 100k: p50 range 12.4--99.7 ms\\query execution and RLS/audit, no SessionBound budget};
-\node[box, below=of b] (w) {Wrapper full SessionBound at 100k: 6.11--6.24 s p50\\PL/pgSQL materialization plus accounting};
-\node[box, below=of w] (n) {Native hook/executor accounting at 100k: 6.18--6.30 s p50\\measured but still unoptimized in this prototype};
+\node[box] (h) {Hook-only structural guard: 0.127--0.176 ms p50\\no rows, no receipts, no accounting};
+\node[box, below=of h] (b) {Raw / safe-view / RLS at 10k: p50 range 2.35--11.08 ms\\query execution and RLS/audit, no SessionBound budget};
+\node[box, below=of b] (w) {Wrapper full SessionBound at 10k: 5.08--5.25 s p50\\PL/pgSQL materialization plus accounting};
+\node[box, below=of w] (n) {Native hook/executor accounting at 10k: 5.16--5.38 s p50\\measured but still unoptimized in this prototype};
 \end{tikzpicture}
 \caption{Performance diagnosis. Structural guarding is sub-millisecond,
-while both accounting-complete paths become multi-second at 100k rows;
+while both accounting-complete paths become multi-second at 10k rows;
 the current bottleneck is result accounting/materialization rather than
 parse/analyze checks.}
 \label{fig:performance-diagnosis}
 \end{figure}
 
 The diagnostic native end-to-end benchmark in
-Table~\ref{tab:scale-sweep} measures five query shapes over 1k, 10k,
-and 100k scoped rows. The SessionBound modes use API-issued runtime
+Table~\ref{tab:scale-sweep} measures five query shapes over 1k and 10k
+scoped rows using a bounded rerun with one warmup and three measured
+iterations per shape. The SessionBound modes use API-issued runtime
 credentials and signed task tokens, but API calls are outside measured
 query latency. The wrapper mode executes through
 \texttt{taskbound.run(sql)}. The native mode binds the same task token
@@ -1669,21 +1748,21 @@ and then issues direct safe-view SQL through the PostgreSQL hook and
 executor-accounting path.
 
 The result is intentionally conservative. Safe-view-only and
-RLS+safe-view+audit baselines remain within roughly 118 ms p99 at 100k
+RLS+safe-view+audit baselines remain within roughly 12 ms p99 at 10k
 rows across these query shapes. Both current SessionBound accounting
-paths are much slower: wrapper p50 is 6.11--6.24 s and native
-hook/executor p50 is 6.18--6.30 s at 100k rows. Thus the hook-only
+paths are much slower: wrapper p50 is 5.08--5.25 s and native
+hook/executor p50 is 5.16--5.38 s at 10k rows. Thus the hook-only
 structural result should not be presented as full SessionBound
 performance. The current native accounting path demonstrates direct DB
 enforcement semantics but has not yet delivered optimized scale
 behavior.
 
-The 100k-row setting intentionally raises the disclosure budget to
-stress-test accounting completeness for large detail releases. It should
-not be interpreted as the common operating mode for approved analytical
-tasks, where detail-release budgets are typically smaller and aggregate
-queries dominate. Enterprise audits may scan 100k+ rows without
-releasing 100k detail rows to an agent; production deployments should
+The 10k-row setting intentionally raises the disclosure budget to
+stress-test accounting completeness for larger detail releases. It
+should not be interpreted as the common operating mode for approved
+analytical tasks, where detail-release budgets are typically smaller and
+aggregate queries dominate. Enterprise audits may scan many rows without
+releasing every detail row to an agent; production deployments should
 optimize aggregate-heavy executor accounting and route high-cardinality
 detail exports through controlled workflows. The roadmap is cached task
 descriptors, executor accounting, \texttt{DestReceiver}/CustomScan-style
@@ -1691,7 +1770,7 @@ integration, aggregate-first accounting, and less PL/pgSQL
 materialization. These optimizations target moving high-cardinality
 native accounting from PL/pgSQL-style materialization toward
 executor-local streaming overhead, with the engineering goal of reducing
-100k-row detail-release accounting from multi-second latency to
+10k-row detail-release accounting from multi-second latency to
 sub-second latency on similar hardware; this target remains future work
 rather than an evaluated claim.
 
@@ -1719,12 +1798,52 @@ with independent query-count, result-row, and unique-entity counters;
 over-budget denial in one task did not change the other task's remaining
 budget or receipt chain.
 
-We also ran a synthetic scale sweep over 1k, 10k, and 100k scoped
-expense rows. Table~\ref{tab:scale-sweep} reports p50 ranges across
+The new global single-active binding evaluation specifically targets the
+same-key multi-backend gap. In
+\texttt{single\_active\_binding\_20260710\_030846.json}, two synchronized
+backends and a 20-contender race each produced exactly one owner. A
+1000-round synchronized race produced 1000 single-winner rounds, zero
+dual-success rounds, zero zero-winner rounds, and zero unexpected
+errors. Explicit unbind, socket-close recovery,
+\texttt{pg\_terminate\_backend} recovery, rollback-independent binding,
+live-owner non-eviction, PID-reuse protection, stale fence rejection,
+lock/utility tamper blocking, budget continuity, receipt-chain
+continuity, and different-key concurrency all passed. Binding latency
+over the same run had p50 13.017 ms, p95 17.780 ms, and p99 26.234 ms.
+
+\begin{table}[!t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Global single-active binding evaluation for one exact
+\((\texttt{task\_id},\texttt{token\_digest},\texttt{credential\_id})\)
+key.}
+\label{tab:global-single-active}
+\begin{tabular}{@{}p{0.56\linewidth}p{0.34\linewidth}@{}}
+\toprule
+Case & Result \\
+\midrule
+2 backends, same key & exactly 1 owner, 1 denial \\
+20 backends, same key & exactly 1 owner, 19 denials \\
+1000 repeated races & 0 dual-success, 0 zero-owner \\
+Explicit unbind & immediate reacquisition \\
+Socket close & stale recovery succeeds \\
+Backend termination & stale recovery succeeds \\
+Live idle owner & never time-evicted \\
+Old fence mutation & rejected; 2 fenced events \\
+Budget after recovery & preserved at 2 unique rows \\
+Receipt chain after recovery & verified \\
+Different binding keys & concurrent success \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+We also ran a synthetic scale sweep over 1k and 10k scoped expense rows.
+Table~\ref{tab:scale-sweep} reports p50 ranges across
 \texttt{SELECT}, \texttt{JOIN}, \texttt{GROUP BY}, CTE, and window
 queries, along with the maximum p95 and p99 observed across those
 patterns. All listed measurements completed with zero query errors.
-The 100k target is a detail-release stress setting with elevated
+The 10k target is a detail-release stress setting with elevated
 budgets; these results expose a scale-sensitive limitation shared by the
 current wrapper and native accounting implementations and should not be
 read as a production-throughput claim.
@@ -1734,31 +1853,25 @@ read as a production-throughput claim.
 \scriptsize
 \setlength{\tabcolsep}{3pt}
 \caption{Diagnostic end-to-end scale benchmark in milliseconds. p50 is
-the range across five query shapes; p95/p99 are maxima. The 1k and 10k
-targets use 10 warmup plus 100 measured iterations; 100k uses 10 warmup
-plus 30 measured iterations. The 100k setting uses elevated disclosure
-budgets as a detail-release stress test, not the expected common
-operating mode.}
+the range across five query shapes; p95/p99 are maxima. The current
+rerun uses one warmup plus three measured iterations per shape and uses
+elevated disclosure budgets as a detail-release stress test, not the
+expected common operating mode.}
 \label{tab:scale-sweep}
 \begin{tabular}{@{}llcrrr@{}}
 \toprule
 Rows & Mode & p50 range & max p95 & max p99 & Err. \\
 \midrule
-1k & Raw & 0.43--1.16 & 1.28 & 1.34 & 0 \\
-1k & Safe view & 0.63--1.22 & 1.36 & 1.49 & 0 \\
-1k & RLS+SV+Audit & 1.32--2.06 & 2.82 & 3.29 & 0 \\
-1k & SB wrapper & 75.63--92.57 & 104.39 & 111.13 & 0 \\
-1k & SB native & 79.80--95.53 & 106.71 & 113.85 & 0 \\
-10k & Raw & 2.03--8.76 & 9.68 & 10.63 & 0 \\
-10k & Safe view & 2.82--9.48 & 10.27 & 11.08 & 0 \\
-10k & RLS+SV+Audit & 3.70--10.24 & 11.69 & 12.38 & 0 \\
-10k & SB wrapper & 632.57--646.97 & 686.76 & 730.08 & 0 \\
-10k & SB native & 632.39--644.28 & 691.20 & 726.82 & 0 \\
-100k & Raw & 12.41--93.42 & 102.18 & 103.88 & 0 \\
-100k & Safe view & 24.14--97.80 & 112.63 & 117.71 & 0 \\
-100k & RLS+SV+Audit & 17.14--99.71 & 109.32 & 109.52 & 0 \\
-100k & SB wrapper & 6108.33--6236.90 & 6531.86 & 6626.32 & 0 \\
-100k & SB native & 6176.94--6298.30 & 6537.96 & 6690.70 & 0 \\
+1k & Raw & 0.69--1.25 & 1.38 & 1.38 & 0 \\
+1k & Safe view & 0.89--1.47 & 1.62 & 1.62 & 0 \\
+1k & RLS+SV+Audit & 1.95--2.22 & 2.76 & 2.76 & 0 \\
+1k & SB wrapper & 570.26--746.62 & 769.12 & 769.12 & 0 \\
+1k & SB native & 582.10--731.06 & 811.33 & 811.33 & 0 \\
+10k & Raw & 2.35--9.68 & 9.71 & 9.71 & 0 \\
+10k & Safe view & 3.47--10.82 & 10.88 & 10.88 & 0 \\
+10k & RLS+SV+Audit & 4.03--11.08 & 11.82 & 11.82 & 0 \\
+10k & SB wrapper & 5077.19--5253.43 & 5306.57 & 5306.57 & 0 \\
+10k & SB native & 5163.18--5383.24 & 5526.78 & 5526.78 & 0 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1809,13 +1922,17 @@ operational accounting, not formal DP.
 SessionBound is a research prototype and reference architecture, not a
 formal SQL safety proof. It targets one PostgreSQL database; production
 needs KMS/JWKS signing, credential lifecycle management, safe-view
-migration review, external audit retention, and WORM anchoring.
+migration review, external audit retention, WORM anchoring, and external
+primary fencing for HA. The global active-binding protocol assumes one
+trusted writable PostgreSQL primary and is not a distributed consensus
+protocol; cross-cluster binding and database split brain are out of
+scope.
 Disclosure budgets are operational authority accounting, not
 differential privacy or complete semantic inference control:
 minimum-group policy mitigates direct small-group aggregate release, but
 inference across allowed answers and high-risk payload aggregation remain
 out of scope. Measurements cover microbenchmarks, ablations, concurrency
-smoke tests, and diagnostic 1k/10k/100k scale benchmarks, not optimized
+smoke tests, and diagnostic 1k/10k scale benchmarks, not optimized
 broad production workloads. Federation, malicious DBAs, and compromised
 hosts are out of scope.
 
@@ -1827,7 +1944,7 @@ sessions for AI agents: ``The agent can try. The database decides.'' It
 binds approval, credential identity, safe-view versioning, SQL surface,
 budgets, and receipts into one contract. The prototype shows
 sub-millisecond structural guarding and multi-second accounting-complete
-100k-row paths; production work must optimize result accounting, backend
+10k-row stress paths; production work must optimize result accounting, backend
 state caching, and PostgreSQL executor integration without weakening it.
 
 {\scriptsize

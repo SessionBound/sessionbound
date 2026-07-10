@@ -27,6 +27,7 @@ BLOCKED_SCHEMAS = {
 
 TASKBOUND_INTERNAL_RELATIONS = {
     "active_sessions",
+    "binding_events",
     "credential_ledger",
     "safe_view_registry",
     "signing_keys",
