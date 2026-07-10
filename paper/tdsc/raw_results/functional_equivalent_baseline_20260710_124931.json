@@ -40,7 +40,7 @@
   "interpretation": "The composition is functionally equivalent only while every request traverses the external PEP; the direct-role bypass is the explicit TCB distinction from database-resident SessionBound enforcement.",
   "run": {
     "case_count": 4,
-    "commit": "25e2373",
+    "commit": "tdsc-resubmit-2026-07-10",
     "dsn": "postgresql://tdsc_rls_safe_audit:***@localhost:15432/travel",
     "failed": 0,
     "passed": 4,

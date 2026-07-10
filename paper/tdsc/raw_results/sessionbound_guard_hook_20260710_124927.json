@@ -321,7 +321,7 @@
   "run": {
     "base_url": "http://localhost:8000",
     "case_count": 18,
-    "commit": "25e2373",
+    "commit": "tdsc-resubmit-2026-07-10",
     "failed": 0,
     "passed": 18,
     "timestamp": "2026-07-10T04:49:31Z"

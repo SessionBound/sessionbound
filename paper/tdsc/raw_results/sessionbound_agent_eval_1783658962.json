@@ -1,6 +1,6 @@
 {
   "title": "SessionBound evaluation",
-  "commit": "25e2373",
+  "commit": "tdsc-resubmit-2026-07-10",
   "run_id": "1783658962",
   "base_url": "http://localhost:8000",
   "passed": 24,

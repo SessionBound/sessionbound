@@ -1,6 +1,6 @@
 # SessionBound Evaluation
 
-- Commit: `25e2373`
+- Artifact revision: `tdsc-resubmit-2026-07-10`
 - Base URL: `http://localhost:8000`
 - Passed: 24 / 24
 - Failed: 0 / 24

@@ -83,7 +83,7 @@
   ],
   "run": {
     "case_count": 1,
-    "commit": "25e2373",
+    "commit": "tdsc-resubmit-2026-07-10",
     "database_url": "postgresql://agent_app:***@localhost:15432/travel",
     "failed": 0,
     "passed": 1,
