@@ -1,5 +1,12 @@
 # Scale and Concurrency Results
 
+Status note, 2026-07-10: this report is superseded by the blocking audit and
+summary experiment review under `paper/revision_notes/`. The scale rows below
+refer to scoped rows prepared for the task, not necessarily rows returned to the
+agent. They must not be used as evidence for large-result disclosure or
+materialization unless the raw result's `rows_returned` field shows large
+returned result sets.
+
 Native end-to-end scale raw file:
 `../raw_results/native_end_to_end_20260709_013634.json`.
 Historical wrapper scale raw file: `../raw_results/scale_1783515366.json`.
@@ -37,8 +44,9 @@ the prototype 100-query task limit.
 | 100,000 | SessionBound native hook/executor | 6176.94--6298.30 | 6537.96 | 6690.70 | 0 |
 
 The 100k result exposes substantial scale-sensitive overhead in both current
-SessionBound accounting paths. It should be read as a diagnostic prototype
-limitation, not as a production throughput claim. The separate hook-only
+SessionBound accounting paths over the measured query shapes. It should be read
+as a diagnostic prototype limitation, not as a production throughput claim or as
+proof of 100k-row result disclosure. The separate hook-only
 microbenchmark at `../raw_results/hook_microbenchmark_20260708_205831.json`
 shows that native structural guard checks are not the multi-second bottleneck.
 

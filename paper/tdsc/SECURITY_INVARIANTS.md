@@ -1,8 +1,16 @@
 # SessionBoundDB Security Invariants
 
-These invariants define the enforcement contract implemented by the prototype
-and used to structure the adversarial evaluation. They are not a formal proof
-of absence of semantic inference.
+These invariants define the intended enforcement contract and were used to
+structure the adversarial evaluation. They are not a formal proof of absence of
+semantic inference.
+
+After the 2026-07-10 blocking audit, this file must not be read as proof that
+the current native artifact validates every invariant. The audit found static
+bypass classes in native accounting eligibility and incomplete JSON
+aggregation/window-partition coverage. Current status: I1, I2, I5, and I8 have
+supporting artifact evidence; I3, I4, I6, I7, and I9 require native
+reference-monitor rebuild and rerun before they can be claimed as validated
+properties. See `paper/revision_notes/tdsc_blocking_audit_20260710.md`.
 
 ## State
 
@@ -31,7 +39,7 @@ preflight, the experimental `sessionbound_guard` PostgreSQL hook/executor path,
 native safe-view `SELECT`, the compatibility `taskbound.run(...)` wrapper, safe
 views, budget state, and query receipts.
 
-## Invariants
+## Invariants and Current Status
 
 I1. No execution without active task binding.
 
@@ -55,6 +63,10 @@ referenced relations and rejects unapproved relations before invoking
 `taskbound.bind_task(...)`, stores them in trusted SUSET GUCs, and the
 `sessionbound_guard` hook rejects relation OIDs outside that registry.
 
+Current status: design goal, not fully validated for the native path. The
+native reference-monitor claim is blocked by accounting/enforcement early
+returns under helper-substring and role-switch conditions.
+
 I4. Direct access to denied fields, raw schemas, catalog escape, mutation,
 DDL, and blocked payload aggregation is denied.
 
@@ -65,6 +77,10 @@ as `json_agg`, `jsonb_agg`, `array_agg`, `string_agg`, `xmlagg`,
 `row_to_json`, `json_build_object`, and `jsonb_build_object`. These checks run
 through both the API-layer AST validator and the database-resident hook path for
 the evaluated cases.
+
+Current status: design goal, not fully validated for the native path. The
+native denylist omits JSON aggregate spellings that the API blocks, including
+`json_array_agg` and `json_arrayagg`.
 
 I5. Scope predicates or session-bound claims constrain visible rows.
 
@@ -81,6 +97,10 @@ retained as the tuple counter. Projection aliases, joins, and aggregates do
 not depend on an `expense_id` column. The hardening overhead script also measures
 the supported budget-disabled ablation to isolate this cost.
 
+Current status: design goal, not fully validated for the native path. Executor
+accounting can return early based on raw SQL text or role-switch state, so
+monotonic native accounting is not yet established.
+
 I7. Every allow/deny decision emits a receipt.
 
 Allowed and denied runtime decisions append hash-chained receipts through the
@@ -88,12 +108,23 @@ autonomous same-database audit channel. API-layer AST preflight denials bind
 the task first and use the same runtime append function; evaluation scripts do
 not write receipts themselves.
 
+Current status: design goal, not fully validated for the native path. Receipt
+completeness depends on all evaluated paths reaching accounting or denial
+recording; the native early-return classes break that evidence.
+
 I8. View registry, policy version, or definition-hash drift invalidates the
 token or requires reapproval.
 
 The prototype task token may carry a safe-view registry snapshot. During
 binding, `taskbound.bind_task` recomputes the registry snapshot and rejects
 stale safe-view registry version, policy version, or view-definition hash.
+
+I9. Direct small-group aggregate release is denied under the configured
+minimum-group policy.
+
+Current status: design goal, not fully validated for the native path. GROUP BY
+and HAVING shape checks exist, but window partition variants are not covered
+with the same completeness.
 
 ## Security Guarantees for the Prototype SQL Fragment
 

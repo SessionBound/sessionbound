@@ -1,11 +1,13 @@
 # TDSC Artifact Manifest
 
 This manifest identifies the artifact set for the TDSC-oriented
-SessionBound submission candidate.
+SessionBound submission candidate. It is now superseded by the 2026-07-10
+blocking audit and must not be used as a claim-complete submission manifest.
 
 ## Canonical Version
 
-- Artifact tag: `tdsc-resubmit-2026-07-10`
+- Artifact tag: `tdsc-resubmit-2026-07-10` (superseded; do not submit as
+  validated evidence)
 - Final commit: recorded in this manifest and the generated raw-result files
 - Submission branch: `high-standard-tdsc-pdsc-revision`
 - Manuscript source: `paper/tdsc/sessionbound-tdsc.tex`
@@ -13,9 +15,25 @@ SessionBound submission candidate.
 - Build command: `cd paper/tdsc && make`
 - Page count after resubmission hardening: 16 pages
 
-The tag is created only after the final PDF, SQL migration, extension build,
-and evaluation scripts pass. Older raw-result files remain in the tree as
-historical records and are not used for current tables.
+The tag was created after a clean build/evaluation pass, but later evidence
+review found blocking claim-validity issues. Older raw-result files remain in
+the tree as historical records and are not used for current tables.
+
+## Blocking Audit Notice
+
+The following revision notes supersede the "core validated claims" list below:
+
+- `paper/revision_notes/tdsc_blocking_audit_20260710.md`
+- `paper/revision_notes/tdsc_summary_experiment_review_20260710.md`
+- `paper/revision_notes/tdsc_novelty_review_20260710.md`
+
+The current artifact does not establish a fair cumulative external-PEP
+baseline, a 10k-row detail-disclosure/materialization bottleneck, or complete
+native reference-monitor enforcement. In particular, the native path has
+statically identifiable accounting early returns and incomplete JSON
+aggregation/window-partition coverage. Treat I3, I4, I6, I7, and I9 as
+design goals requiring rebuild and rerun, not as submission-ready validated
+properties.
 
 ## Claim Contract
 
@@ -23,7 +41,7 @@ The TDSC manuscript is the canonical claim contract for this artifact. It states
 the compressed paper argument and should be used instead of the earlier arXiv v1
 text when checking current claims.
 
-Core validated claims in the TDSC candidate:
+Historical claims previously treated as validated in the TDSC candidate:
 
 - canonical functional validation: 24 / 24 scenarios passed;
 - global single-active binding: 1000 / 1000 same-key race rounds had exactly
