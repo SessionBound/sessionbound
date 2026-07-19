@@ -119,6 +119,10 @@ Agents query safe business views rather than raw tables. Safe views encode joins
 
 Sensitive fields are explicitly denied even when they live near allowed business objects. For example, an analysis task may allow employee names and departments while denying salary, phone, and bank account fields.
 
+At bind time, the database rejects a token if any approved safe view still
+exposes a token-denied column. At query time, the runtime also rejects direct
+column references and output aliases matching the normalized denied-field set.
+
 ### Row Scope
 
 Row scope narrows data to the task context, such as tenant, date range, department, project, or region.

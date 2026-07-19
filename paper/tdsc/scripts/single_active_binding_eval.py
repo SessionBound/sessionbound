@@ -267,9 +267,9 @@ def run_lifecycle_tests(dsn: str, admin_url: str, credential: dict[str, Any], ru
         task = issue_task(f"single_active_terminate_{run_id}", credential["credential_id"], max_rows=5)
         a = psycopg.connect(dsn, autocommit=True)
         ca = a.cursor()
-        first = bind_once(ca, task)
         ca.execute("SELECT pg_backend_pid()")
         victim_pid = ca.fetchone()[0]
+        first = bind_once(ca, task)
         ca.execute("SELECT expense_id, amount FROM expenses ORDER BY expense_id LIMIT 2")
         ca.fetchall()
         before_state = fetch_state(ca)

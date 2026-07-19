@@ -7,9 +7,10 @@
 - Database entrypoint used by the SDK: native safe-view SQL under
   `sessionbound_guard` hook/executor accounting
 - Evaluation script: `paper/tdsc/scripts/sdk_query_eval.py`
-- Latest smoke result: docker compose SDK smoke on 2026-07-08
+- Latest smoke result:
+  `paper/tdsc/raw_results/sdk_query_20260719_082553.json`
 - Result: native query, bound bare SELECT accounting, and unbound fail-closed
-  behavior passed
+  behavior passed; allowed receipts included `touched_views = {expenses}`
 
 ## Contract
 
@@ -44,5 +45,6 @@ available as a compatibility wrapper.
 The smoke run returned two rows through `TaskboundSession.query(sql)`, then one
 row through a bound direct safe-view `SELECT`. The task state showed
 `query_count = 2`, `returned_rows = 3`, and receipts for both native reads.
+Both allowed receipts included the touched safe view `expenses`.
 After `unbind_task()`, the same direct safe-view query failed with
 `no trusted task binding is active`.

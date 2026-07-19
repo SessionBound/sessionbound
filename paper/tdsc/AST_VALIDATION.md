@@ -9,8 +9,8 @@
   wrapper
 - Database hook companion: `postgres/sessionbound_guard/`
 - Evaluation script: `paper/tdsc/scripts/ast_validation_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260707_182706.json`
-- Result: 17 / 17 cases passed
+- Latest raw result: `paper/tdsc/raw_results/ast_validation_20260719_162614.json`
+- Result: 21 / 21 cases passed
 
 This is an AST-level prototype validator for query-shape analysis before
 SessionBoundDB execution. The hardening prototype now also includes an
@@ -43,7 +43,7 @@ The prototype denies:
 - catalog access through `pg_catalog`, `information_schema`, or known catalog
   views such as `pg_tables`;
 - mutation statements and DDL;
-- `COPY`, `SET`, `SHOW`, `CREATE FUNCTION`, and `DO`;
+- `COPY`, `TABLESAMPLE`, `SET`, `SHOW`, `CREATE FUNCTION`, and `DO`;
 - denied columns and denied-field aliases;
 - recursive CTEs;
 - `UNION`, `INTERSECT`, and `EXCEPT` stacking;
@@ -51,17 +51,20 @@ The prototype denies:
 - payload aggregation functions including `json_agg`, `jsonb_agg`,
   `array_agg`, `string_agg`, `xmlagg`, `row_to_json`, `json_build_object`,
   and `jsonb_build_object`.
+- direct aggregate/window release pending approved aggregate templates,
+  including ungrouped aggregates, ad-hoc `GROUP BY`, filtered aggregate
+  release, `HAVING`, and window functions.
 
 ## Evaluation Summary
 
 | Case type | Cases | Result |
 |---|---:|---|
-| Allowed SELECT/JOIN/GROUP BY/CTE/window | 5 | Passed |
+| Allowed SELECT/JOIN/non-aggregate CTE/detail | 5 | Passed |
 | Raw schema/catalog escape | 3 | Passed |
-| Mutation/utility/procedural SQL | 4 | Passed |
-| Payload aggregation | 1 | Passed |
+| Mutation/utility/procedural SQL | 5 | Passed |
+| Payload aggregation and direct aggregate/window release | 4 | Passed |
 | Recursive CTE/UNION/unknown function/denied alias | 4 | Passed |
-| Total | 17 | 17 passed |
+| Total | 21 | 21 passed |
 
 ## Integration Notes
 

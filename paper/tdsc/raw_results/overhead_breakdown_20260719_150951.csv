@@ -1,0 +1,36 @@
+pattern,mode,supported,p50_ms,p95_ms,mean_ms,stddev_ms,rows_returned,error_count,reason
+Q1 SELECT,M0 Raw PostgreSQL,True,0.23623,0.414199,0.25300258,0.12189471231724369,10,0,
+Q1 SELECT,M1 Role-only read-only credential,True,0.26674600000000004,0.4521,0.29121292,0.1240414936391593,10,0,
+Q1 SELECT,M2 Safe-view-only,True,0.431373,0.579657,0.45832079,0.20458166639434214,10,0,
+Q1 SELECT,M3 RLS + Safe View + Short Credential + Audit,True,1.2796815000000001,2.372071,1.43688177,0.5769282726565383,10,0,
+Q1 SELECT,M4 SessionBound without receipts,True,153.9602255,195.87139,159.68781396,18.626853421142794,10,0,
+Q1 SELECT,M5 SessionBound without budget updates,True,152.9479915,177.680998,155.49955603,11.63238894271087,10,0,
+Q1 SELECT,M6 SessionBound full,True,152.9232695,188.088165,157.85901318,14.93261167650596,10,0,
+Q2 JOIN,M0 Raw PostgreSQL,True,0.17898599999999998,0.338159,0.20188745,0.09325973823621585,10,0,
+Q2 JOIN,M1 Role-only read-only credential,True,0.171133,0.308483,0.19138049,0.0893217886431407,10,0,
+Q2 JOIN,M2 Safe-view-only,True,0.212298,0.390209,0.24561239,0.13344662258685266,10,0,
+Q2 JOIN,M3 RLS + Safe View + Short Credential + Audit,True,0.968855,1.799221,1.08551723,0.35465604687778424,10,0,
+Q2 JOIN,M4 SessionBound without receipts,True,150.8795475,175.083284,153.69643992,11.50741499859529,10,0,
+Q2 JOIN,M5 SessionBound without budget updates,True,156.0854325,194.467098,162.37190998,14.88625840926898,10,0,
+Q2 JOIN,M6 SessionBound full,True,158.98013500000002,183.353767,161.9521815,13.363443585571853,10,0,
+Q3 GROUP BY,M0 Raw PostgreSQL,True,0.224668,0.355315,0.24864259,0.1169093925573215,1,0,
+Q3 GROUP BY,M1 Role-only read-only credential,True,0.2056445,0.326809,0.22860059,0.10349040345598184,1,0,
+Q3 GROUP BY,M2 Safe-view-only,True,0.260306,0.442637,0.28283484999999997,0.12812123569403905,1,0,
+Q3 GROUP BY,M3 RLS + Safe View + Short Credential + Audit,True,1.1100785,2.088371,1.2617728099999999,0.4894041099628138,1,0,
+Q3 GROUP BY,M4 SessionBound without receipts,False,,,,,,0,direct aggregate/window release is denied pending approved aggregate templates
+Q3 GROUP BY,M5 SessionBound without budget updates,False,,,,,,0,direct aggregate/window release is denied pending approved aggregate templates
+Q3 GROUP BY,M6 SessionBound full,False,,,,,,0,direct aggregate/window release is denied pending approved aggregate templates
+Q4 CTE detail,M0 Raw PostgreSQL,True,0.204095,0.346173,0.22227555,0.11085306908754262,10,0,
+Q4 CTE detail,M1 Role-only read-only credential,True,0.179573,0.311547,0.20678007999999998,0.11198428574131998,10,0,
+Q4 CTE detail,M2 Safe-view-only,True,0.2138385,0.387147,0.24591846,0.14172902527347178,10,0,
+Q4 CTE detail,M3 RLS + Safe View + Short Credential + Audit,True,0.9104015000000001,1.964157,1.0433907,0.3777274261445017,10,0,
+Q4 CTE detail,M4 SessionBound without receipts,True,155.3809205,186.272168,158.30189922,11.266001201403698,10,0,
+Q4 CTE detail,M5 SessionBound without budget updates,True,157.473122,185.854527,161.6544233,13.652571974266463,10,0,
+Q4 CTE detail,M6 SessionBound full,True,151.161427,176.729215,154.9340794,11.495362345284283,10,0,
+Q5 window function,M0 Raw PostgreSQL,True,0.231501,0.373248,0.25159843,0.11130644164353248,20,0,
+Q5 window function,M1 Role-only read-only credential,True,0.2646965,0.365088,0.284949,0.09934613758621923,20,0,
+Q5 window function,M2 Safe-view-only,True,0.270135,0.473625,0.30945244,0.1487727047183266,20,0,
+Q5 window function,M3 RLS + Safe View + Short Credential + Audit,True,0.9869110000000001,2.132656,1.12874772,0.37731931714112066,20,0,
+Q5 window function,M4 SessionBound without receipts,False,,,,,,0,direct aggregate/window release is denied pending approved aggregate templates
+Q5 window function,M5 SessionBound without budget updates,False,,,,,,0,direct aggregate/window release is denied pending approved aggregate templates
+Q5 window function,M6 SessionBound full,False,,,,,,0,direct aggregate/window release is denied pending approved aggregate templates

@@ -96,18 +96,23 @@ def evaluate(dsn: str) -> dict[str, Any]:
     passed = True
     for index, observation in enumerate(observations, start=1):
         state = observation["state"][0] if observation["state"] else {}
+        expected_reason = (
+            "GROUP BY aggregate release requires an approved aggregate template"
+            if index == 3
+            else "result tuple budget exceeded"
+        )
         denial = next(
             (
                 receipt
                 for receipt in observation["receipts"]
                 if receipt.get("decision") == "denied"
-                and "result tuple budget exceeded" in (receipt.get("reason") or "")
+                and expected_reason in (receipt.get("reason") or "")
             ),
             {},
         )
         passed = passed and (
-            "result tuple budget exceeded" in observation["error"]
-            and state.get("query_count") == index
+            expected_reason in observation["error"]
+            and state.get("query_count") == 0
             and state.get("returned_rows") == 0
             and state.get("unique_expense_rows") == 0
             and denial.get("rows_returned") == 0

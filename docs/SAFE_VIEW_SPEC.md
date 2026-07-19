@@ -20,7 +20,7 @@ A safe view should satisfy these requirements:
 1. It must not expose raw internal table names or internal schemas as the public agent contract.
 2. It must use business-semantic names for the view and columns.
 3. It must exclude default sensitive fields such as salary, bank account, phone number, identity number, private notes, and credential material.
-4. It must include scope fields needed by the task runtime, such as `tenant_id`, `department_id`, `employee_id`, `expense_month`, or business status.
+4. It must include and enforce every non-empty scope claim required by any task that can approve the view. A tenant/month/department task must not attach a tenant-only dimension view; dimensions and audit/ledger views should join through an in-scope fact table or be generated as task-specific scoped projections.
 5. It should expose workflow state explicitly, such as `status`, `requires_finance_review`, `requires_department_approval`, `requires_c_level_approval`, `next_required_role`, `next_task_type`, `approval_reason`, `can_request_more_info`, `can_resubmit`, or `can_pay`.
 6. It should describe non-obvious derived fields through SQL comments or a metadata registry.
 7. It should be read-only for agents. Writes go through controlled commands.

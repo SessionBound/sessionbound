@@ -12,6 +12,7 @@ import statistics
 import subprocess
 import sys
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -21,12 +22,11 @@ from psycopg import sql as psql
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "app"))
 
-from task_registry import build_task_from_template  # noqa: E402
-
 
 DB_HOST = os.environ.get("TDSC_DB_HOST", "postgres")
 DB_PORT = os.environ.get("TDSC_DB_PORT", "5432")
 DB_NAME = os.environ.get("TDSC_DB_NAME", "travel")
+BASE_URL = os.environ.get("TDSC_BASE_URL", "http://localhost:8000")
 ADMIN_DSN = f"postgresql://postgres:postgres@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 APP_DSN = f"postgresql://agent_app:agentpass@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 ROLE_ONLY_DSN = f"postgresql://tdsc_role_only:tdsc_role_only_pass@{DB_HOST}:{DB_PORT}/{DB_NAME}"
@@ -89,18 +89,17 @@ PATTERNS: dict[str, dict[str, str]] = {
             ORDER BY total_amount DESC
         """,
     },
-    "Q4 CTE": {
+    "Q4 CTE detail": {
         "safe": """
             WITH high AS (
               SELECT expense_id, department_name, employee_id, amount
               FROM expenses
               WHERE amount > 1000 AND department_id = 'dep_sales'
             )
-            SELECT department_name, count(DISTINCT employee_id) AS employee_count,
-                   count(*) AS high_count, avg(amount) AS average_amount
+            SELECT expense_id, department_name, employee_id, amount
             FROM high
-            GROUP BY department_name
-            ORDER BY high_count DESC
+            ORDER BY amount DESC
+            LIMIT 10
         """,
         "raw": """
             WITH high AS (
@@ -112,11 +111,10 @@ PATTERNS: dict[str, dict[str, str]] = {
                 AND e.department_id = 'dep_sales'
                 AND e.amount > 1000
             )
-            SELECT department_name, count(DISTINCT employee_id) AS employee_count,
-                   count(*) AS high_count, avg(amount) AS average_amount
+            SELECT expense_id, department_name, employee_id, amount
             FROM high
-            GROUP BY department_name
-            ORDER BY high_count DESC
+            ORDER BY amount DESC
+            LIMIT 10
         """,
     },
     "Q5 window function": {
@@ -141,6 +139,14 @@ PATTERNS: dict[str, dict[str, str]] = {
     },
 }
 
+SESSIONBOUND_UNSUPPORTED_PATTERNS = {
+    "Q3 GROUP BY",
+    "Q5 window function",
+}
+UNSUPPORTED_AGGREGATE_REASON = (
+    "direct aggregate/window release is denied pending approved aggregate templates"
+)
+
 
 def git_commit() -> str:
     if os.environ.get("GIT_COMMIT"):
@@ -159,6 +165,17 @@ def apply_sql_file(cur: Any, path: Path) -> None:
     cur.execute(path.read_text(encoding="utf-8"))
 
 
+def post_json(path: str, body: dict[str, Any]) -> dict[str, Any]:
+    request = urllib.request.Request(
+        BASE_URL.rstrip("/") + path,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
 def setup_baselines() -> None:
     with psycopg.connect(ADMIN_DSN, autocommit=True) as conn:
         with conn.cursor() as cur:
@@ -167,20 +184,35 @@ def setup_baselines() -> None:
             apply_sql_file(cur, SQL_DIR / "rls_safe_view_short_credential_audit_baseline.sql")
 
 
-def task_token(task_id: str, runtime_options: dict[str, bool] | None = None) -> tuple[str, str]:
-    _, payload_text, signature = build_task_from_template(
-        task_id=task_id,
-        task_type="monthly_travel_expense_review",
-        delegator="user:alice",
-        actor="agent:travel-expense-analyst",
-        requested_scope={"expense_month": "2026-06"},
-        requested_budgets={
-            "max_queries": MEASUREMENT_ITERATIONS,
-            "max_unique_expense_rows": 5000,
+def issue_task_session(
+    task_id: str,
+    runtime_options: dict[str, bool] | None = None,
+) -> tuple[str, str, str]:
+    credential = post_json(
+        "/credentials",
+        {
+            "agent_id": f"overhead-{task_id}"[:64],
+            "actor": "agent:travel-expense-analyst",
+            "ttl_minutes": 30,
         },
-        runtime_claims={"runtime_options": runtime_options} if runtime_options else None,
     )
-    return payload_text, signature
+    task = post_json(
+        "/tasks",
+        {
+            "task_id": task_id,
+            "task_type": "monthly_travel_expense_review",
+            "delegator": "user:alice",
+            "actor": "agent:travel-expense-analyst",
+            "credential_id": credential["credential_id"],
+            "department_id": "dep_sales",
+            "scope": {"expense_month": "2026-06", "department_id": "dep_sales"},
+            "max_rows": 5000,
+            "max_queries": MEASUREMENT_ITERATIONS,
+            "runtime_options": runtime_options,
+        },
+    )
+    dsn = f"postgresql://{credential['db_user']}:{credential['db_password']}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    return dsn, task["payload_text"], task["signature"]
 
 
 def summarize(latencies_ms: list[float]) -> dict[str, float | None]:
@@ -220,13 +252,18 @@ def measure_direct(
     latencies: list[float] = []
     errors: list[str] = []
     rows_returned: int | None = None
-    with psycopg.connect(dsn, autocommit=True) as conn:
+    actual_dsn = dsn
+    payload_text: str | None = None
+    signature: str | None = None
+    if bind_task:
+        actual_dsn, payload_text, signature = issue_task_session(
+            f"task_overhead_{int(time.time() * 1000)}_{abs(hash((mode, pattern_name, phase))) % 1000000}",
+            runtime_options,
+        )
+    with psycopg.connect(actual_dsn, autocommit=True) as conn:
         with conn.cursor() as cur:
             if bind_task:
-                payload_text, signature = task_token(
-                    f"task_overhead_{int(time.time() * 1000)}_{abs(hash((mode, pattern_name, phase))) % 1000000}",
-                    runtime_options,
-                )
+                assert payload_text is not None and signature is not None
                 cur.execute("SELECT taskbound.bind_task(%s, %s)", (payload_text, signature))
                 if mode == "M2 Safe-view-only":
                     cur.execute("SET search_path TO taskbound, public")
@@ -261,6 +298,26 @@ def measure_direct(
 
 
 def run_mode(pattern_name: str, mode: str, query: dict[str, str]) -> dict[str, Any]:
+    if "SessionBound" in mode and pattern_name in SESSIONBOUND_UNSUPPORTED_PATTERNS:
+        skipped = {
+            "p50_ms": None,
+            "p95_ms": None,
+            "mean_ms": None,
+            "stddev_ms": None,
+            "rows_returned": None,
+            "errors": [],
+            "error_count": 0,
+            "iterations": 0,
+        }
+        return {
+            "mode": mode,
+            "pattern": pattern_name,
+            "supported": False,
+            "reason": UNSUPPORTED_AGGREGATE_REASON,
+            "warmup": skipped,
+            "measurement": skipped,
+        }
+
     config = {
         "M0 Raw PostgreSQL": {
             "dsn": ADMIN_DSN,

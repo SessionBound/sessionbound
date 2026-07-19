@@ -9,7 +9,7 @@ RUN apt-get update \
 
 WORKDIR /build/sessionbound_guard
 COPY sessionbound_guard/ ./
-RUN make && make install
+RUN make clean && make && make install
 
 FROM postgres:16
 

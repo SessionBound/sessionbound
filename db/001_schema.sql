@@ -154,6 +154,7 @@ CREATE TABLE taskbound.task_rows_seen (
 
 CREATE TABLE taskbound.task_query_receipts (
   receipt_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  execution_id uuid NOT NULL DEFAULT gen_random_uuid(),
   task_id text NOT NULL,
   budget_account text NOT NULL,
   binding_id uuid,
@@ -164,9 +165,12 @@ CREATE TABLE taskbound.task_query_receipts (
   unique_rows_added bigint NOT NULL DEFAULT 0,
   remaining_unique_row_budget bigint,
   reason text,
+  actor text,
+  touched_views text[] NOT NULL DEFAULT ARRAY[]::text[],
   previous_receipt_hash text,
   receipt_hash text,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT task_query_receipts_task_execution_id_key UNIQUE (task_id, execution_id)
 );
 
 CREATE TABLE taskbound.safe_view_registry (

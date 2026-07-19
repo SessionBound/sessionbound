@@ -5,6 +5,7 @@ import json
 import os
 import sys
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 import psycopg
 from taskbound_sdk import TaskboundSession
@@ -14,7 +15,12 @@ DATABASE_URL = os.environ.get(
     "DATABASE_URL",
     "postgresql://agent_app:agentpass@localhost:15432/travel",
 )
+ADMIN_DATABASE_URL = os.environ.get(
+    "ADMIN_DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:15432/travel",
+)
 SECRET = os.environ.get("TASKBOUND_SECRET", "dev-secret-change-me")
+DEMO_ACTOR = "agent:travel-expense-analyst"
 
 
 def canonical_json(payload: dict) -> str:
@@ -25,24 +31,82 @@ def sign(payload_text: str) -> str:
     return hmac.new(SECRET.encode(), payload_text.encode(), hashlib.sha256).hexdigest()
 
 
+def fetch_safe_view_registry_claims(allowed_views: list[str]) -> dict:
+    with psycopg.connect(ADMIN_DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT taskbound.safe_view_registry_snapshot(%s)", (allowed_views,))
+            snapshot = cur.fetchone()[0]
+    return {
+        "safe_view_registry": snapshot,
+        "safe_view_registry_version": snapshot["safe_view_registry_version"],
+        "view_definition_hash": snapshot["view_definition_hash"],
+        "exposed_column_hash": snapshot["exposed_column_hash"],
+    }
+
+
+def ensure_demo_credential() -> str:
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+    with psycopg.connect(ADMIN_DATABASE_URL) as conn:
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT credential_id
+                FROM taskbound.credential_ledger
+                WHERE db_user = 'agent_app'
+                """
+            )
+            existing = cur.fetchone()
+            if existing:
+                credential_id = existing[0]
+                cur.execute(
+                    """
+                    UPDATE taskbound.credential_ledger
+                    SET actor = %s,
+                        audience = 'sessionbounddb',
+                        expires_at = %s,
+                        revoked = false
+                    WHERE credential_id = %s
+                    """,
+                    (DEMO_ACTOR, expires_at, credential_id),
+                )
+                return credential_id
+
+            credential_id = "demo-agent-app"
+            cur.execute(
+                """
+                INSERT INTO taskbound.credential_ledger (
+                  credential_id, db_user, actor, audience, expires_at
+                )
+                VALUES (%s, 'agent_app', %s, 'sessionbounddb', %s)
+                """,
+                (credential_id, DEMO_ACTOR, expires_at),
+            )
+            return credential_id
+
+
 def default_task(
-    task_id: str = "task_expense_review_2026_06",
+    task_id: str | None = None,
     department_id: str | None = None,
     max_queries: int = 5,
     max_rows: int = 5,
     child_of: str | None = None,
 ) -> tuple[str, str]:
     expires_at = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+    allowed_views = ["expenses", "departments", "employees"]
+    credential_id = ensure_demo_credential()
     payload = {
         "key_id": "dev",
-        "task_id": task_id,
+        "audience": "sessionbounddb",
+        "task_id": task_id or f"task_expense_review_2026_06_{uuid4().hex[:8]}",
         "tenant_id": "company_a",
         "delegator": "user:alice",
-        "actor": "agent:travel-expense-analyst",
+        "actor": DEMO_ACTOR,
+        "credential_id": credential_id,
         "purpose": "monthly_travel_expense_anomaly_review",
         "natural_language_goal": "Analyze June 2026 travel reimbursement anomalies.",
         "operations": ["SELECT"],
-        "allowed_views": ["expenses", "departments", "employees"],
+        "allowed_views": allowed_views,
         "denied_columns": ["employees.bank_account", "employees.phone", "employees.salary"],
         "row_scope": {
             "expense_month": "2026-06",
@@ -58,6 +122,7 @@ def default_task(
         "expires_at": expires_at,
         "policy_version": "travel-demo-v1",
     }
+    payload.update(fetch_safe_view_registry_claims(allowed_views))
     if department_id:
         payload["row_scope"]["department_id"] = department_id
     if child_of:
@@ -125,22 +190,29 @@ def command_demo(_args):
         with conn.cursor() as cur:
             bind(cur, payload_text, signature)
 
-            print("\n--- Legitimate task-scoped analysis ---")
+            print("\n--- Legitimate task-scoped detail access ---")
+            run_query(
+                cur,
+                "SELECT expense_id, department_name, employee_name, category, merchant, amount "
+                "FROM expenses ORDER BY amount DESC LIMIT 2",
+            )
+
+            print("\n--- Multi-table JOIN over task-scoped views ---")
+            run_query(
+                cur,
+                "SELECT e.expense_id, e.department_name, emp.employee_level, e.amount "
+                "FROM expenses e JOIN employees emp ON emp.employee_id = e.employee_id "
+                "ORDER BY e.amount DESC LIMIT 2",
+            )
+
+            print("\n--- Aggregate query now requires an approved template ---")
             run_query(
                 cur,
                 "SELECT department_name, category, sum(amount) AS total_amount "
                 "FROM expenses GROUP BY department_name, category ORDER BY total_amount DESC",
             )
 
-            print("\n--- Multi-table JOIN over task-scoped views ---")
-            run_query(
-                cur,
-                "SELECT e.department_name, emp.employee_level, count(*) AS trips, sum(e.amount) AS total_amount "
-                "FROM expenses e JOIN employees emp ON emp.employee_id = e.employee_id "
-                "GROUP BY e.department_name, emp.employee_level ORDER BY total_amount DESC",
-            )
-
-            print("\n--- CTE + HAVING-style analytical query ---")
+            print("\n--- CTE + aggregate analytical query now denied ---")
             run_query(
                 cur,
                 "WITH dept_totals AS ("
@@ -150,7 +222,7 @@ def command_demo(_args):
                 "FROM dept_totals WHERE total_amount > 3000 ORDER BY total_amount DESC",
             )
 
-            print("\n--- Window function over scoped expense rows ---")
+            print("\n--- Window function now requires an approved template ---")
             run_query(
                 cur,
                 "SELECT expense_id, department_name, employee_name, amount, "
@@ -181,18 +253,19 @@ def command_demo(_args):
             inspect(cur)
 
     print("\n--- Child-agent budget sharing demo ---")
+    child_demo_run = uuid4().hex[:8]
     parent_payload, parent_sig = default_task(
-        task_id="task_parent_sales_review",
+        task_id=f"task_parent_sales_review_{child_demo_run}",
         department_id="dep_sales",
         max_queries=5,
         max_rows=2,
     )
     child_payload, child_sig = default_task(
-        task_id="task_child_sales_review_a",
+        task_id=f"task_child_sales_review_a_{child_demo_run}",
         department_id="dep_sales",
         max_queries=5,
         max_rows=2,
-        child_of="task_parent_sales_review",
+        child_of=f"task_parent_sales_review_{child_demo_run}",
     )
 
     with connect() as parent_conn:
@@ -222,7 +295,7 @@ def build_parser():
     sub = parser.add_subparsers(required=True)
 
     token = sub.add_parser("token", help="print a signed task payload and signature")
-    token.add_argument("--task-id", default="task_expense_review_2026_06")
+    token.add_argument("--task-id")
     token.add_argument("--department")
     token.add_argument("--max-queries", type=int, default=5)
     token.add_argument("--max-rows", type=int, default=5)

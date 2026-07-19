@@ -1,0 +1,246 @@
+{
+  "records": [
+    {
+      "actual": "passed",
+      "expected": "Allowed receipt and accounting persist after ROLLBACK with parse-tree/OID touched-view provenance",
+      "id": "RA01",
+      "name": "allowed_receipt_and_accounting_survive_rollback",
+      "passed": true,
+      "psql": {
+        "output_tail": "{\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_rollback_audit_1784449553_allowed\", \"binding_id\": \"91d8c56d-6b05-4edd-8c0d-db0fc8f3d972\", \"fence_token\": 1145, \"credential_id\": \"agent_rollback_audit_1784449553_allowed_98039f98\", \"budget_account\": \"task_rollback_audit_1784449553_allowed\", \"stale_recovered\": false, \"advisory_lock_key\": -7196581001810729159}\nemployees|exp_296|17200.00\nemployees|exp_259|16550.00\nROLLBACK_AUDIT_STATE\ttask_rollback_audit_1784449553_allowed\ttask_rollback_audit_1784449553_allowed\t1\t2\t2\tf\nROLLBACK_AUDIT_RECEIPT\tallowed\t2\t2\t4998\t\t{expenses}\t\t8751ed2c38d61410ee5f663405aefcb622bf4e1dee1c5faa855cfe2965371156",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "{\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_rollback_audit_1784449553_allowed\", \"binding_id\": \"91d8c56d-6b05-4edd-8c0d-db0fc8f3d972\", \"fence_token\": 1145, \"credential_id\": \"agent_rollback_audit_1784449553_allowed_98039f98\", \"budget_account\": \"task_rollback_audit_1784449553_allowed\", \"stale_recovered\": false, \"advisory_lock_key\": -7196581001810729159}\nemployees|exp_296|17200.00\nemployees|exp_259|16550.00\nROLLBACK_AUDIT_STATE\ttask_rollback_audit_1784449553_allowed\ttask_rollback_audit_1784449553_allowed\t1\t2\t2\tf\nROLLBACK_AUDIT_RECEIPT\tallowed\t2\t2\t4998\t\t{expenses}\t\t8751ed2c38d61410ee5f663405aefcb622bf4e1dee1c5faa855cfe2965371156\n"
+      },
+      "snapshot": {
+        "receipts": [
+          {
+            "decision": "allowed",
+            "previous_receipt_hash": "",
+            "reason": "",
+            "receipt_hash": "8751ed2c38d61410ee5f663405aefcb622bf4e1dee1c5faa855cfe2965371156",
+            "remaining_unique_row_budget": 4998,
+            "rows_returned": 2,
+            "touched_views": [
+              "expenses"
+            ],
+            "unique_rows_added": 2
+          }
+        ],
+        "state": {
+          "budget_account": "task_rollback_audit_1784449553_allowed",
+          "query_count": 1,
+          "returned_rows": 2,
+          "revoked": false,
+          "task_id": "task_rollback_audit_1784449553_allowed",
+          "unique_expense_rows": 2
+        }
+      }
+    },
+    {
+      "actual": "passed",
+      "expected": "Denied raw-schema attempt emits durable receipt after ROLLBACK",
+      "id": "RA02",
+      "name": "denial_receipt_survives_error_and_rollback",
+      "passed": true,
+      "psql": {
+        "output_tail": "{\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_rollback_audit_1784449553_denied\", \"binding_id\": \"eef41623-d083-42d5-b91d-1ee7b32f52b7\", \"fence_token\": 1147, \"credential_id\": \"agent_rollback_audit_1784449553_denied_cb2ac34c\", \"budget_account\": \"task_rollback_audit_1784449553_denied\", \"stale_recovered\": false, \"advisory_lock_key\": -1197712938190699346}\nROLLBACK_AUDIT_STATE\ttask_rollback_audit_1784449553_denied\ttask_rollback_audit_1784449553_denied\t0\t0\t0\tf\nROLLBACK_AUDIT_RECEIPT\tdenied\t0\t0\t\traw application schema access is not allowed\t{}\t\t7c2aba79a946d14bd812f6f8d0b4e985092c0aab7d43464b53d00727a695e740\nERROR:  SessionBound guard denied query: raw application schema access is not allowed",
+        "returncode": 0,
+        "stderr": "ERROR:  SessionBound guard denied query: raw application schema access is not allowed\n",
+        "stdout": "{\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_rollback_audit_1784449553_denied\", \"binding_id\": \"eef41623-d083-42d5-b91d-1ee7b32f52b7\", \"fence_token\": 1147, \"credential_id\": \"agent_rollback_audit_1784449553_denied_cb2ac34c\", \"budget_account\": \"task_rollback_audit_1784449553_denied\", \"stale_recovered\": false, \"advisory_lock_key\": -1197712938190699346}\nROLLBACK_AUDIT_STATE\ttask_rollback_audit_1784449553_denied\ttask_rollback_audit_1784449553_denied\t0\t0\t0\tf\nROLLBACK_AUDIT_RECEIPT\tdenied\t0\t0\t\traw application schema access is not allowed\t{}\t\t7c2aba79a946d14bd812f6f8d0b4e985092c0aab7d43464b53d00727a695e740\n"
+      },
+      "snapshot": {
+        "receipts": [
+          {
+            "decision": "denied",
+            "previous_receipt_hash": "",
+            "reason": "raw application schema access is not allowed",
+            "receipt_hash": "7c2aba79a946d14bd812f6f8d0b4e985092c0aab7d43464b53d00727a695e740",
+            "remaining_unique_row_budget": null,
+            "rows_returned": 0,
+            "touched_views": [],
+            "unique_rows_added": 0
+          }
+        ],
+        "state": {
+          "budget_account": "task_rollback_audit_1784449553_denied",
+          "query_count": 0,
+          "returned_rows": 0,
+          "revoked": false,
+          "task_id": "task_rollback_audit_1784449553_denied",
+          "unique_expense_rows": 0
+        }
+      }
+    },
+    {
+      "actual": "passed",
+      "expected": "Wrapper/parser denial emits an autonomous receipt in autocommit mode",
+      "id": "RA03",
+      "name": "wrapper_parser_denial_emits_receipt_without_test_write",
+      "passed": true,
+      "psql": {
+        "output_tail": "{\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_rollback_audit_1784449553_wrapper\", \"binding_id\": \"2dbaf16b-235d-4a5e-9534-9fcfa9ce8b9d\", \"fence_token\": 1149, \"credential_id\": \"agent_rollback_audit_1784449553_wrapper_b9e5c1ed\", \"budget_account\": \"task_rollback_audit_1784449553_wrapper\", \"stale_recovered\": false, \"advisory_lock_key\": 6009712858165138350}\nROLLBACK_AUDIT_STATE\ttask_rollback_audit_1784449553_wrapper\ttask_rollback_audit_1784449553_wrapper\t0\t0\t0\tf\nROLLBACK_AUDIT_RECEIPT\tdenied\t0\t0\t\tUNION, INTERSECT, and EXCEPT are not allowed\t{employees,expenses}\t\t668b1fc89d243826193ebf903ced31c27d2f414ced34d2b08ed319da762fc02f\nERROR:  SessionBoundDB denied query: UNION, INTERSECT, and EXCEPT are not allowed\nCONTEXT:  PL/pgSQL function run(text) line 51 at RAISE",
+        "returncode": 0,
+        "stderr": "ERROR:  SessionBoundDB denied query: UNION, INTERSECT, and EXCEPT are not allowed\nCONTEXT:  PL/pgSQL function run(text) line 51 at RAISE\n",
+        "stdout": "{\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_rollback_audit_1784449553_wrapper\", \"binding_id\": \"2dbaf16b-235d-4a5e-9534-9fcfa9ce8b9d\", \"fence_token\": 1149, \"credential_id\": \"agent_rollback_audit_1784449553_wrapper_b9e5c1ed\", \"budget_account\": \"task_rollback_audit_1784449553_wrapper\", \"stale_recovered\": false, \"advisory_lock_key\": 6009712858165138350}\nROLLBACK_AUDIT_STATE\ttask_rollback_audit_1784449553_wrapper\ttask_rollback_audit_1784449553_wrapper\t0\t0\t0\tf\nROLLBACK_AUDIT_RECEIPT\tdenied\t0\t0\t\tUNION, INTERSECT, and EXCEPT are not allowed\t{employees,expenses}\t\t668b1fc89d243826193ebf903ced31c27d2f414ced34d2b08ed319da762fc02f\n"
+      },
+      "snapshot": {
+        "receipts": [
+          {
+            "decision": "denied",
+            "previous_receipt_hash": "",
+            "reason": "UNION, INTERSECT, and EXCEPT are not allowed",
+            "receipt_hash": "668b1fc89d243826193ebf903ced31c27d2f414ced34d2b08ed319da762fc02f",
+            "remaining_unique_row_budget": null,
+            "rows_returned": 0,
+            "touched_views": [
+              "employees",
+              "expenses"
+            ],
+            "unique_rows_added": 0
+          }
+        ],
+        "state": {
+          "budget_account": "task_rollback_audit_1784449553_wrapper",
+          "query_count": 0,
+          "returned_rows": 0,
+          "revoked": false,
+          "task_id": "task_rollback_audit_1784449553_wrapper",
+          "unique_expense_rows": 0
+        }
+      }
+    },
+    {
+      "actual": "passed",
+      "expected": "Executor denial emits zero-release receipt and no result prefix after ROLLBACK",
+      "id": "RA04",
+      "name": "native_executor_denial_is_atomic_and_survives_rollback",
+      "passed": true,
+      "psql": {
+        "output_tail": "{\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_rollback_audit_1784449553_native\", \"binding_id\": \"1043c13a-29a1-4854-8d98-0c69d02b8e49\", \"fence_token\": 1151, \"credential_id\": \"agent_rollback_audit_1784449553_native_d5f54180\", \"budget_account\": \"task_rollback_audit_1784449553_native\", \"stale_recovered\": false, \"advisory_lock_key\": -4382591014526815579}\nROLLBACK_AUDIT_STATE\ttask_rollback_audit_1784449553_native\ttask_rollback_audit_1784449553_native\t0\t0\t0\tf\nROLLBACK_AUDIT_RECEIPT\tdenied\t0\t0\t\tresult tuple budget exceeded; atomic release withheld\t{expenses}\t\t22d1f4f50bd1be1039f376fdd98772faa3cce1c8e43bdcbbedd8866a9453abb4\nERROR:  SessionBoundDB denied query: result tuple budget exceeded",
+        "returncode": 0,
+        "stderr": "ERROR:  SessionBoundDB denied query: result tuple budget exceeded\n",
+        "stdout": "{\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_rollback_audit_1784449553_native\", \"binding_id\": \"1043c13a-29a1-4854-8d98-0c69d02b8e49\", \"fence_token\": 1151, \"credential_id\": \"agent_rollback_audit_1784449553_native_d5f54180\", \"budget_account\": \"task_rollback_audit_1784449553_native\", \"stale_recovered\": false, \"advisory_lock_key\": -4382591014526815579}\nROLLBACK_AUDIT_STATE\ttask_rollback_audit_1784449553_native\ttask_rollback_audit_1784449553_native\t0\t0\t0\tf\nROLLBACK_AUDIT_RECEIPT\tdenied\t0\t0\t\tresult tuple budget exceeded; atomic release withheld\t{expenses}\t\t22d1f4f50bd1be1039f376fdd98772faa3cce1c8e43bdcbbedd8866a9453abb4\n"
+      },
+      "snapshot": {
+        "receipts": [
+          {
+            "decision": "denied",
+            "previous_receipt_hash": "",
+            "reason": "result tuple budget exceeded; atomic release withheld",
+            "receipt_hash": "22d1f4f50bd1be1039f376fdd98772faa3cce1c8e43bdcbbedd8866a9453abb4",
+            "remaining_unique_row_budget": null,
+            "rows_returned": 0,
+            "touched_views": [
+              "expenses"
+            ],
+            "unique_rows_added": 0
+          }
+        ],
+        "state": {
+          "budget_account": "task_rollback_audit_1784449553_native",
+          "query_count": 0,
+          "returned_rows": 0,
+          "revoked": false,
+          "task_id": "task_rollback_audit_1784449553_native",
+          "unique_expense_rows": 0
+        }
+      }
+    },
+    {
+      "actual": "passed",
+      "expected": "API AST preflight denial emits a receipt that identifies the touched safe view",
+      "id": "RA05",
+      "name": "api_preflight_denial_records_touched_view_provenance",
+      "passed": true,
+      "response": {
+        "ast_validation": {
+          "allowed": false,
+          "flags": [
+            "aggregate_template_required",
+            "payload_aggregation"
+          ],
+          "metadata": {
+            "aggregate_functions": [
+              "j_s_o_n_array_agg"
+            ],
+            "catalog_access": false,
+            "ctes": [],
+            "function_calls": [
+              "j_s_o_n_array_agg"
+            ],
+            "group_by_columns": [],
+            "has_group_by": false,
+            "has_having": false,
+            "joins": 0,
+            "min_group_size": 5,
+            "operation_types": [
+              "select"
+            ],
+            "parser_available": true,
+            "recursive_cte": false,
+            "referenced_columns": [
+              "e"
+            ],
+            "referenced_relations": [
+              "expenses"
+            ],
+            "set_operations": [],
+            "subqueries": 0
+          },
+          "parser": "sqlglot 30.12.0",
+          "reasons": [
+            "aggregate release requires an approved aggregate template",
+            "payload aggregation function j_s_o_n_array_agg is not allowed",
+            "payload aggregation function json_agg is not allowed"
+          ]
+        },
+        "bound": {
+          "advisory_lock_key": 1762609299028771559,
+          "binding_id": "6d192f0c-d0eb-4559-8994-b8eacc7d9643",
+          "bound": true,
+          "budget_account": "task_rollback_audit_1784449553_api_preflight",
+          "credential_id": "agent_rollback_audit_1784449553_api_preflight_ec51a19a",
+          "fence_token": 1152,
+          "purpose": "monthly_travel_expense_anomaly_review",
+          "stale_recovered": false,
+          "task_id": "task_rollback_audit_1784449553_api_preflight"
+        },
+        "error": "AST preflight denied query: aggregate release requires an approved aggregate template; payload aggregation function j_s_o_n_array_agg is not allowed; payload aggregation function json_agg is not allowed",
+        "ok": false,
+        "receipts": [
+          {
+            "created_at": "2026-07-19T08:25:56.865797+00:00",
+            "decision": "denied",
+            "reason": "AST preflight denied query: aggregate release requires an approved aggregate template; payload aggregation function j_s_o_n_array_agg is not allowed; payload aggregation function json_agg is not allowed",
+            "remaining_unique_row_budget": null,
+            "rows_returned": 0,
+            "touched_views": [
+              "expenses"
+            ],
+            "unique_rows_added": 0
+          }
+        ],
+        "state": [
+          {
+            "budget_account": "task_rollback_audit_1784449553_api_preflight",
+            "query_count": 0,
+            "returned_rows": 0,
+            "revoked": false,
+            "task_id": "task_rollback_audit_1784449553_api_preflight",
+            "unique_expense_rows": 0
+          }
+        ],
+        "used_dynamic_credential": "agent_rollback_audit_1784449553_api_preflight_ec51a19a"
+      }
+    }
+  ],
+  "run": {
+    "base_url": "http://localhost:8000",
+    "case_count": 5,
+    "commit": "baa0048",
+    "failed": 0,
+    "passed": 5,
+    "timestamp": "2026-07-19T08:25:56Z"
+  }
+}

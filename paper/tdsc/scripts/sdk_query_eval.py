@@ -70,7 +70,9 @@ def evaluate(dsn: str) -> dict[str, Any]:
         unbound_bare_select = bare_select_attempt(conn)
 
     sdk_receipt_ok = any(
-        receipt.get("decision") == "allowed" and receipt.get("rows_returned") == 2
+        receipt.get("decision") == "allowed"
+        and receipt.get("rows_returned") == 2
+        and "expenses" in receipt.get("touched_views", [])
         for receipt in receipts
     )
     sdk_state_ok = bool(state) and state[0].get("query_count") == 1
@@ -96,7 +98,11 @@ def evaluate(dsn: str) -> dict[str, Any]:
             native_bare_select["ok"]
             and bool(native_state)
             and native_state[0].get("query_count") == 2
-            and any(receipt.get("decision") == "allowed" for receipt in native_receipts)
+            and any(
+                receipt.get("decision") == "allowed"
+                and "expenses" in receipt.get("touched_views", [])
+                for receipt in native_receipts
+            )
         ),
         "evidence": {
             "select": native_bare_select,

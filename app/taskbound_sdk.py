@@ -105,7 +105,7 @@ class TaskboundSession:
             cur.execute(
                 """
                 SELECT decision, rows_returned, unique_rows_added,
-                       remaining_unique_row_budget, reason, created_at
+                       remaining_unique_row_budget, reason, touched_views, created_at
                 FROM taskbound.receipts()
                 LIMIT %s
                 """,

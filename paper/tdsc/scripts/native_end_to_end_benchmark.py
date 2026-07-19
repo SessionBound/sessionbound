@@ -42,9 +42,9 @@ SQL_DIR = REPO_ROOT / "paper/tdsc/experiments/sql"
 
 DEFAULT_WARMUP = int(os.environ.get("TDSC_NATIVE_WARMUP", "10"))
 DEFAULT_MEASURED = int(os.environ.get("TDSC_NATIVE_MEASURED", "30"))
-TARGET_ROWS = [int(x) for x in os.environ.get("TDSC_NATIVE_ROWS", "1000,10000,100000").split(",")]
+TARGET_ROWS = [int(x) for x in os.environ.get("TDSC_NATIVE_ROWS", "1000,10000").split(",")]
 MAX_QUERIES_PER_TASK = int(os.environ.get("TDSC_NATIVE_MAX_QUERIES_PER_TASK", "100"))
-DEFAULT_TARGET_MEASURED = {1000: 100, 10000: 100, 100000: 30}
+DEFAULT_TARGET_MEASURED = {1000: 30, 10000: 3}
 
 
 def parse_target_counts(env_name: str) -> dict[int, int]:
@@ -112,19 +112,19 @@ PATTERNS = {
               AND expense_month='2026-06'
               AND department_id='dep_sales'
             ORDER BY amount DESC
-            LIMIT 50
+            LIMIT {limit}
         """,
         "safe": """
             SELECT expense_id, employee_id, amount
             FROM {schema}.expenses
             ORDER BY amount DESC
-            LIMIT 50
+            LIMIT {limit}
         """,
         "sb": """
             SELECT expense_id, employee_id, amount
             FROM expenses
             ORDER BY amount DESC
-            LIMIT 50
+            LIMIT {limit}
         """,
     },
     "JOIN": {
@@ -137,21 +137,21 @@ PATTERNS = {
               AND e.expense_month='2026-06'
               AND e.department_id='dep_sales'
             ORDER BY e.amount DESC
-            LIMIT 50
+            LIMIT {limit}
         """,
         "safe": """
             SELECT e.expense_id, e.amount, d.department_name
             FROM {schema}.expenses e
             JOIN {schema}.departments d ON d.department_id=e.department_id
             ORDER BY e.amount DESC
-            LIMIT 50
+            LIMIT {limit}
         """,
         "sb": """
             SELECT e.expense_id, e.amount, d.department_name
             FROM expenses e
             JOIN departments d ON d.department_id=e.department_id
             ORDER BY e.amount DESC
-            LIMIT 50
+            LIMIT {limit}
         """,
     },
     "GROUP BY": {
@@ -183,42 +183,39 @@ PATTERNS = {
     "CTE": {
         "raw": """
             WITH scoped AS (
-              SELECT category, employee_id, amount
+              SELECT expense_id, category, employee_id, amount
               FROM app_data.expenses
               WHERE tenant_id='company_a'
                 AND expense_month='2026-06'
                 AND department_id='dep_sales'
                 AND amount >= 100
             )
-            SELECT category, count(DISTINCT employee_id) AS employee_count,
-                   count(*) AS n, avg(amount) AS avg_amount
+            SELECT expense_id, category, employee_id, amount
             FROM scoped
-            GROUP BY category
-            ORDER BY avg_amount DESC
+            ORDER BY amount DESC
+            LIMIT {limit}
         """,
         "safe": """
             WITH scoped AS (
-              SELECT category, employee_id, amount
+              SELECT expense_id, category, employee_id, amount
               FROM {schema}.expenses
               WHERE amount >= 100
             )
-            SELECT category, count(DISTINCT employee_id) AS employee_count,
-                   count(*) AS n, avg(amount) AS avg_amount
+            SELECT expense_id, category, employee_id, amount
             FROM scoped
-            GROUP BY category
-            ORDER BY avg_amount DESC
+            ORDER BY amount DESC
+            LIMIT {limit}
         """,
         "sb": """
             WITH scoped AS (
-              SELECT category, employee_id, amount
+              SELECT expense_id, category, employee_id, amount
               FROM expenses
               WHERE amount >= 100
             )
-            SELECT category, count(DISTINCT employee_id) AS employee_count,
-                   count(*) AS n, avg(amount) AS avg_amount
+            SELECT expense_id, category, employee_id, amount
             FROM scoped
-            GROUP BY category
-            ORDER BY avg_amount DESC
+            ORDER BY amount DESC
+            LIMIT {limit}
         """,
     },
     "Window": {
@@ -230,24 +227,32 @@ PATTERNS = {
               AND expense_month='2026-06'
               AND department_id='dep_sales'
             ORDER BY amount DESC
-            LIMIT 50
+            LIMIT {limit}
         """,
         "safe": """
             SELECT expense_id, employee_id, category, amount,
                    row_number() OVER (PARTITION BY category ORDER BY amount DESC) AS rn
             FROM {schema}.expenses
             ORDER BY amount DESC
-            LIMIT 50
+            LIMIT {limit}
         """,
         "sb": """
             SELECT expense_id, employee_id, category, amount,
                    row_number() OVER (PARTITION BY category ORDER BY amount DESC) AS rn
             FROM expenses
             ORDER BY amount DESC
-            LIMIT 50
+            LIMIT {limit}
         """,
     },
 }
+
+SESSIONBOUND_UNSUPPORTED_PATTERNS = {
+    "GROUP BY",
+    "Window",
+}
+UNSUPPORTED_AGGREGATE_REASON = (
+    "direct aggregate/window release is denied pending approved aggregate templates"
+)
 
 
 def git_commit() -> str:
@@ -360,7 +365,7 @@ def prepare_scale(target_rows: int) -> dict[str, int]:
     return {"target_rows": target_rows, "existing_rows_before_insert": existing, "inserted_rows": rows_to_add, "actual_rows": actual}
 
 
-def open_session(max_queries: int) -> tuple[dict[str, Any], dict[str, Any]]:
+def open_session(max_queries: int, max_rows: int) -> tuple[dict[str, Any], dict[str, Any]]:
     suffix = str(int(time.time() * 1000))
     credential = post_json(
         "/credentials",
@@ -380,20 +385,20 @@ def open_session(max_queries: int) -> tuple[dict[str, Any], dict[str, Any]]:
             "credential_id": credential.get("credential_id"),
             "department_id": "dep_sales",
             "scope": {"expense_month": "2026-06", "department_id": "dep_sales"},
-            "max_rows": 5000,
+            "max_rows": max_rows,
             "max_queries": max_queries,
         },
     )
     return credential, task
 
 
-def connect_for_mode(mode: Mode, max_queries: int):
+def connect_for_mode(mode: Mode, max_queries: int, max_rows: int):
     if mode.kind in {"raw", "safe"}:
         assert mode.dsn is not None
         conn = psycopg.connect(mode.dsn)
         conn.autocommit = True
         return conn
-    credential, task = open_session(max_queries=max_queries)
+    credential, task = open_session(max_queries=max_queries, max_rows=max_rows)
     dsn = f"postgresql://{credential['db_user']}:{credential['db_password']}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     conn = psycopg.connect(dsn)
     conn.autocommit = True
@@ -403,15 +408,22 @@ def connect_for_mode(mode: Mode, max_queries: int):
     return conn
 
 
-def sql_for(mode: Mode, pattern: dict[str, str]) -> tuple[str, tuple[Any, ...]]:
+def formatted_query(template: str, *, schema: str | None, target_rows: int) -> str:
+    values = {"schema": schema or "", "limit": target_rows}
+    return template.format(**values)
+
+
+def sql_for(mode: Mode, pattern: dict[str, str], target_rows: int) -> tuple[str, tuple[Any, ...]]:
     if mode.kind == "raw":
-        return pattern["raw"], ()
+        return formatted_query(pattern["raw"], schema=None, target_rows=target_rows), ()
     if mode.kind == "safe":
         assert mode.schema is not None
-        return pattern["safe"].format(schema=mode.schema), ()
+        return formatted_query(pattern["safe"], schema=mode.schema, target_rows=target_rows), ()
     if mode.kind == "sessionbound_wrapper":
-        return "SELECT * FROM taskbound.run(%s)", (pattern["sb"],)
-    return pattern["sb"], ()
+        return "SELECT * FROM taskbound.run(%s)", (
+            formatted_query(pattern["sb"], schema=None, target_rows=target_rows),
+        )
+    return formatted_query(pattern["sb"], schema=None, target_rows=target_rows), ()
 
 
 def percentile(values: list[float], p: float) -> float | None:
@@ -446,6 +458,25 @@ def summarize(latencies: list[float], rows: int | None, errors: list[str]) -> di
         "errors": len(errors),
         "error_rate": (len(errors) / attempts) if attempts else None,
         "error_samples": errors[:3],
+        "supported": True,
+        "reason": "",
+    }
+
+
+def skipped_summary(reason: str) -> dict[str, Any]:
+    return {
+        "p50_ms": None,
+        "p95_ms": None,
+        "p99_ms": None,
+        "mean_ms": None,
+        "stddev_ms": None,
+        "rows_returned": None,
+        "measurements": 0,
+        "errors": 0,
+        "error_rate": 0.0,
+        "error_samples": [],
+        "supported": False,
+        "reason": reason,
     }
 
 
@@ -460,7 +491,10 @@ def run_mode_pattern(
     errors: list[str] = []
     latencies: list[float] = []
     rows: int | None = None
-    sql_text, params = sql_for(mode, pattern)
+    if mode.kind.startswith("sessionbound") and pattern_name in SESSIONBOUND_UNSUPPORTED_PATTERNS:
+        return skipped_summary(UNSUPPORTED_AGGREGATE_REASON)
+    sql_text, params = sql_for(mode, pattern, target_rows)
+    max_rows = max(5000, ((warmup + measured) * target_rows) + 100)
 
     if mode.kind in {"sessionbound_wrapper", "sessionbound_native"}:
         remaining = measured
@@ -468,7 +502,7 @@ def run_mode_pattern(
             task_budget = min(MAX_QUERIES_PER_TASK, max(1, warmup + remaining + 5))
             measured_capacity = max(1, task_budget - warmup)
             measured_this_session = min(remaining, measured_capacity)
-            conn = connect_for_mode(mode, max_queries=task_budget)
+            conn = connect_for_mode(mode, max_queries=task_budget, max_rows=max_rows)
             try:
                 with conn.cursor() as cur:
                     for _ in range(warmup):
@@ -488,7 +522,7 @@ def run_mode_pattern(
             remaining -= measured_this_session
         return summarize(latencies, rows, errors)
 
-    conn = connect_for_mode(mode, max_queries=warmup + measured + 5)
+    conn = connect_for_mode(mode, max_queries=warmup + measured + 5, max_rows=max_rows)
     try:
         with conn.cursor() as cur:
             for _ in range(warmup):
@@ -533,6 +567,8 @@ def flatten(results: dict[str, Any]) -> list[dict[str, Any]]:
                         "measurements": summary.get("measurements"),
                         "errors": summary.get("errors"),
                         "error_rate": summary.get("error_rate"),
+                        "supported": summary.get("supported"),
+                        "reason": summary.get("reason"),
                     }
                 )
     return rows

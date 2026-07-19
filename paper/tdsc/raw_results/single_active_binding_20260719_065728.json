@@ -1,0 +1,256 @@
+{
+  "run": {
+    "timestamp": "2026-07-19T06:57:28.133193Z",
+    "git_commit": "baa0048",
+    "postgres_version": "16.14 (Debian 16.14-1.pgdg13+1)",
+    "extension_version": "0.1",
+    "round_count": 20,
+    "contender_count": 10,
+    "success_count": 1,
+    "denial_count": 9,
+    "dual_success_count": 0,
+    "zero_success_count": 0,
+    "unexpected_error_count": 0,
+    "explicit_unbind_recovery": true,
+    "socket_close_recovery": true,
+    "backend_terminate_recovery": true,
+    "rollback_semantics": true,
+    "stale_recovery_count": 3,
+    "fence_rejection_count": 2,
+    "remaining_budget_before_crash": 2,
+    "remaining_budget_after_recovery": 2,
+    "receipt_chain_verified": true,
+    "latency_p50_ms": 12.05368999944767,
+    "latency_p95_ms": 13.964935998956207,
+    "latency_p99_ms": 15.992454002116574,
+    "passed": true
+  },
+  "two_backend_same_key": {
+    "contenders": 2,
+    "success_count": 1,
+    "denied_count": 1,
+    "dual_success": 0,
+    "zero_success": 0,
+    "unexpected_error_count": 0,
+    "denial_reason_counts": {
+      "ACTIVE_BINDING_EXISTS": 1
+    },
+    "latencies_ms": [
+      11.09031300075003,
+      11.391132000426296
+    ],
+    "results": [
+      {
+        "ok": false,
+        "sqlstate": "55P03",
+        "error": "ACTIVE_BINDING_EXISTS",
+        "latency_ms": 11.09031300075003,
+        "contender": 0
+      },
+      {
+        "ok": true,
+        "bound": {
+          "bound": true,
+          "purpose": "monthly_travel_expense_anomaly_review",
+          "task_id": "single_active_race_20260719_065725",
+          "binding_id": "666c85ab-a717-425e-925f-dcce369527b5",
+          "fence_token": 165,
+          "credential_id": "agent_single_active_20260719_065725_e2a53f8e",
+          "budget_account": "single_active_race_20260719_065725",
+          "stale_recovered": false,
+          "advisory_lock_key": 667900242051244652
+        },
+        "latency_ms": 11.391132000426296,
+        "contender": 1
+      }
+    ]
+  },
+  "high_contention_same_key": {
+    "contenders": 10,
+    "success_count": 1,
+    "denied_count": 9,
+    "dual_success": 0,
+    "zero_success": 0,
+    "unexpected_error_count": 0,
+    "denial_reason_counts": {
+      "ACTIVE_BINDING_EXISTS": 9
+    },
+    "latencies_ms": [
+      13.00280099894735,
+      13.558873000874883,
+      13.441942002828,
+      13.684851001016796,
+      13.943492998805596,
+      13.964935998956207,
+      14.275268000346841,
+      13.916861000325298,
+      15.992454002116574,
+      16.43139199950383
+    ],
+    "results": [
+      {
+        "ok": true,
+        "bound": {
+          "bound": true,
+          "purpose": "monthly_travel_expense_anomaly_review",
+          "task_id": "single_active_race_20260719_065725",
+          "binding_id": "62c1b10a-9fe4-457d-987e-be947e3aef47",
+          "fence_token": 168,
+          "credential_id": "agent_single_active_20260719_065725_e2a53f8e",
+          "budget_account": "single_active_race_20260719_065725",
+          "stale_recovered": false,
+          "advisory_lock_key": 667900242051244652
+        },
+        "latency_ms": 13.00280099894735,
+        "contender": 0
+      },
+      {
+        "ok": false,
+        "sqlstate": "55P03",
+        "error": "ACTIVE_BINDING_EXISTS",
+        "latency_ms": 13.558873000874883,
+        "contender": 7
+      },
+      {
+        "ok": false,
+        "sqlstate": "55P03",
+        "error": "ACTIVE_BINDING_EXISTS",
+        "latency_ms": 13.441942002828,
+        "contender": 9
+      },
+      {
+        "ok": false,
+        "sqlstate": "55P03",
+        "error": "ACTIVE_BINDING_EXISTS",
+        "latency_ms": 13.684851001016796,
+        "contender": 3
+      },
+      {
+        "ok": false,
+        "sqlstate": "55P03",
+        "error": "ACTIVE_BINDING_EXISTS",
+        "latency_ms": 13.943492998805596,
+        "contender": 2
+      },
+      {
+        "ok": false,
+        "sqlstate": "55P03",
+        "error": "ACTIVE_BINDING_EXISTS",
+        "latency_ms": 13.964935998956207,
+        "contender": 6
+      },
+      {
+        "ok": false,
+        "sqlstate": "55P03",
+        "error": "ACTIVE_BINDING_EXISTS",
+        "latency_ms": 14.275268000346841,
+        "contender": 1
+      },
+      {
+        "ok": false,
+        "sqlstate": "55P03",
+        "error": "ACTIVE_BINDING_EXISTS",
+        "latency_ms": 13.916861000325298,
+        "contender": 5
+      },
+      {
+        "ok": false,
+        "sqlstate": "55P03",
+        "error": "ACTIVE_BINDING_EXISTS",
+        "latency_ms": 15.992454002116574,
+        "contender": 4
+      },
+      {
+        "ok": false,
+        "sqlstate": "55P03",
+        "error": "ACTIVE_BINDING_EXISTS",
+        "latency_ms": 16.43139199950383,
+        "contender": 8
+      }
+    ]
+  },
+  "repeated_races": {
+    "rounds": 20,
+    "single_winner_rounds": 20,
+    "dual_success_rounds": 0,
+    "zero_winner_rounds": 0,
+    "unexpected_error_count": 0,
+    "denial_reason_counts": {
+      "ACTIVE_BINDING_EXISTS": 20
+    },
+    "latencies_ms": [
+      12.5010520023352,
+      13.250829000753583,
+      11.869575999298831,
+      12.304324001888745,
+      12.51072800005204,
+      12.867585999629227,
+      11.393177999707405,
+      11.692584997945232,
+      10.88280899784877,
+      11.126138000690844,
+      12.327888998697745,
+      12.98601100279484,
+      11.728208999556955,
+      13.118802999088075,
+      12.031553000269923,
+      12.72419100132538,
+      12.36027000049944,
+      13.00043000082951,
+      10.69920999725582,
+      10.988959002133925,
+      11.29574099832098,
+      12.12192000093637,
+      11.125660999823594,
+      11.635573999228654,
+      11.673485998471733,
+      12.876931999926455,
+      11.254167999140918,
+      11.939375999645563,
+      11.377614999219077,
+      12.05368999944767,
+      10.481321998668136,
+      10.878954999498092,
+      12.76806699752342,
+      12.909777000459144,
+      10.39733499783324,
+      10.862474002351519,
+      11.1215409997385,
+      11.769042001105845,
+      10.605621999275172,
+      11.380554999050219
+    ]
+  },
+  "lifecycle": {
+    "explicit_unbind_recovery": true,
+    "socket_close_recovery": true,
+    "backend_terminate_recovery": true,
+    "remaining_budget_before_crash": 2,
+    "remaining_budget_after_recovery": 2,
+    "budget_continuity_after_recovery": true,
+    "receipt_chain_verified": true,
+    "new_binding_after_terminate": true,
+    "live_owner_non_eviction": true,
+    "live_owner_non_eviction_details": {
+      "reaped": 0,
+      "denied": {
+        "ok": false,
+        "sqlstate": "55P03",
+        "error": "ACTIVE_BINDING_EXISTS",
+        "latency_ms": 11.271215000306256
+      }
+    },
+    "pid_reuse_protection": true,
+    "rollback_semantics": true,
+    "old_fence_mutation_rejected": true,
+    "fence_rejection_count": 2,
+    "lock_and_utility_bypass_blocked": true,
+    "tamper_results": {
+      "SELECT pg_advisory_unlock_all()": "42501",
+      "DISCARD ALL": "42501",
+      "SELECT public.sessionbound_guard_clear_binding()": "42501",
+      "DELETE FROM taskbound.active_sessions": "42501"
+    },
+    "different_binding_keys_concurrent_success": true
+  }
+}

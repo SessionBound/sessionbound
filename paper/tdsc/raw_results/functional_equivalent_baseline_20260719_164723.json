@@ -1,0 +1,414 @@
+{
+  "cases": [
+    {
+      "expected": "allowed, query_count=1, returned_rows=2",
+      "id": "EQ01",
+      "name": "external_pep_allows_first_query_and_charges_cumulative_state",
+      "passed": true,
+      "result": {
+        "decision": "allowed",
+        "duplicate_execution_id": false,
+        "reason": "",
+        "receipt": {
+          "decision": "allowed",
+          "execution_id": "156b72b4-4c53-492d-b33e-352eaac15e47",
+          "previous_receipt_hash": null,
+          "reason": "",
+          "receipt_hash": "97d4c563285cc6c6ded964631134168238378e2c7b4cfdf6dde0d0cde46441b4",
+          "remaining_unique_row_budget": 1,
+          "rows_returned": 2,
+          "touched_views": [
+            "expenses"
+          ],
+          "unique_rows_added": 2
+        },
+        "rows": 2,
+        "state": {
+          "actor": "agent:travel-expense-analyst",
+          "budget_account": "task_equiv_baseline_1784450843",
+          "credential_id": "agent_equiv_baseline_1784450843_cbf1e9ac",
+          "max_queries": 2,
+          "max_rows": 3,
+          "previous_receipt_hash": "97d4c563285cc6c6ded964631134168238378e2c7b4cfdf6dde0d0cde46441b4",
+          "query_count": 1,
+          "returned_rows": 2,
+          "task_id": "task_equiv_baseline_1784450843"
+        }
+      }
+    },
+    {
+      "expected": "denied because 2 prior rows + 2 staged rows exceeds max_rows=3; budget counters unchanged",
+      "id": "EQ02",
+      "name": "external_pep_denies_cumulative_tuple_budget",
+      "passed": true,
+      "result": {
+        "decision": "denied",
+        "duplicate_execution_id": false,
+        "reason": "external PEP cumulative tuple budget exceeded",
+        "receipt": {
+          "decision": "denied",
+          "execution_id": "f92d2fbb-0136-4f70-be5c-419077ba35ca",
+          "previous_receipt_hash": "97d4c563285cc6c6ded964631134168238378e2c7b4cfdf6dde0d0cde46441b4",
+          "reason": "external PEP cumulative tuple budget exceeded",
+          "receipt_hash": "a8cf489808ebcfeb2e70091b276e3a64d49e6da8e8767c96121c6f0e4cfb0151",
+          "remaining_unique_row_budget": 1,
+          "rows_returned": 0,
+          "touched_views": [
+            "expenses"
+          ],
+          "unique_rows_added": 0
+        },
+        "rows": 0,
+        "state": {
+          "actor": "agent:travel-expense-analyst",
+          "budget_account": "task_equiv_baseline_1784450843",
+          "credential_id": "agent_equiv_baseline_1784450843_cbf1e9ac",
+          "max_queries": 2,
+          "max_rows": 3,
+          "previous_receipt_hash": "a8cf489808ebcfeb2e70091b276e3a64d49e6da8e8767c96121c6f0e4cfb0151",
+          "query_count": 1,
+          "returned_rows": 2,
+          "task_id": "task_equiv_baseline_1784450843"
+        }
+      }
+    },
+    {
+      "expected": "allowed remaining one output tuple, reaching query_count=2 and returned_rows=3",
+      "id": "EQ03",
+      "name": "external_pep_allows_remaining_tuple_budget",
+      "passed": true,
+      "result": {
+        "decision": "allowed",
+        "duplicate_execution_id": false,
+        "reason": "",
+        "receipt": {
+          "decision": "allowed",
+          "execution_id": "009a33df-f5df-4758-a78b-81b2b38a4f1d",
+          "previous_receipt_hash": "a8cf489808ebcfeb2e70091b276e3a64d49e6da8e8767c96121c6f0e4cfb0151",
+          "reason": "",
+          "receipt_hash": "22b30830f4dbc4fdc7ef1f36844b9da2b9b7fde3f7dfa83dc9e8b779ebf850d2",
+          "remaining_unique_row_budget": 0,
+          "rows_returned": 1,
+          "touched_views": [
+            "expenses"
+          ],
+          "unique_rows_added": 1
+        },
+        "rows": 1,
+        "state": {
+          "actor": "agent:travel-expense-analyst",
+          "budget_account": "task_equiv_baseline_1784450843",
+          "credential_id": "agent_equiv_baseline_1784450843_cbf1e9ac",
+          "max_queries": 2,
+          "max_rows": 3,
+          "previous_receipt_hash": "22b30830f4dbc4fdc7ef1f36844b9da2b9b7fde3f7dfa83dc9e8b779ebf850d2",
+          "query_count": 2,
+          "returned_rows": 3,
+          "task_id": "task_equiv_baseline_1784450843"
+        }
+      }
+    },
+    {
+      "expected": "denied because two allowed queries already consumed max_queries=2",
+      "id": "EQ04",
+      "name": "external_pep_denies_cumulative_query_budget",
+      "passed": true,
+      "result": {
+        "decision": "denied",
+        "duplicate_execution_id": false,
+        "reason": "external PEP query budget exceeded",
+        "receipt": {
+          "decision": "denied",
+          "execution_id": "5ac6c8df-6498-4457-af0e-0c1ab3b17145",
+          "previous_receipt_hash": "22b30830f4dbc4fdc7ef1f36844b9da2b9b7fde3f7dfa83dc9e8b779ebf850d2",
+          "reason": "external PEP query budget exceeded",
+          "receipt_hash": "b5502b19101ab555a001bb7843e7c0b192b212d82158c2d736f88a04d5fc8340",
+          "remaining_unique_row_budget": 0,
+          "rows_returned": 0,
+          "touched_views": [
+            "expenses"
+          ],
+          "unique_rows_added": 0
+        },
+        "rows": 0,
+        "state": {
+          "actor": "agent:travel-expense-analyst",
+          "budget_account": "task_equiv_baseline_1784450843",
+          "credential_id": "agent_equiv_baseline_1784450843_cbf1e9ac",
+          "max_queries": 2,
+          "max_rows": 3,
+          "previous_receipt_hash": "b5502b19101ab555a001bb7843e7c0b192b212d82158c2d736f88a04d5fc8340",
+          "query_count": 2,
+          "returned_rows": 3,
+          "task_id": "task_equiv_baseline_1784450843"
+        }
+      }
+    },
+    {
+      "expected": "denied on credential-token mismatch, preserving cumulative counters",
+      "id": "EQ05",
+      "name": "external_pep_denies_credential_replay_without_budget_mutation",
+      "passed": true,
+      "result": {
+        "decision": "denied",
+        "duplicate_execution_id": false,
+        "reason": "credential-token mismatch",
+        "receipt": {
+          "decision": "denied",
+          "execution_id": "d8dc7c40-77be-4dea-9737-836cdfb27ace",
+          "previous_receipt_hash": "b5502b19101ab555a001bb7843e7c0b192b212d82158c2d736f88a04d5fc8340",
+          "reason": "credential-token mismatch",
+          "receipt_hash": "c957d21b44a1656f6de89427fef26559bf648b550406641ae04a2e4f1031b1c3",
+          "remaining_unique_row_budget": 0,
+          "rows_returned": 0,
+          "touched_views": [
+            "expenses"
+          ],
+          "unique_rows_added": 0
+        },
+        "rows": 0,
+        "state": {
+          "actor": "agent:travel-expense-analyst",
+          "budget_account": "task_equiv_baseline_1784450843",
+          "credential_id": "agent_equiv_baseline_1784450843_cbf1e9ac",
+          "max_queries": 2,
+          "max_rows": 3,
+          "previous_receipt_hash": "c957d21b44a1656f6de89427fef26559bf648b550406641ae04a2e4f1031b1c3",
+          "query_count": 2,
+          "returned_rows": 3,
+          "task_id": "task_equiv_baseline_1784450843"
+        }
+      }
+    },
+    {
+      "expected": "retry returns the first decision receipt and creates no second receipt",
+      "id": "EQ06",
+      "name": "external_pep_same_execution_id_is_idempotent",
+      "passed": true,
+      "result": {
+        "first": {
+          "decision": "denied",
+          "duplicate_execution_id": false,
+          "reason": "external PEP query budget exceeded",
+          "receipt": {
+            "decision": "denied",
+            "execution_id": "4dc05c55-fcda-47a8-9413-0dc830517c4d",
+            "previous_receipt_hash": "c957d21b44a1656f6de89427fef26559bf648b550406641ae04a2e4f1031b1c3",
+            "reason": "external PEP query budget exceeded",
+            "receipt_hash": "9c85910f31266177e19ebc4164197828fab4397a09e2807d0d091b2ab6a2971c",
+            "remaining_unique_row_budget": 0,
+            "rows_returned": 0,
+            "touched_views": [
+              "expenses"
+            ],
+            "unique_rows_added": 0
+          },
+          "rows": 0,
+          "state": {
+            "actor": "agent:travel-expense-analyst",
+            "budget_account": "task_equiv_baseline_1784450843",
+            "credential_id": "agent_equiv_baseline_1784450843_cbf1e9ac",
+            "max_queries": 2,
+            "max_rows": 3,
+            "previous_receipt_hash": "9c85910f31266177e19ebc4164197828fab4397a09e2807d0d091b2ab6a2971c",
+            "query_count": 2,
+            "returned_rows": 3,
+            "task_id": "task_equiv_baseline_1784450843"
+          }
+        },
+        "retry": {
+          "decision": "denied",
+          "duplicate_execution_id": true,
+          "reason": "external PEP query budget exceeded",
+          "receipt": {
+            "decision": "denied",
+            "execution_id": "4dc05c55-fcda-47a8-9413-0dc830517c4d",
+            "reason": "external PEP query budget exceeded",
+            "receipt_hash": "9c85910f31266177e19ebc4164197828fab4397a09e2807d0d091b2ab6a2971c",
+            "remaining_unique_row_budget": 0,
+            "rows_returned": 0,
+            "unique_rows_added": 0
+          },
+          "rows": 0,
+          "state": {
+            "actor": "agent:travel-expense-analyst",
+            "budget_account": "task_equiv_baseline_1784450843",
+            "credential_id": "agent_equiv_baseline_1784450843_cbf1e9ac",
+            "max_queries": 2,
+            "max_rows": 3,
+            "previous_receipt_hash": "9c85910f31266177e19ebc4164197828fab4397a09e2807d0d091b2ab6a2971c",
+            "query_count": 2,
+            "returned_rows": 3,
+            "task_id": "task_equiv_baseline_1784450843"
+          }
+        }
+      }
+    },
+    {
+      "expected": "direct use of the baseline role can read rows without PEP state or receipt mutation",
+      "id": "EQ07",
+      "name": "direct_role_bypass_is_outside_external_pep_tcb",
+      "passed": true,
+      "result": {
+        "decision": "allowed",
+        "reason": "baseline role can bypass PEP if deployment does not mediate direct database access",
+        "receipts_after": 6,
+        "receipts_before": 6,
+        "rows": 3,
+        "state_after": {
+          "actor": "agent:travel-expense-analyst",
+          "budget_account": "task_equiv_baseline_1784450843",
+          "credential_id": "agent_equiv_baseline_1784450843_cbf1e9ac",
+          "max_queries": 2,
+          "max_rows": 3,
+          "previous_receipt_hash": "9c85910f31266177e19ebc4164197828fab4397a09e2807d0d091b2ab6a2971c",
+          "query_count": 2,
+          "returned_rows": 3,
+          "task_id": "task_equiv_baseline_1784450843"
+        },
+        "state_before": {
+          "actor": "agent:travel-expense-analyst",
+          "budget_account": "task_equiv_baseline_1784450843",
+          "credential_id": "agent_equiv_baseline_1784450843_cbf1e9ac",
+          "max_queries": 2,
+          "max_rows": 3,
+          "previous_receipt_hash": "9c85910f31266177e19ebc4164197828fab4397a09e2807d0d091b2ab6a2971c",
+          "query_count": 2,
+          "returned_rows": 3,
+          "task_id": "task_equiv_baseline_1784450843"
+        }
+      }
+    },
+    {
+      "expected": "one authoritative receipt per PEP-evaluated execution id, including denials, with a verifiable hash chain",
+      "id": "EQ08",
+      "name": "external_pep_receipts_are_exactly_once_and_chained",
+      "passed": true,
+      "result": {
+        "chain_ok": true,
+        "expected_receipt_count": 6,
+        "receipt_count": 6,
+        "receipts": [
+          {
+            "actor": "agent:travel-expense-analyst",
+            "budget_account": "task_equiv_baseline_1784450843",
+            "created_at": "2026-07-19T08:47:23.877479+00:00",
+            "decision": "allowed",
+            "execution_id": "156b72b4-4c53-492d-b33e-352eaac15e47",
+            "previous_receipt_hash": null,
+            "query_digest": "050090fb2770ee256887f6b81be923584f6e38ac5bd0afeb7ebb411a01907c44",
+            "reason": "",
+            "receipt_hash": "97d4c563285cc6c6ded964631134168238378e2c7b4cfdf6dde0d0cde46441b4",
+            "remaining_unique_row_budget": 1,
+            "rows_returned": 2,
+            "task_id": "task_equiv_baseline_1784450843",
+            "touched_views": [
+              "expenses"
+            ],
+            "unique_rows_added": 2
+          },
+          {
+            "actor": "agent:travel-expense-analyst",
+            "budget_account": "task_equiv_baseline_1784450843",
+            "created_at": "2026-07-19T08:47:23.892081+00:00",
+            "decision": "denied",
+            "execution_id": "f92d2fbb-0136-4f70-be5c-419077ba35ca",
+            "previous_receipt_hash": "97d4c563285cc6c6ded964631134168238378e2c7b4cfdf6dde0d0cde46441b4",
+            "query_digest": "050090fb2770ee256887f6b81be923584f6e38ac5bd0afeb7ebb411a01907c44",
+            "reason": "external PEP cumulative tuple budget exceeded",
+            "receipt_hash": "a8cf489808ebcfeb2e70091b276e3a64d49e6da8e8767c96121c6f0e4cfb0151",
+            "remaining_unique_row_budget": 1,
+            "rows_returned": 0,
+            "task_id": "task_equiv_baseline_1784450843",
+            "touched_views": [
+              "expenses"
+            ],
+            "unique_rows_added": 0
+          },
+          {
+            "actor": "agent:travel-expense-analyst",
+            "budget_account": "task_equiv_baseline_1784450843",
+            "created_at": "2026-07-19T08:47:23.903964+00:00",
+            "decision": "allowed",
+            "execution_id": "009a33df-f5df-4758-a78b-81b2b38a4f1d",
+            "previous_receipt_hash": "a8cf489808ebcfeb2e70091b276e3a64d49e6da8e8767c96121c6f0e4cfb0151",
+            "query_digest": "0652efda31e7c377bb580b86685c4eaeb4471acec441237055a06c774c869668",
+            "reason": "",
+            "receipt_hash": "22b30830f4dbc4fdc7ef1f36844b9da2b9b7fde3f7dfa83dc9e8b779ebf850d2",
+            "remaining_unique_row_budget": 0,
+            "rows_returned": 1,
+            "task_id": "task_equiv_baseline_1784450843",
+            "touched_views": [
+              "expenses"
+            ],
+            "unique_rows_added": 1
+          },
+          {
+            "actor": "agent:travel-expense-analyst",
+            "budget_account": "task_equiv_baseline_1784450843",
+            "created_at": "2026-07-19T08:47:23.917272+00:00",
+            "decision": "denied",
+            "execution_id": "5ac6c8df-6498-4457-af0e-0c1ab3b17145",
+            "previous_receipt_hash": "22b30830f4dbc4fdc7ef1f36844b9da2b9b7fde3f7dfa83dc9e8b779ebf850d2",
+            "query_digest": "0652efda31e7c377bb580b86685c4eaeb4471acec441237055a06c774c869668",
+            "reason": "external PEP query budget exceeded",
+            "receipt_hash": "b5502b19101ab555a001bb7843e7c0b192b212d82158c2d736f88a04d5fc8340",
+            "remaining_unique_row_budget": 0,
+            "rows_returned": 0,
+            "task_id": "task_equiv_baseline_1784450843",
+            "touched_views": [
+              "expenses"
+            ],
+            "unique_rows_added": 0
+          },
+          {
+            "actor": "agent:travel-expense-analyst",
+            "budget_account": "task_equiv_baseline_1784450843",
+            "created_at": "2026-07-19T08:47:23.928823+00:00",
+            "decision": "denied",
+            "execution_id": "d8dc7c40-77be-4dea-9737-836cdfb27ace",
+            "previous_receipt_hash": "b5502b19101ab555a001bb7843e7c0b192b212d82158c2d736f88a04d5fc8340",
+            "query_digest": "0652efda31e7c377bb580b86685c4eaeb4471acec441237055a06c774c869668",
+            "reason": "credential-token mismatch",
+            "receipt_hash": "c957d21b44a1656f6de89427fef26559bf648b550406641ae04a2e4f1031b1c3",
+            "remaining_unique_row_budget": 0,
+            "rows_returned": 0,
+            "task_id": "task_equiv_baseline_1784450843",
+            "touched_views": [
+              "expenses"
+            ],
+            "unique_rows_added": 0
+          },
+          {
+            "actor": "agent:travel-expense-analyst",
+            "budget_account": "task_equiv_baseline_1784450843",
+            "created_at": "2026-07-19T08:47:23.941316+00:00",
+            "decision": "denied",
+            "execution_id": "4dc05c55-fcda-47a8-9413-0dc830517c4d",
+            "previous_receipt_hash": "c957d21b44a1656f6de89427fef26559bf648b550406641ae04a2e4f1031b1c3",
+            "query_digest": "0652efda31e7c377bb580b86685c4eaeb4471acec441237055a06c774c869668",
+            "reason": "external PEP query budget exceeded",
+            "receipt_hash": "9c85910f31266177e19ebc4164197828fab4397a09e2807d0d091b2ab6a2971c",
+            "remaining_unique_row_budget": 0,
+            "rows_returned": 0,
+            "task_id": "task_equiv_baseline_1784450843",
+            "touched_views": [
+              "expenses"
+            ],
+            "unique_rows_added": 0
+          }
+        ],
+        "unique_execution_ids": true
+      }
+    }
+  ],
+  "interpretation": "This baseline now uses the same signed task contract, credential binding, cumulative query/tuple budget semantics, persistent state, execution ids, and chained receipt fields as the SessionBound comparison workload. Its remaining distinction is deployment TCB: direct database use of the baseline role bypasses the external PEP unless the deployment mediates all connections.",
+  "run": {
+    "case_count": 8,
+    "commit": "baa0048",
+    "dsn": "postgresql://tdsc_rls_safe_audit:***@localhost:15432/travel",
+    "failed": 0,
+    "passed": 8,
+    "timestamp": "2026-07-19T08:47:23.989541+00:00"
+  }
+}

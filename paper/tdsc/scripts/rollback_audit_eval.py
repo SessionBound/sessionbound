@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-STATE_MARKER = "ROLLBACK_AUDIT_STATE="
-RECEIPT_MARKER = "ROLLBACK_AUDIT_RECEIPT="
+STATE_MARKER = "ROLLBACK_AUDIT_STATE"
+RECEIPT_MARKER = "ROLLBACK_AUDIT_RECEIPT"
 
 
 def git_commit() -> str:
@@ -103,31 +103,41 @@ def _parse_int(value: str) -> int | None:
     return int(value) if value else None
 
 
+def _parse_text_array(value: str) -> list[str]:
+    if not value or value == "{}":
+        return []
+    if value.startswith("{") and value.endswith("}"):
+        value = value[1:-1]
+    if not value:
+        return []
+    return [part.strip('"') for part in value.split(",") if part]
+
+
 def extract_snapshot(stdout: str) -> dict[str, Any]:
     state: dict[str, Any] | None = None
     receipts: list[dict[str, Any]] = []
     for line in stdout.splitlines():
-        if line.startswith(STATE_MARKER):
-            parts = line[len(STATE_MARKER) :].split("\t")
+        parts = line.split("\t")
+        if parts and parts[0] == STATE_MARKER:
             state = {
-                "task_id": parts[0],
-                "budget_account": parts[1],
-                "query_count": _parse_int(parts[2]),
-                "returned_rows": _parse_int(parts[3]),
-                "unique_expense_rows": _parse_int(parts[4]),
-                "revoked": parts[5] == "true",
+                "task_id": parts[1],
+                "budget_account": parts[2],
+                "query_count": _parse_int(parts[3]),
+                "returned_rows": _parse_int(parts[4]),
+                "unique_expense_rows": _parse_int(parts[5]),
+                "revoked": parts[6] in {"t", "true"},
             }
-        elif line.startswith(RECEIPT_MARKER):
-            parts = line[len(RECEIPT_MARKER) :].split("\t", 6)
+        elif parts and parts[0] == RECEIPT_MARKER:
             receipts.append(
                 {
-                    "decision": parts[0],
-                    "rows_returned": _parse_int(parts[1]),
-                    "unique_rows_added": _parse_int(parts[2]),
-                    "remaining_unique_row_budget": _parse_int(parts[3]),
-                    "reason": parts[4] if len(parts) > 4 else "",
-                    "previous_receipt_hash": parts[5] if len(parts) > 5 else "",
-                    "receipt_hash": parts[6] if len(parts) > 6 else "",
+                    "decision": parts[1],
+                    "rows_returned": _parse_int(parts[2]),
+                    "unique_rows_added": _parse_int(parts[3]),
+                    "remaining_unique_row_budget": _parse_int(parts[4]),
+                    "reason": parts[5] if len(parts) > 5 else "",
+                    "touched_views": _parse_text_array(parts[6] if len(parts) > 6 else ""),
+                    "previous_receipt_hash": parts[7] if len(parts) > 7 else "",
+                    "receipt_hash": parts[8] if len(parts) > 8 else "",
                 }
             )
     if state is None:
@@ -168,22 +178,16 @@ def issue_task(
 
 def receipt_snapshot_sql() -> str:
     return f"""
-SELECT '{STATE_MARKER}' ||
-       task_id || chr(9) ||
-       budget_account || chr(9) ||
-       query_count::text || chr(9) ||
-       returned_rows::text || chr(9) ||
-       unique_expense_rows::text || chr(9) ||
-       revoked::text
+\\pset fieldsep '\\t'
+SELECT '{STATE_MARKER}', task_id, budget_account, query_count,
+       returned_rows, unique_expense_rows, revoked
 FROM taskbound.inspect_task_state();
 
-SELECT '{RECEIPT_MARKER}' ||
-       decision || chr(9) ||
-       rows_returned::text || chr(9) ||
-       unique_rows_added::text || chr(9) ||
-       COALESCE(remaining_unique_row_budget::text, '') || chr(9) ||
-       COALESCE(replace(replace(reason, chr(10), ' '), chr(9), ' '), '') || chr(9) ||
-       COALESCE(previous_receipt_hash, '') || chr(9) ||
+SELECT '{RECEIPT_MARKER}', decision, rows_returned, unique_rows_added,
+       COALESCE(remaining_unique_row_budget::text, ''),
+       COALESCE(reason, ''),
+       COALESCE(touched_views::text, ''),
+       COALESCE(previous_receipt_hash, ''),
        COALESCE(receipt_hash, '')
 FROM taskbound.receipts()
 ORDER BY created_at, receipt_id;
@@ -197,7 +201,10 @@ def run_allowed_case(credential: dict[str, Any], task: dict[str, Any]) -> dict[s
 \\pset tuples_only on
 SELECT taskbound.bind_task({sql_literal(task['payload_text'])}, {sql_literal(task['signature'])});
 BEGIN;
-SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;
+SELECT 'employees' AS mentioned_only, expense_id, amount
+FROM expenses
+ORDER BY amount DESC
+LIMIT 2;
 ROLLBACK;
 {receipt_snapshot_sql()}
 """
@@ -207,6 +214,7 @@ ROLLBACK;
     receipts = snapshot.get("receipts") or []
     allowed_receipt = any(
         receipt.get("decision") == "allowed" and receipt.get("rows_returned") == 2
+        and receipt.get("touched_views") == ["expenses"]
         for receipt in receipts
     )
     state_ok = (
@@ -217,7 +225,7 @@ ROLLBACK;
     return {
         "id": "RA01",
         "name": "allowed_receipt_and_accounting_survive_rollback",
-        "expected": "Allowed receipt and accounting persist after ROLLBACK",
+        "expected": "Allowed receipt and accounting persist after ROLLBACK with parse-tree/OID touched-view provenance",
         "actual": "passed" if result["returncode"] == 0 and state_ok and allowed_receipt else "failed",
         "passed": result["returncode"] == 0 and state_ok and allowed_receipt,
         "snapshot": snapshot,
@@ -239,11 +247,20 @@ ROLLBACK;
     result = run_psql(sql_script, credential["db_user"], credential["db_password"])
     snapshot = extract_snapshot(result["stdout"]) if result["returncode"] == 0 else {}
     receipts = snapshot.get("receipts") or []
+    matching_denials = [
+        receipt
+        for receipt in receipts
+        if (
+            receipt.get("decision") == "denied"
+            and "raw application schema access is not allowed" in (receipt.get("reason") or "")
+        )
+    ]
     denial_receipt = any(
         receipt.get("decision") == "denied"
         and "raw application schema access is not allowed" in (receipt.get("reason") or "")
         for receipt in receipts
     )
+    touched_views_ok = any(receipt.get("touched_views") == [] for receipt in matching_denials)
     error_seen = (
         "SessionBound guard denied query" in result["stderr"]
         or "SessionBoundDB denied query" in result["stderr"]
@@ -252,8 +269,8 @@ ROLLBACK;
         "id": "RA02",
         "name": "denial_receipt_survives_error_and_rollback",
         "expected": "Denied raw-schema attempt emits durable receipt after ROLLBACK",
-        "actual": "passed" if result["returncode"] == 0 and error_seen and denial_receipt else "failed",
-        "passed": result["returncode"] == 0 and error_seen and denial_receipt,
+        "actual": "passed" if result["returncode"] == 0 and error_seen and denial_receipt and touched_views_ok else "failed",
+        "passed": result["returncode"] == 0 and error_seen and denial_receipt and touched_views_ok,
         "snapshot": snapshot,
         "psql": result,
     }
@@ -275,6 +292,7 @@ SELECT * FROM taskbound.run({sql_literal('SELECT expense_id FROM expenses UNION 
     denial_receipt = any(
         receipt.get("decision") == "denied"
         and "UNION, INTERSECT, and EXCEPT are not allowed" in (receipt.get("reason") or "")
+        and {"employees", "expenses"}.issubset(set(receipt.get("touched_views", [])))
         for receipt in receipts
     )
     error_seen = "SessionBoundDB denied query" in result["stderr"]
@@ -310,6 +328,7 @@ ROLLBACK;
         receipt.get("decision") == "denied"
         and receipt.get("rows_returned") == 0
         and "result tuple budget exceeded" in (receipt.get("reason") or "")
+        and "expenses" in receipt.get("touched_views", [])
         for receipt in receipts
     )
     error_seen = "result tuple budget exceeded" in result["stderr"]
@@ -326,6 +345,40 @@ ROLLBACK;
     }
 
 
+def run_api_preflight_denied_case(
+    base_url: str, credential: dict[str, Any], task: dict[str, Any]
+) -> dict[str, Any]:
+    """Exercise the trusted API preflight receipt path."""
+    result = post_json(
+        base_url,
+        "/agent-query",
+        {
+            "credential": credential,
+            "payload_text": task["payload_text"],
+            "signature": task["signature"],
+            "sql": "SELECT json_agg(e) FROM expenses e;",
+        },
+    )
+    receipts = result.get("receipts") or []
+    denial_receipt = any(
+        receipt.get("decision") == "denied"
+        and "AST preflight denied query" in (receipt.get("reason") or "")
+        and "expenses" in receipt.get("touched_views", [])
+        for receipt in receipts
+    )
+    state = result.get("state") or []
+    state_ok = bool(state) and state[0].get("returned_rows") == 0
+    passed = not result.get("ok") and denial_receipt and state_ok
+    return {
+        "id": "RA05",
+        "name": "api_preflight_denial_records_touched_view_provenance",
+        "expected": "API AST preflight denial emits a receipt that identifies the touched safe view",
+        "actual": "passed" if passed else "failed",
+        "passed": passed,
+        "response": result,
+    }
+
+
 def run_eval(base_url: str) -> dict[str, Any]:
     wait_for_api(base_url)
     run_id = str(int(time.time()))
@@ -333,11 +386,13 @@ def run_eval(base_url: str) -> dict[str, Any]:
     denied_credential, denied_task = issue_task(base_url, run_id, "denied")
     wrapper_credential, wrapper_task = issue_task(base_url, run_id, "wrapper")
     native_credential, native_task = issue_task(base_url, run_id, "native", max_rows=2)
+    api_credential, api_task = issue_task(base_url, run_id, "api_preflight")
     records = [
         run_allowed_case(allowed_credential, allowed_task),
         run_denied_case(denied_credential, denied_task),
         run_wrapper_denied_case(wrapper_credential, wrapper_task),
         run_native_executor_denied_case(native_credential, native_task),
+        run_api_preflight_denied_case(base_url, api_credential, api_task),
     ]
     return {
         "run": {

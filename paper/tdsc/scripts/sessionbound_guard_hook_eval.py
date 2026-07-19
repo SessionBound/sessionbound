@@ -127,7 +127,7 @@ HOOK_ONLY_CASES: list[dict[str, str]] = [
         "allowed_views": "all",
         "expected": "Blocked",
         "sql": "SELECT array_agg(expense_id) FROM expenses",
-        "expected_reason": "payload aggregation function is not allowed",
+        "expected_reason": "aggregate release requires an approved aggregate template",
     },
     {
         "id": "HH04",

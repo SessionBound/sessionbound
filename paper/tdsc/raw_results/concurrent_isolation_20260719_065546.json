@@ -1,0 +1,175 @@
+{
+  "run": {
+    "case_count": 6,
+    "passed": 6,
+    "failed": 0,
+    "commit": "baa0048",
+    "timestamp": "2026-07-19T06:55:46.334187Z"
+  },
+  "records": [
+    {
+      "name": "two_active_tasks_independent_credentials",
+      "passed": true,
+      "evidence": {
+        "bound_a": {
+          "bound": true,
+          "purpose": "monthly_travel_expense_anomaly_review",
+          "task_id": "tdsc_isolation_a_20260719_065545",
+          "binding_id": "40a95b27-ddc2-40d3-973e-cca96ef45765",
+          "fence_token": 21,
+          "credential_id": "agent_tdsc_isolation_a_20260719_065545_898f5dab",
+          "budget_account": "tdsc_isolation_a_20260719_065545",
+          "stale_recovered": false,
+          "advisory_lock_key": 1864018375211136903
+        },
+        "bound_b": {
+          "bound": true,
+          "purpose": "monthly_travel_expense_anomaly_review",
+          "task_id": "tdsc_isolation_b_20260719_065545",
+          "binding_id": "92b860b8-3510-4f1d-8433-86496423c566",
+          "fence_token": 22,
+          "credential_id": "agent_tdsc_isolation_b_20260719_065545_8b4a6e2f",
+          "budget_account": "tdsc_isolation_b_20260719_065545",
+          "stale_recovered": false,
+          "advisory_lock_key": -2666567250639127620
+        }
+      }
+    },
+    {
+      "name": "independent_budget_counters",
+      "passed": true,
+      "evidence": {
+        "query_a": {
+          "ok": true,
+          "rows": [
+            {
+              "amount": 2100.0,
+              "expense_id": "exp_004"
+            },
+            {
+              "amount": 3680.0,
+              "expense_id": "exp_005"
+            }
+          ]
+        },
+        "query_b": {
+          "ok": true,
+          "rows": [
+            {
+              "amount": 2100.0,
+              "expense_id": "exp_004"
+            }
+          ]
+        },
+        "state_a": {
+          "task_id": "tdsc_isolation_a_20260719_065545",
+          "budget_account": "tdsc_isolation_a_20260719_065545",
+          "query_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2,
+          "revoked": false
+        },
+        "state_b": {
+          "task_id": "tdsc_isolation_b_20260719_065545",
+          "budget_account": "tdsc_isolation_b_20260719_065545",
+          "query_count": 1,
+          "returned_rows": 1,
+          "unique_expense_rows": 1,
+          "revoked": false
+        }
+      }
+    },
+    {
+      "name": "task_a_over_budget_does_not_alter_task_b",
+      "passed": true,
+      "evidence": {
+        "over_budget_a": {
+          "ok": false,
+          "error": "SessionBoundDB denied query: result tuple budget exceeded\nCONTEXT:  PL/pgSQL function native_finish_query(text,text,text,bigint,text[],integer,integer,boolean,boolean,uuid,bigint) line 201 at RAISE\nSQL statement \"SELECT taskbound.native_finish_query(\n    v_task_id,\n    v_budget_account,\n    sql_text,\n    rows_returned,\n    ARRAY[]::text[],\n    max_queries,\n    max_rows,\n    v_budget_accounting_enabled,\n    v_receipts_enabled,\n    active.binding_id,\n    active.fence_token\n  )\"\nPL/pgSQL function run(text) line 131 at PERFORM"
+        },
+        "state_b_before": {
+          "task_id": "tdsc_isolation_b_20260719_065545",
+          "budget_account": "tdsc_isolation_b_20260719_065545",
+          "query_count": 1,
+          "returned_rows": 1,
+          "unique_expense_rows": 1,
+          "revoked": false
+        },
+        "state_b_after": {
+          "task_id": "tdsc_isolation_b_20260719_065545",
+          "budget_account": "tdsc_isolation_b_20260719_065545",
+          "query_count": 1,
+          "returned_rows": 1,
+          "unique_expense_rows": 1,
+          "revoked": false
+        }
+      }
+    },
+    {
+      "name": "receipt_chains_are_task_specific",
+      "passed": true,
+      "evidence": {
+        "receipts_a": [
+          {
+            "task_id": "tdsc_isolation_a_20260719_065545",
+            "decision": "allowed",
+            "rows_returned": 2,
+            "unique_rows_added": 2,
+            "remaining_unique_row_budget": 0,
+            "reason": null
+          },
+          {
+            "task_id": "tdsc_isolation_a_20260719_065545",
+            "decision": "denied",
+            "rows_returned": 0,
+            "unique_rows_added": 0,
+            "remaining_unique_row_budget": 0,
+            "reason": "result tuple budget exceeded"
+          },
+          {
+            "task_id": "tdsc_isolation_a_20260719_065545",
+            "decision": "denied",
+            "rows_returned": 0,
+            "unique_rows_added": 0,
+            "remaining_unique_row_budget": null,
+            "reason": "SessionBoundDB denied query: result tuple budget exceeded"
+          },
+          {
+            "task_id": "tdsc_isolation_a_20260719_065545",
+            "decision": "denied",
+            "rows_returned": 0,
+            "unique_rows_added": 0,
+            "remaining_unique_row_budget": null,
+            "reason": "SessionBoundDB denied query: result tuple budget exceeded"
+          }
+        ],
+        "receipts_b": [
+          {
+            "task_id": "tdsc_isolation_b_20260719_065545",
+            "decision": "allowed",
+            "rows_returned": 1,
+            "unique_rows_added": 1,
+            "remaining_unique_row_budget": 4,
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "same_backend_cannot_bind_second_active_task",
+      "passed": true,
+      "evidence": {
+        "ok": false,
+        "error": "database session is already bound to another active task; unbind before rebinding\nCONTEXT:  PL/pgSQL function bind_task(text,text) line 221 at RAISE"
+      }
+    },
+    {
+      "name": "credential_a_with_token_b_denied",
+      "passed": true,
+      "evidence": {
+        "ok": false,
+        "error": "runtime credential does not match the signed task token\nCONTEXT:  PL/pgSQL function bind_task(text,text) line 234 at RAISE"
+      }
+    }
+  ]
+}

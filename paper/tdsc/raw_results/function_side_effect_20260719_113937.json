@@ -1,0 +1,1683 @@
+{
+  "run": {
+    "all_function_side_effect_checks_passed": true,
+    "all_path_consistent": true,
+    "all_receipted": true,
+    "all_side_effect_oracles_passed": true,
+    "base_url": "http://localhost:8000",
+    "case_count": 12,
+    "commit": "baa0048",
+    "evaluated_path_decisions": 36,
+    "failed": 0,
+    "passed": 12,
+    "path_count": 3,
+    "side_effect_case_count": 3,
+    "sleep_seconds": 1.0,
+    "timestamp": "2026-07-19T11:39:37Z"
+  },
+  "records": [
+    {
+      "id": "FN00",
+      "name": "allowed_whitelisted_scalar_function",
+      "sql": "SELECT lower(merchant) AS merchant_name FROM expenses ORDER BY expense_id LIMIT 2",
+      "rendered_sql_by_path": {
+        "api_wrapper": "SELECT lower(merchant) AS merchant_name FROM expenses ORDER BY expense_id LIMIT 2",
+        "direct_wrapper": "SELECT lower(merchant) AS merchant_name FROM expenses ORDER BY expense_id LIMIT 2",
+        "direct_native": "SELECT lower(merchant) AS merchant_name FROM expenses ORDER BY expense_id LIMIT 2"
+      },
+      "expected": "Allowed",
+      "reason_bucket": "allowed",
+      "side_effect_oracle": {
+        "kind": "none"
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "side_effect_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "query_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2,
+          "receipt_count": 1,
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed"
+        },
+        "direct_wrapper": {
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "query_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2,
+          "receipt_count": 1,
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed"
+        },
+        "direct_native": {
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "query_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2,
+          "receipt_count": 1,
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_unique_rows_added": 2,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "",
+          "elapsed_seconds": 0.20904547000100138,
+          "ast_allowed": true,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_unique_rows_added": 2,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "",
+          "elapsed_seconds": 0.20905218299594708,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_unique_rows_added": 2,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "",
+          "elapsed_seconds": 0.20159594200231368,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        }
+      }
+    },
+    {
+      "id": "FN01",
+      "name": "pg_sleep_denied_without_delay",
+      "sql": "SELECT pg_sleep(1.0) FROM expenses LIMIT 1",
+      "rendered_sql_by_path": {
+        "api_wrapper": "SELECT pg_sleep(1.0) FROM expenses LIMIT 1",
+        "direct_wrapper": "SELECT pg_sleep(1.0) FROM expenses LIMIT 1",
+        "direct_native": "SELECT pg_sleep(1.0) FROM expenses LIMIT 1"
+      },
+      "expected": "Blocked",
+      "reason_bucket": "function_policy",
+      "side_effect_oracle": {
+        "kind": "elapsed_under",
+        "max_seconds": 0.75
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "side_effect_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: unknown function pg_sleep is not allowed",
+          "elapsed_seconds": 0.03347369399853051,
+          "ast_allowed": false,
+          "side_effect": {
+            "kind": "elapsed_under",
+            "passed": true,
+            "elapsed_seconds": 0.03347369399853051,
+            "max_seconds": 0.75,
+            "sleep_seconds": 1.0
+          }
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: SessionBound guard denied query: function pg_catalog.pg_sleep is not allowed in task SQL",
+          "elapsed_seconds": 0.008283367002150044,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "elapsed_under",
+            "passed": true,
+            "elapsed_seconds": 0.008283367002150044,
+            "max_seconds": 0.75,
+            "sleep_seconds": 1.0
+          }
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: function pg_catalog.pg_sleep is not allowed in task SQL",
+          "elapsed_seconds": 0.00580629899923224,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "elapsed_under",
+            "passed": true,
+            "elapsed_seconds": 0.00580629899923224,
+            "max_seconds": 0.75,
+            "sleep_seconds": 1.0
+          }
+        }
+      }
+    },
+    {
+      "id": "FN02",
+      "name": "session_advisory_lock_denied_without_lock",
+      "sql": "SELECT pg_advisory_lock(7000000045144) FROM expenses LIMIT 1",
+      "rendered_sql_by_path": {
+        "api_wrapper": "SELECT pg_advisory_lock(7000000045144) FROM expenses LIMIT 1",
+        "direct_wrapper": "SELECT pg_advisory_lock(7000000056088) FROM expenses LIMIT 1",
+        "direct_native": "SELECT pg_advisory_lock(7000000051890) FROM expenses LIMIT 1"
+      },
+      "expected": "Blocked",
+      "reason_bucket": "function_policy",
+      "side_effect_oracle": {
+        "kind": "advisory_lock_free"
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "side_effect_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: unknown function pg_advisory_lock is not allowed",
+          "elapsed_seconds": 0.030584774001908954,
+          "ast_allowed": false,
+          "side_effect": {
+            "kind": "advisory_lock_free",
+            "passed": true,
+            "lock_key": 7000000045144
+          }
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: SessionBound guard denied query: function pg_catalog.pg_advisory_lock is not allowed in task SQL",
+          "elapsed_seconds": 0.009515725992969237,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "advisory_lock_free",
+            "passed": true,
+            "lock_key": 7000000056088
+          }
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: function pg_catalog.pg_advisory_lock is not allowed in task SQL",
+          "elapsed_seconds": 0.005111375001433771,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "advisory_lock_free",
+            "passed": true,
+            "lock_key": 7000000051890
+          }
+        }
+      }
+    },
+    {
+      "id": "FN03",
+      "name": "notification_denied_without_notify",
+      "sql": "SELECT pg_notify('tdsc_fn_20260719_113934_fn03_api_wrapper', 'sessionbound-side-effect') FROM expenses LIMIT 1",
+      "rendered_sql_by_path": {
+        "api_wrapper": "SELECT pg_notify('tdsc_fn_20260719_113934_fn03_api_wrapper', 'sessionbound-side-effect') FROM expenses LIMIT 1",
+        "direct_wrapper": "SELECT pg_notify('tdsc_fn_20260719_113934_fn03_direct_wrapper', 'sessionbound-side-effect') FROM expenses LIMIT 1",
+        "direct_native": "SELECT pg_notify('tdsc_fn_20260719_113934_fn03_direct_native', 'sessionbound-side-effect') FROM expenses LIMIT 1"
+      },
+      "expected": "Blocked",
+      "reason_bucket": "function_policy",
+      "side_effect_oracle": {
+        "kind": "no_notification"
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "side_effect_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: unknown function pg_notify is not allowed",
+          "elapsed_seconds": 0.031874164000328165,
+          "ast_allowed": false,
+          "side_effect": {
+            "kind": "no_notification",
+            "passed": true,
+            "notifications": [],
+            "notify_channel": "tdsc_fn_20260719_113934_fn03_api_wrapper"
+          }
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: SessionBound guard denied query: function pg_catalog.pg_notify is not allowed in task SQL",
+          "elapsed_seconds": 0.010625265997077804,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "no_notification",
+            "passed": true,
+            "notifications": [],
+            "notify_channel": "tdsc_fn_20260719_113934_fn03_direct_wrapper"
+          }
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: function pg_catalog.pg_notify is not allowed in task SQL",
+          "elapsed_seconds": 0.005745303998992313,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "no_notification",
+            "passed": true,
+            "notifications": [],
+            "notify_channel": "tdsc_fn_20260719_113934_fn03_direct_native"
+          }
+        }
+      }
+    },
+    {
+      "id": "FN04",
+      "name": "session_config_write_denied",
+      "sql": "SELECT set_config('sessionbound_guard.task_bound', 'off', false) FROM expenses LIMIT 1",
+      "rendered_sql_by_path": {
+        "api_wrapper": "SELECT set_config('sessionbound_guard.task_bound', 'off', false) FROM expenses LIMIT 1",
+        "direct_wrapper": "SELECT set_config('sessionbound_guard.task_bound', 'off', false) FROM expenses LIMIT 1",
+        "direct_native": "SELECT set_config('sessionbound_guard.task_bound', 'off', false) FROM expenses LIMIT 1"
+      },
+      "expected": "Blocked",
+      "reason_bucket": "function_policy",
+      "side_effect_oracle": {
+        "kind": "none"
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "side_effect_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: unknown function set_config is not allowed",
+          "elapsed_seconds": 0.03125629699934507,
+          "ast_allowed": false,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: SessionBound guard denied query: session lock or trusted runtime state cannot be modified by task SQL",
+          "elapsed_seconds": 0.009203785004501697,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: session lock or trusted runtime state cannot be modified by task SQL",
+          "elapsed_seconds": 0.006789441002183594,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        }
+      }
+    },
+    {
+      "id": "FN05",
+      "name": "session_config_read_denied",
+      "sql": "SELECT current_setting('sessionbound_guard.allowed_view_oids', true) FROM expenses LIMIT 1",
+      "rendered_sql_by_path": {
+        "api_wrapper": "SELECT current_setting('sessionbound_guard.allowed_view_oids', true) FROM expenses LIMIT 1",
+        "direct_wrapper": "SELECT current_setting('sessionbound_guard.allowed_view_oids', true) FROM expenses LIMIT 1",
+        "direct_native": "SELECT current_setting('sessionbound_guard.allowed_view_oids', true) FROM expenses LIMIT 1"
+      },
+      "expected": "Blocked",
+      "reason_bucket": "function_policy",
+      "side_effect_oracle": {
+        "kind": "none"
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "side_effect_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: unknown function current_setting is not allowed",
+          "elapsed_seconds": 0.03426482799841324,
+          "ast_allowed": false,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: SessionBound guard denied query: function pg_catalog.current_setting is not allowed in task SQL",
+          "elapsed_seconds": 0.01020685100229457,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: function pg_catalog.current_setting is not allowed in task SQL",
+          "elapsed_seconds": 0.005521106002561282,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        }
+      }
+    },
+    {
+      "id": "FN06",
+      "name": "catalog_privilege_introspection_denied",
+      "sql": "SELECT has_table_privilege('expenses', 'SELECT') FROM expenses LIMIT 1",
+      "rendered_sql_by_path": {
+        "api_wrapper": "SELECT has_table_privilege('expenses', 'SELECT') FROM expenses LIMIT 1",
+        "direct_wrapper": "SELECT has_table_privilege('expenses', 'SELECT') FROM expenses LIMIT 1",
+        "direct_native": "SELECT has_table_privilege('expenses', 'SELECT') FROM expenses LIMIT 1"
+      },
+      "expected": "Blocked",
+      "reason_bucket": "function_policy",
+      "side_effect_oracle": {
+        "kind": "none"
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "side_effect_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: unknown function has_table_privilege is not allowed",
+          "elapsed_seconds": 0.031049357996380422,
+          "ast_allowed": false,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: SessionBound guard denied query: function pg_catalog.has_table_privilege is not allowed in task SQL",
+          "elapsed_seconds": 0.008708126995770726,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: function pg_catalog.has_table_privilege is not allowed in task SQL",
+          "elapsed_seconds": 0.005996250001771841,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        }
+      }
+    },
+    {
+      "id": "FN07",
+      "name": "file_read_function_denied",
+      "sql": "SELECT pg_read_file('/etc/passwd') FROM expenses LIMIT 1",
+      "rendered_sql_by_path": {
+        "api_wrapper": "SELECT pg_read_file('/etc/passwd') FROM expenses LIMIT 1",
+        "direct_wrapper": "SELECT pg_read_file('/etc/passwd') FROM expenses LIMIT 1",
+        "direct_native": "SELECT pg_read_file('/etc/passwd') FROM expenses LIMIT 1"
+      },
+      "expected": "Blocked",
+      "reason_bucket": "function_policy",
+      "side_effect_oracle": {
+        "kind": "none"
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "side_effect_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: unknown function pg_read_file is not allowed",
+          "elapsed_seconds": 0.03300206200219691,
+          "ast_allowed": false,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: SessionBound guard denied query: function pg_catalog.pg_read_file is not allowed in task SQL",
+          "elapsed_seconds": 0.010035743995103985,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: function pg_catalog.pg_read_file is not allowed in task SQL",
+          "elapsed_seconds": 0.005142085996340029,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        }
+      }
+    },
+    {
+      "id": "FN08",
+      "name": "set_returning_function_scan_denied",
+      "sql": "SELECT * FROM generate_series(1, 3) AS g(x)",
+      "rendered_sql_by_path": {
+        "api_wrapper": "SELECT * FROM generate_series(1, 3) AS g(x)",
+        "direct_wrapper": "SELECT * FROM generate_series(1, 3) AS g(x)",
+        "direct_native": "SELECT * FROM generate_series(1, 3) AS g(x)"
+      },
+      "expected": "Blocked",
+      "reason_bucket": "function_policy",
+      "side_effect_oracle": {
+        "kind": "none"
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "side_effect_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": []
+          },
+          "error": "AST preflight denied query: relation  is not in the approved safe-view registry; unknown function exploding_generate_series is not allowed",
+          "elapsed_seconds": 0.03158733400050551,
+          "ast_allowed": false,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": []
+          },
+          "error": "SessionBoundDB denied query: SessionBound guard denied query: function pg_catalog.generate_series is not allowed in task SQL",
+          "elapsed_seconds": 0.009347175997390877,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": []
+          },
+          "error": "SessionBound guard denied query: function pg_catalog.generate_series is not allowed in task SQL",
+          "elapsed_seconds": 0.005035351001424715,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        }
+      }
+    },
+    {
+      "id": "FN09",
+      "name": "payload_serialization_function_denied",
+      "sql": "SELECT json_build_object('expense_id', expense_id, 'merchant', merchant) FROM expenses LIMIT 1",
+      "rendered_sql_by_path": {
+        "api_wrapper": "SELECT json_build_object('expense_id', expense_id, 'merchant', merchant) FROM expenses LIMIT 1",
+        "direct_wrapper": "SELECT json_build_object('expense_id', expense_id, 'merchant', merchant) FROM expenses LIMIT 1",
+        "direct_native": "SELECT json_build_object('expense_id', expense_id, 'merchant', merchant) FROM expenses LIMIT 1"
+      },
+      "expected": "Blocked",
+      "reason_bucket": "payload_function",
+      "side_effect_oracle": {
+        "kind": "none"
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "side_effect_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "payload_function",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "payload_function"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "payload_function",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "payload_function"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "payload_function",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "payload_function"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "payload_function",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "payload_function",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: payload aggregation function json_build_object is not allowed",
+          "elapsed_seconds": 0.03159299900289625,
+          "ast_allowed": false,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "payload_function",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "payload_function",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: payload aggregation function is not allowed for this task.",
+          "elapsed_seconds": 0.008452724003291223,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "payload_function",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "payload_function",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: payload aggregation function is not allowed",
+          "elapsed_seconds": 0.006188462000864092,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        }
+      }
+    },
+    {
+      "id": "FN10",
+      "name": "unlisted_aggregate_function_denied",
+      "sql": "SELECT stddev(amount) AS amount_stddev FROM expenses",
+      "rendered_sql_by_path": {
+        "api_wrapper": "SELECT stddev(amount) AS amount_stddev FROM expenses",
+        "direct_wrapper": "SELECT stddev(amount) AS amount_stddev FROM expenses",
+        "direct_native": "SELECT stddev(amount) AS amount_stddev FROM expenses"
+      },
+      "expected": "Blocked",
+      "reason_bucket": "aggregate_template_required",
+      "side_effect_oracle": {
+        "kind": "none"
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "side_effect_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: aggregate release requires an approved aggregate template; unknown function stddev is not allowed",
+          "elapsed_seconds": 0.03229545200156281,
+          "ast_allowed": false,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: SessionBound guard denied query: aggregate release requires an approved aggregate template",
+          "elapsed_seconds": 0.009710261001600884,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: aggregate release requires an approved aggregate template",
+          "elapsed_seconds": 0.0051804949980578385,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        }
+      }
+    },
+    {
+      "id": "FN11",
+      "name": "unnest_set_returning_function_denied",
+      "sql": "SELECT * FROM unnest(ARRAY[1, 2, 3]) AS u(x)",
+      "rendered_sql_by_path": {
+        "api_wrapper": "SELECT * FROM unnest(ARRAY[1, 2, 3]) AS u(x)",
+        "direct_wrapper": "SELECT * FROM unnest(ARRAY[1, 2, 3]) AS u(x)",
+        "direct_native": "SELECT * FROM unnest(ARRAY[1, 2, 3]) AS u(x)"
+      },
+      "expected": "Blocked",
+      "reason_bucket": "function_policy",
+      "side_effect_oracle": {
+        "kind": "none"
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "side_effect_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": []
+          },
+          "error": "AST preflight denied query: unknown function array is not allowed; unknown function unnest is not allowed",
+          "elapsed_seconds": 0.03092380200541811,
+          "ast_allowed": false,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": []
+          },
+          "error": "SessionBoundDB denied query: SessionBound guard denied query: function pg_catalog.unnest is not allowed in task SQL",
+          "elapsed_seconds": 0.009018928998557385,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "function_policy",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": []
+          },
+          "error": "SessionBound guard denied query: function pg_catalog.unnest is not allowed in task SQL",
+          "elapsed_seconds": 0.005494311000802554,
+          "ast_allowed": null,
+          "side_effect": {
+            "kind": "none",
+            "passed": true
+          }
+        }
+      }
+    }
+  ]
+}

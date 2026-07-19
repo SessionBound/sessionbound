@@ -41,7 +41,7 @@ CASES: list[dict[str, str]] = [
     },
     {
         "name": "group_by",
-        "expected": "allowed",
+        "expected": "blocked",
         "sql": "SELECT department_name, count(DISTINCT employee_id) AS employee_count, count(*) AS n, sum(amount) AS total FROM expenses GROUP BY department_name",
     },
     {
@@ -61,12 +61,12 @@ CASES: list[dict[str, str]] = [
     },
     {
         "name": "cte",
-        "expected": "allowed",
+        "expected": "blocked",
         "sql": "WITH high AS (SELECT expense_id, amount FROM expenses WHERE amount > 1000) SELECT count(*) FROM high",
     },
     {
         "name": "window_function",
-        "expected": "allowed",
+        "expected": "blocked",
         "sql": "SELECT expense_id, row_number() OVER (PARTITION BY department_name ORDER BY amount DESC) AS rn FROM expenses",
     },
     {
@@ -93,6 +93,11 @@ CASES: list[dict[str, str]] = [
         "name": "copy",
         "expected": "blocked",
         "sql": "COPY expenses TO STDOUT",
+    },
+    {
+        "name": "table_sample",
+        "expected": "blocked",
+        "sql": "SELECT * FROM expenses TABLESAMPLE SYSTEM (10)",
     },
     {
         "name": "create_function",

@@ -44,7 +44,7 @@ ATTACKS: list[dict[str, Any]] = [
     {
         "id": "G01",
         "category": "Small-group / aggregate inference",
-        "expected": "Allowed but accounted",
+        "expected": "Blocked",
         "sql": "SELECT department_id, count(DISTINCT employee_id) AS employee_count, count(*) AS n, sum(amount) AS total FROM expenses GROUP BY department_id;",
         "task_overrides": {"scope": {"expense_month": "2026-06", "department_id": "dep_sales"}},
     },
@@ -52,7 +52,7 @@ ATTACKS: list[dict[str, Any]] = [
     {"id": "G03", "category": "Small-group / aggregate inference", "expected": "Blocked", "sql": "SELECT department_id, employee_id, count(*) AS n, sum(amount) AS total FROM expenses GROUP BY department_id, employee_id;"},
     {"id": "G04", "category": "Small-group / aggregate inference", "expected": "Blocked", "sql": "SELECT expense_id, count(*) AS n, sum(amount) AS total FROM expenses GROUP BY expense_id;"},
     {"id": "G05", "category": "Small-group / aggregate inference", "expected": "Blocked", "sql": "SELECT department_id, count(*) AS n FROM expenses GROUP BY department_id HAVING count(*) < 5;"},
-    {"id": "G06", "category": "Small-group / aggregate inference", "expected": "Allowed but accounted", "sql": "SELECT count(DISTINCT employee_id) AS employee_count, count(*) AS n, sum(amount) AS total FROM expenses;"},
+    {"id": "G06", "category": "Small-group / aggregate inference", "expected": "Blocked", "sql": "SELECT count(DISTINCT employee_id) AS employee_count, count(*) AS n, sum(amount) AS total FROM expenses;"},
     {
         "id": "G07",
         "category": "Small-group / aggregate inference",
@@ -184,8 +184,8 @@ ATTACKS.extend([
     {"id": "U02", "category": "Aggregate inference probes", "expected": "Blocked", "sql": "SELECT department_id, count(*) FROM expenses WHERE employee_id='emp_001' GROUP BY department_id;"},
     {"id": "U03", "category": "Aggregate inference probes", "expected": "Blocked", "sql": "SELECT category, count(*) FROM expenses GROUP BY category HAVING count(DISTINCT employee_id) < 5;"},
     {"id": "U04", "category": "Aggregate inference probes", "expected": "Blocked", "sql": "SELECT employee_level, count(*) FROM expenses GROUP BY employee_level HAVING avg(amount) > 0;"},
-    {"id": "U05", "category": "Aggregate inference probes", "expected": "Allowed but accounted", "sql": "SELECT category, count(DISTINCT employee_id) AS employee_count, count(*) AS n FROM expenses GROUP BY category;"},
-    {"id": "U06", "category": "Aggregate inference probes", "expected": "Allowed but accounted", "sql": "SELECT count(DISTINCT employee_id) AS employee_count, avg(amount) AS avg_amount FROM expenses;"},
+    {"id": "U05", "category": "Aggregate inference probes", "expected": "Blocked", "sql": "SELECT category, count(DISTINCT employee_id) AS employee_count, count(*) AS n FROM expenses GROUP BY category;"},
+    {"id": "U06", "category": "Aggregate inference probes", "expected": "Blocked", "sql": "SELECT count(DISTINCT employee_id) AS employee_count, avg(amount) AS avg_amount FROM expenses;"},
 
     # Pagination and budget scraping.
     {"id": "V01", "category": "Pagination/budget scraping", "expected": "Allowed but accounted", "sql": "SELECT expense_id, amount FROM expenses ORDER BY expense_id LIMIT 5 OFFSET 0;"},

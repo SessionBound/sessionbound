@@ -1,131 +1,173 @@
 # TDSC Artifact Manifest
 
-This manifest identifies the artifact set for the TDSC-oriented
-SessionBound submission candidate. It is now superseded by the 2026-07-10
-blocking audit and must not be used as a claim-complete submission manifest.
+This manifest identifies the current artifact set for the TDSC-oriented
+SessionBound submission candidate on branch
+`high-standard-tdsc-pdsc-revision`.
 
 ## Canonical Version
 
-- Artifact tag: `tdsc-resubmit-2026-07-10` (superseded; do not submit as
-  validated evidence)
-- Final commit: recorded in this manifest and the generated raw-result files
-- Submission branch: `high-standard-tdsc-pdsc-revision`
+- Working branch: `high-standard-tdsc-pdsc-revision`
 - Manuscript source: `paper/tdsc/sessionbound-tdsc.tex`
 - Manuscript PDF: `paper/tdsc/sessionbound-tdsc.pdf`
 - Build command: `cd paper/tdsc && make`
-- Page count after resubmission hardening: 16 pages
+- Current page count: 16 pages
+- Current abstract length: 199 words
+- Current status: repository-side static-review submission candidate for the
+  narrowed claim; human submission steps and future-work boundaries are listed
+  in `paper/tdsc/SUBMISSION_STATUS.md`.
 
-The tag was created after a clean build/evaluation pass, but later evidence
-review found blocking claim-validity issues. Older raw-result files remain in
-the tree as historical records and are not used for current tables.
+Older raw-result files remain in the tree as historical records. Current paper
+tables should cite the 2026-07-19 result files listed below.
 
-## Blocking Audit Notice
+## Current Claim Contract
 
-The following revision notes supersede the "core validated claims" list below:
+The TDSC manuscript is the canonical claim contract for this artifact. It
+states the current, narrowed claim: SessionBound composes signed task tokens,
+short-lived credentials, safe views, SQL-shape policy, cumulative output-tuple
+budgets, drift checks, fenced receipt/budget transitions, rollback-surviving
+receipts, and global single-active binding into a database-enforced task
+session. Its related-work section now includes the explicit nearest-neighbor
+matrix against task/usage-control models, contextual credentials, database
+policy mediators, agent tool-policy systems, and IFC-style agent runtimes.
 
-- `paper/revision_notes/tdsc_blocking_audit_20260710.md`
-- `paper/revision_notes/tdsc_summary_experiment_review_20260710.md`
-- `paper/revision_notes/tdsc_novelty_review_20260710.md`
+Current limitations remain explicit:
 
-The current artifact does not establish a fair cumulative external-PEP
-baseline, a 10k-row detail-disclosure/materialization bottleneck, or complete
-native reference-monitor enforcement. In particular, the native path has
-statically identifiable accounting early returns and incomplete JSON
-aggregation/window-partition coverage. Treat I3, I4, I6, I7, and I9 as
-design goals requiring rebuild and rerun, not as submission-ready validated
-properties.
+- direct aggregate/window release is denied pending approved aggregate
+  templates;
+- `touched_views` receipt provenance is OID-derived for safely parseable bound
+  database SQL, while API preflight and unsupported denied syntax use an
+  approved-name fallback; it is audit context, not an independent universal
+  relation-set attestation;
+- the external-PEP baseline covers cumulative accounting and receipt semantics
+  for the comparison workload, but still relies on complete mediation by the
+  external PEP as part of its TCB;
+- performance is diagnostic prototype evidence, not optimized production
+  throughput.
 
-## Claim Contract
+Submission-format checks were refreshed against IEEE Computer Society/TDSC
+pages on 2026-07-19. The current PDF is a 16-page regular-paper candidate with
+a 199-word abstract, embedded Type 1 fonts, no LaTeX blocking warnings, and no
+supplemental material embedded in the main PDF. The length should be treated as
+MOPC-subject if accepted because it exceeds the 12-page regular-paper threshold;
+ORCID/account metadata remain human submission steps.
 
-The TDSC manuscript is the canonical claim contract for this artifact. It states
-the compressed paper argument and should be used instead of the earlier arXiv v1
-text when checking current claims.
+## Current Results: 2026-07-19
 
-Historical claims previously treated as validated in the TDSC candidate:
-
-- canonical functional validation: 24 / 24 scenarios passed;
-- global single-active binding: 1000 / 1000 same-key race rounds had exactly
-  one owner, with 0 dual-success rounds, 0 zero-owner rounds, 20-contender
-  same-key race producing 1 owner and 19 deterministic denials, crash/socket
-  recovery passing, and old-fence mutation rejected;
-- SDK query surface: native smoke passed, showing that
-  `TaskboundSession.query(sql)` executes ordinary safe-view SQL through
-  PostgreSQL hook/executor accounting, bound direct safe-view `SELECT` is
-  accounted, and unbound safe-view access fails closed;
-- PostgreSQL native hook/executor surface: 18 / 18 cases passed, covering
-  bound native SELECT, prepared statements, cursor/FETCH, COPY(SELECT),
-  EXPLAIN, fail-closed denials, trusted-GUC protection, and conservative
-  aggregate-shape denials;
-- rollback-surviving audit: 4 / 4 cases passed, covering allowed native
-  execution, direct hook/parser denial, wrapper denial, and native executor
-  budget denial; no test-side receipt write is used;
-- adversarial SQL suite: 140 cases, with 126 blocked cases, 14 allowed
-  safe-view analytical cases, and all tested direct small-group
-  aggregate-release attempts blocked by the minimum-group policy;
-- strong baseline: RLS + Safe View + Short Credential + Audit is implemented
-  and measured alongside raw, role-only, safe-view-only, and SessionBound modes;
-- default-seed overhead after global-owner validation: full SessionBound
-  wrapper-reference p50 latency is 128.4--136.1 ms across representative query
-  patterns; the RLS+safe-view+audit baseline is 1.06--1.31 ms p50;
-- hook-only structural guard microbenchmark: `sessionbound_guard_check`
-  p50 was 0.127--0.176 ms across SELECT/JOIN/GROUP BY/CTE-window checks,
-  with raw-schema, UNION, direct-entity group-by, and HAVING denials verified;
-- bounded diagnostic native end-to-end scale benchmark: at 10k scoped rows,
-  wrapper p50 is 5.08--5.25 s and native hook/executor accounting p50 is
-  5.16--5.38 s across SELECT/JOIN/GROUP BY/CTE/window query shapes;
-- security guarantees are limited to the stated prototype SQL fragment and do
-  not claim arbitrary semantic inference prevention or differential privacy.
+- AST validation:
+  `paper/tdsc/raw_results/ast_validation_20260719_162614.json` — 21 / 21.
+- Adversarial SQL:
+  `paper/tdsc/raw_results/adversarial_sql_20260719_162614.json` — 140 / 140;
+  130 blocked and 10 allowed/accounted.
+- Native hook/executor:
+  `paper/tdsc/raw_results/sessionbound_guard_hook_20260719_162553.json` —
+  18 / 18.
+- Rollback audit:
+  `paper/tdsc/raw_results/rollback_audit_20260719_162553.json` — 5 / 5,
+  including API preflight touched-view provenance.
+- Credential-token and safe-view drift:
+  `paper/tdsc/experiments/raw_results/credential_token_1784444204.json` —
+  11 / 11 observed denials.
+- Safe-view scope completeness:
+  `paper/tdsc/raw_results/scope_completeness_20260719_112307.json` —
+  4 / 4 task scenarios and 14 / 14 non-vacuous safe-view checks. Each returned
+  safe-view row is checked against raw-table tenant/month/department
+  provenance.
+- Dynamic token-denied field coverage:
+  `paper/tdsc/raw_results/dynamic_denied_field_20260719_112651.json` —
+  7 / 7 cases and 21 / 21 API, direct-wrapper, and direct-native path
+  decisions. The control token can read `expenses.amount`; the dynamic
+  `expenses.amount` denial is rejected at bind for projection, alias, `WHERE`,
+  `ORDER BY`, aggregate-input, and window-expression shapes.
+- Aggregate-template gating:
+  `paper/tdsc/raw_results/aggregate_template_gating_20260719_113133.json` —
+  12 / 12 cases and 36 / 36 API, direct-wrapper, and direct-native path
+  decisions. The blocked cases cover forged cardinality aliases, a
+  one-employee filtered aggregate, ordinary grouping, CTE/subquery aggregate
+  release, and window partition release; each blocked decision emitted one
+  denial receipt.
+- Function side-effect/default-deny policy:
+  `paper/tdsc/raw_results/function_side_effect_20260719_113937.json` —
+  12 / 12 cases and 36 / 36 API, direct-wrapper, and direct-native path
+  decisions. The side-effect oracles cover `pg_sleep`, session advisory locks,
+  and `pg_notify`; the broader blocked set covers session/config functions,
+  privilege/file introspection, SRFs, payload serialization, and an unlisted
+  aggregate.
+- Receipt fault/forgeability:
+  `paper/tdsc/raw_results/receipt_fault_20260719_114420.json` — 5 / 5.
+  The evaluator recomputes receipt hashes from hardened fields, verifies
+  previous-hash chaining and tamper sensitivity, confirms wrong-fence append
+  rejection, and checks direct agent forgery attempts against receipt/runtime
+  helper surfaces.
+- Concurrent isolation:
+  `paper/tdsc/raw_results/concurrent_isolation_20260719_065546.json` — 6 / 6.
+- Global single-active binding:
+  `paper/tdsc/raw_results/single_active_binding_20260719_065728.json` —
+  passed; 20 repeated races, 10 contenders, zero dual-success rounds, zero
+  zero-winner rounds, zero unexpected errors.
+- Native partial budget:
+  `paper/tdsc/raw_results/native_partial_budget_20260719_162615.json` —
+  1 / 1.
+- SDK query surface:
+  `paper/tdsc/raw_results/sdk_query_20260719_082553.json` — 3 / 3.
+- Functionally equivalent external-PEP cumulative baseline:
+  `paper/tdsc/raw_results/functional_equivalent_baseline_20260719_164723.json`
+  — 8 / 8; covers persistent PEP state, cumulative query/tuple budgets,
+  execution-id idempotence, chained receipts, credential replay denial, and the
+  direct-role bypass TCB distinction.
+- Path consistency:
+  `paper/tdsc/raw_results/path_consistency_20260719_184242.json` — 12 / 12
+  across 36 API, direct-wrapper, and direct-native observations. Two
+  direct-native PostgreSQL pre-analysis errors are recorded as scoped
+  observations rather than receipt-equivalent task decisions.
+- Overhead breakdown:
+  `paper/tdsc/raw_results/overhead_breakdown_20260719_150951.json` and
+  `paper/tdsc/raw_results/overhead_breakdown_20260719_150951.csv`.
+- Hook-only microbenchmark:
+  `paper/tdsc/raw_results/hook_microbenchmark_20260719_150550.json` — 7 / 7.
+- Native end-to-end diagnostic:
+  `paper/tdsc/raw_results/native_end_to_end_20260719_152051.json` and
+  `paper/tdsc/raw_results/native_end_to_end_20260719_152051.csv`; zero query
+  errors across measured supported rows.
 
 ## Reproducibility Map
 
-- Canonical validation script: `scripts/sessionbound_agent_eval.py`
-- Canonical validation raw result:
-  `paper/tdsc/raw_results/sessionbound_agent_eval_1783658962.json`
-- TDSC hardening scripts: `paper/tdsc/scripts/`
-- TDSC raw results: `paper/tdsc/raw_results/`
-- TDSC experiment reports: `paper/tdsc/experiments/`
-- Functional validation summary: `paper/tdsc/evaluation/FUNCTIONAL_VALIDATION.md`
-- Adversarial SQL report: `paper/tdsc/ADVERSARIAL_SQL_SUITE.md`
-- Adversarial SQL raw result:
-  `paper/tdsc/raw_results/adversarial_sql_20260710_110551.json`
-- AST validation report: `paper/tdsc/AST_VALIDATION.md`
-- AST validation raw result:
-  `paper/tdsc/raw_results/ast_validation_20260710_103428.json`
-- SDK query surface report: `paper/tdsc/SDK_QUERY_SURFACE.md`
-- PostgreSQL hook report: `paper/tdsc/POSTGRES_HOOK_ENFORCEMENT.md`
-- Hook-only microbenchmark script: `paper/tdsc/scripts/hook_microbenchmark.py`
-- Hook-only microbenchmark raw result:
-  `paper/tdsc/raw_results/hook_microbenchmark_20260710_103846.json`
-- Native hook/direct-DB result:
-  `paper/tdsc/raw_results/sessionbound_guard_hook_20260710_124927.json`
-- Rollback audit script: `paper/tdsc/scripts/rollback_audit_eval.py`
-- Rollback audit raw result:
-  `paper/tdsc/raw_results/rollback_audit_20260710_124925.json`
-- Overhead breakdown report: `paper/tdsc/OVERHEAD_BREAKDOWN.md`
-- Overhead breakdown raw result:
-  `paper/tdsc/raw_results/overhead_breakdown_20260710_103837.json`
-- Global single-active binding script:
-  `paper/tdsc/scripts/single_active_binding_eval.py`
-- Global single-active binding raw result:
-  `paper/tdsc/raw_results/single_active_binding_20260710_030846.json`
-- Scale sweep raw result:
-  `paper/tdsc/raw_results/scale_1783515366.json`
-- Native end-to-end scale raw result:
-  `paper/tdsc/raw_results/native_end_to_end_20260710_110541.json`
-- Native partial-budget script: `paper/tdsc/scripts/native_partial_budget_eval.py`
-- Native projection-budget raw result:
-  `paper/tdsc/raw_results/native_partial_budget_20260710_124927.json`
-- Functionally equivalent external-PEP baseline:
-  `paper/tdsc/scripts/functional_equivalent_baseline_eval.py`
-- External-PEP baseline raw result:
-  `paper/tdsc/raw_results/functional_equivalent_baseline_20260710_124931.json`
-- Concurrent isolation raw result:
-  `paper/tdsc/raw_results/concurrent_isolation_20260710_030604.json`
-- Credential-token and schema drift raw result:
-  `paper/tdsc/raw_results/credential_token_1783515640.json`
-- Security baseline raw result:
-  `paper/tdsc/raw_results/security_baseline_1783515117.json`
+- Main hardening scripts: `paper/tdsc/scripts/`
+- Current raw results: `paper/tdsc/raw_results/`
+- Current credential-token experiment result:
+  `paper/tdsc/experiments/raw_results/credential_token_1784444204.json`
+- Functional validation summary:
+  `paper/tdsc/evaluation/FUNCTIONAL_VALIDATION.md`
 - Security invariants companion: `paper/tdsc/SECURITY_INVARIANTS.md`
+- Submission status, human submission steps, and future-work boundaries:
+  `paper/tdsc/SUBMISSION_STATUS.md`
+- Changelog: `CHANGELOG_TDSC_HARDENING.md`
+
+Useful reproduction commands after `docker compose up -d --build`:
+
+```bash
+python paper/tdsc/scripts/ast_validation_eval.py
+python paper/tdsc/scripts/adversarial_sql_eval.py --base-url http://localhost:8000
+python paper/tdsc/scripts/sessionbound_guard_hook_eval.py --base-url http://localhost:8000
+python paper/tdsc/scripts/rollback_audit_eval.py --base-url http://localhost:8000
+TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TDSC_DB_NAME=travel python paper/tdsc/experiments/scripts/tdsc_credential_token_tests.py
+python paper/tdsc/scripts/scope_completeness_eval.py --base-url http://localhost:8000
+python paper/tdsc/scripts/dynamic_denied_field_eval.py --base-url http://localhost:8000
+python paper/tdsc/scripts/aggregate_template_gating_eval.py --base-url http://localhost:8000
+python paper/tdsc/scripts/function_side_effect_eval.py --base-url http://localhost:8000
+python paper/tdsc/scripts/receipt_fault_eval.py --base-url http://localhost:8000
+python paper/tdsc/scripts/concurrent_isolation_eval.py --db-host localhost --db-port 15432 --db-name travel
+python paper/tdsc/scripts/single_active_binding_eval.py --db-host localhost --db-port 15432 --db-name travel --rounds 20 --contenders 10
+python paper/tdsc/scripts/native_partial_budget_eval.py --dsn postgresql://agent_app:agentpass@localhost:15432/travel
+python paper/tdsc/scripts/sdk_query_eval.py --database-url postgresql://agent_app:agentpass@localhost:15432/travel
+python paper/tdsc/scripts/functional_equivalent_baseline_eval.py --base-url http://localhost:8000
+python paper/tdsc/scripts/path_consistency_eval.py --base-url http://localhost:8000
+TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TDSC_DB_NAME=travel TDSC_BASE_URL=http://localhost:8000 python paper/tdsc/scripts/overhead_breakdown.py
+python paper/tdsc/scripts/hook_microbenchmark.py --warmup 20 --measured 200
+TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TDSC_DB_NAME=travel TDSC_BASE_URL=http://localhost:8000 TDSC_NATIVE_ROWS=1000,10000 TDSC_NATIVE_WARMUP=1 TDSC_NATIVE_MEASURED=3 TDSC_NATIVE_MAX_QUERIES_PER_TASK=20 python paper/tdsc/scripts/native_end_to_end_benchmark.py
+```
+
+Do not run the credential-token drift test concurrently with suites that assume
+stable safe-view registry metadata.
 
 ## Relationship to arXiv v1
 

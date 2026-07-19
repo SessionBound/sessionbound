@@ -111,6 +111,7 @@ ALLOWED_FUNCTIONS = {
 
 LEXICAL_BLOCKERS = [
     (r"\bcopy\b", "COPY is not allowed"),
+    (r"\btablesample\b", "TABLESAMPLE is not allowed"),
     (r"\bdo\s+\$\$", "DO blocks are not allowed"),
     (r"\bcreate\s+(or\s+replace\s+)?function\b", "CREATE FUNCTION is not allowed"),
     (r"\bset\s+search_path\b", "SET search_path is not allowed"),
@@ -345,6 +346,23 @@ def validate_sql_structure(
                             f"GROUP BY {group_name} is denied by the minimum group-size policy"
                         )
                         flags.append("small_group_direct_entity_group_by")
+            reasons.append("GROUP BY aggregate release requires an approved aggregate template")
+            flags.append("unverifiable_group_by")
+
+        if any(root.find_all(exp.Window)):
+            reasons.append("window functions require an approved aggregate template")
+            flags.append("small_group_window")
+
+        aggregate_present = any(root.find_all(exp.AggFunc))
+
+        where_node = root.args.get("where")
+        if where_node is not None and aggregate_present:
+            reasons.append("filtered aggregate release requires an approved aggregate template")
+            flags.append("small_group_filtered_aggregate")
+
+        if aggregate_present:
+            reasons.append("aggregate release requires an approved aggregate template")
+            flags.append("aggregate_template_required")
 
         having_node = root.args.get("having")
         if having_node is not None:

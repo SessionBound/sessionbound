@@ -4,13 +4,16 @@ These invariants define the intended enforcement contract and were used to
 structure the adversarial evaluation. They are not a formal proof of absence of
 semantic inference.
 
-After the 2026-07-10 blocking audit, this file must not be read as proof that
-the current native artifact validates every invariant. The audit found static
-bypass classes in native accounting eligibility and incomplete JSON
-aggregation/window-partition coverage. Current status: I1, I2, I5, and I8 have
-supporting artifact evidence; I3, I4, I6, I7, and I9 require native
-reference-monitor rebuild and rerun before they can be claimed as validated
-properties. See `paper/revision_notes/tdsc_blocking_audit_20260710.md`.
+After the 2026-07-19 hardening pass, the implementation closes the specific
+static bypass classes reviewed for tenant-only safe views, token-denied exposed
+columns, public denial-receipt forgery, side-effect catalog functions,
+cardinality-alias group release, and non-atomic allowed-release
+budget/receipt updates. The evidence is targeted, not a full proof: the
+2026-07-19 rerun covers the 140-case adversarial suite, native hook suite,
+rollback audit, credential-token drift, concurrent isolation, single-active
+binding, native partial-budget, SDK smoke, path consistency, overhead, and
+native end-to-end diagnostics, but does not prove absence of semantic inference
+or all possible SQL/parser variants.
 
 ## State
 
@@ -63,9 +66,9 @@ referenced relations and rejects unapproved relations before invoking
 `taskbound.bind_task(...)`, stores them in trusted SUSET GUCs, and the
 `sessionbound_guard` hook rejects relation OIDs outside that registry.
 
-Current status: design goal, not fully validated for the native path. The
-native reference-monitor claim is blocked by accounting/enforcement early
-returns under helper-substring and role-switch conditions.
+Current status: supported by the native relation-OID guard for bound
+safe-view SQL. The 2026-07-19 rerun confirmed native direct SQL over approved
+views, helper/private denials, and the 140-case adversarial classifications.
 
 I4. Direct access to denied fields, raw schemas, catalog escape, mutation,
 DDL, and blocked payload aggregation is denied.
@@ -78,28 +81,51 @@ as `json_agg`, `jsonb_agg`, `array_agg`, `string_agg`, `xmlagg`,
 through both the API-layer AST validator and the database-resident hook path for
 the evaluated cases.
 
-Current status: design goal, not fully validated for the native path. The
-native denylist omits JSON aggregate spellings that the API blocks, including
-`json_array_agg` and `json_arrayagg`.
+Current status: strengthened. Token-denied columns are checked at bind time
+against approved view exposure, and the native hook stores the normalized
+denied-column set for parse-tree column/alias checks. Catalog functions are now
+default-deny except for a small audited allowlist of scalar/aggregate/cast
+functions. JSON aggregate aliases remain a test-suite item because PostgreSQL
+version support differs by function name. The 2026-07-19 dynamic denied-field
+evaluator confirmed that a token-specific `expenses.amount` denial is rejected
+at bind across API, direct-wrapper, and direct-native paths for projection,
+alias, predicate, ordering, aggregate-input, and window-expression query
+shapes. These pre-bind denials occur before a task decision receipt exists.
+The 2026-07-19 function side-effect evaluator passed 12 of 12 cases across
+36 API, direct-wrapper, and direct-native path decisions. It covers the allowed
+scalar-function control plus blocked `pg_sleep`, session advisory lock,
+`pg_notify`, `set_config`, `current_setting`, privilege/file introspection,
+SRFs, payload serialization, and unlisted aggregate cases. The side-effect
+oracles confirmed no one-second sleep delay, no held tested session advisory
+lock, and no delivered notification.
 
 I5. Scope predicates or session-bound claims constrain visible rows.
 
 Safe views call `taskbound.claim(...)` and constrain rows by tenant,
 expense month, and optional department. Out-of-scope safe-view predicates
-therefore return zero rows rather than raw out-of-scope data.
+therefore return zero rows rather than raw out-of-scope data. The
+2026-07-19 scope-completeness evaluator passed 4 of 4 task scenarios and
+14 of 14 non-vacuous safe-view checks, comparing returned safe-view rows with
+raw-table tenant/month/department provenance for expense, dimension, workflow,
+and ledger views.
 
 I6. Budget state is monotonic: an allowed query consumes budget, or the query
 is denied.
 
 The prototype increments query count and charges every candidate output tuple
 when budget accounting is enabled; the legacy `unique_expense_rows` column is
-retained as the tuple counter. Projection aliases, joins, and aggregates do
-not depend on an `expense_id` column. The hardening overhead script also measures
-the supported budget-disabled ablation to isolate this cost.
+retained as the tuple counter. Projection aliases, joins, and non-aggregate
+detail CTEs do not depend on an `expense_id` column; direct aggregate/window
+release is denied pending approved templates. The hardening overhead script
+also measures the supported budget-disabled ablation to isolate this cost.
 
-Current status: design goal, not fully validated for the native path. Executor
-accounting can return early based on raw SQL text or role-switch state, so
-monotonic native accounting is not yet established.
+Current status: strengthened. Query count and output-tuple debits for allowed
+wrapper/native releases are performed in the same fenced release-barrier
+transition that appends the allow receipt. The native full-result `SELECT` path
+now replays buffered tuples to the client only after that transition succeeds.
+The 2026-07-19 Docker smoke confirmed direct native detail-row release and
+accounting for an in-scope task. Denials do not release result tuples. Broader
+production accounting dimensions remain future work.
 
 I7. Every allow/deny decision emits a receipt.
 
@@ -108,9 +134,29 @@ autonomous same-database audit channel. API-layer AST preflight denials bind
 the task first and use the same runtime append function; evaluation scripts do
 not write receipts themselves.
 
-Current status: design goal, not fully validated for the native path. Receipt
-completeness depends on all evaluated paths reaching accounting or denial
-recording; the native early-return classes break that evidence.
+Current status: strengthened for bound runtime decisions. Receipts now have a
+unique `execution_id`; the one-second de-duplication window has been removed;
+direct agent grants on `fail_receipt` and `audit_append_receipt` are revoked;
+and receipt hashes cover execution id, binding/fence identity, budget
+transition fields, actor, touched-view list, timestamp, and previous hash.
+`touched_views` is populated from PostgreSQL parse/analyze safe-view OIDs for
+safely parseable bound database SQL and then mapped back to approved registry
+names for receipts. API preflight receipt writes and unsupported denied syntax
+forms rejected before parse/analyze use an approved-name fallback. This is
+hashed audit context; enforcement remains the AST/OID safe-view predicate. The
+2026-07-19 adversarial, hook, rollback, SDK, native partial-budget, and
+path-consistency reruns exercise denial and allow receipts across the main
+tested paths. Path consistency passed 12 of 12 cases across 36 API,
+direct-wrapper, and direct-native observations, with two direct-native
+PostgreSQL pre-analysis errors recorded as scoped observations rather than
+receipt-equivalent task decisions. Path-exhaustive denial-receipt coverage for
+all parser/analyzer variants remains future test work. The 2026-07-19 receipt
+fault evaluator passed 5 of 5 cases: it recomputed receipt hashes from raw
+database rows, verified previous-hash chaining, required hardened fields,
+unique execution ids, and tamper sensitivity, confirmed a wrong-fence trusted
+append inserts no receipt, and denied direct agent attempts to call
+`fail_receipt`, `audit_append_receipt`, `native_finish_query`, or insert into
+the receipt table.
 
 I8. View registry, policy version, or definition-hash drift invalidates the
 token or requires reapproval.
@@ -119,23 +165,30 @@ The prototype task token may carry a safe-view registry snapshot. During
 binding, `taskbound.bind_task` recomputes the registry snapshot and rejects
 stale safe-view registry version, policy version, or view-definition hash.
 
-I9. Direct small-group aggregate release is denied under the configured
-minimum-group policy.
+I9. Direct aggregate and window release is denied unless an approved aggregate
+template supplies trusted provenance/cardinality logic.
 
-Current status: design goal, not fully validated for the native path. GROUP BY
-and HAVING shape checks exist, but window partition variants are not covered
-with the same completeness.
+Current status: conservative. Direct aggregate and window release is denied
+across API, wrapper, and native paths until an approved aggregate-template
+mechanism can provide trusted source-entity provenance/cardinality. This includes ungrouped
+aggregates, ad-hoc `GROUP BY`, `HAVING`, filtered aggregate release, and
+window-function release. The 2026-07-19 aggregate-template gating evaluator
+passed 12 of 12 cases and 36 of 36 path decisions, including forged
+cardinality aliases, a raw-provenance one-employee filtered aggregate,
+ordinary grouping, CTE/subquery aggregate release, and window partition release.
 
 ## Security Guarantees for the Prototype SQL Fragment
 
 The TDSC draft states the invariant contract over a restricted SQL fragment,
 `SELECT-F`. This fragment contains single-statement, read-only `SELECT` SQL with
-projection, predicates, joins, `GROUP BY`/`HAVING`, ordering and limits,
-non-recursive CTEs, and window functions over registered safe-view names.
+projection, predicates, joins, ordering and limits, and non-recursive CTEs over
+registered safe-view names.
 
-`SELECT-F` excludes stacked statements, DDL, DML, `COPY`, `DO`, `CALL`,
-`CREATE FUNCTION`, temporary object creation, recursive CTEs, set-operation
-stacking, table functions, raw-schema or catalog references, and high-risk
+`SELECT-F` excludes direct aggregate release unless an approved aggregate
+template is used, ad-hoc `GROUP BY`, `HAVING`, filtered aggregate release,
+window functions, stacked statements, DDL, DML, `COPY`, `DO`, `CALL`, `CREATE
+FUNCTION`, temporary object creation, recursive CTEs, set-operation stacking,
+`TABLESAMPLE`, table functions, raw-schema or catalog references, and high-risk
 payload aggregation such as `json_agg`, `jsonb_agg`, `array_agg`,
 `string_agg`, `xmlagg`, `row_to_json`, `json_build_object`, and
 `jsonb_build_object`.

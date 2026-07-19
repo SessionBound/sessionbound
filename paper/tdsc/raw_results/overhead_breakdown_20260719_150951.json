@@ -1,0 +1,896 @@
+{
+  "records": [
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.25300258,
+        "p50_ms": 0.23623,
+        "p95_ms": 0.414199,
+        "rows_returned": 10,
+        "stddev_ms": 0.12189471231724369
+      },
+      "mode": "M0 Raw PostgreSQL",
+      "pattern": "Q1 SELECT",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.4500673,
+        "p50_ms": 0.368611,
+        "p95_ms": 1.266555,
+        "rows_returned": 10,
+        "stddev_ms": 0.294519401839013
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.29121292,
+        "p50_ms": 0.26674600000000004,
+        "p95_ms": 0.4521,
+        "rows_returned": 10,
+        "stddev_ms": 0.1240414936391593
+      },
+      "mode": "M1 Role-only read-only credential",
+      "pattern": "Q1 SELECT",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.48253310000000005,
+        "p50_ms": 0.4068925,
+        "p95_ms": 1.360118,
+        "rows_returned": 10,
+        "stddev_ms": 0.30918323230228706
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.45832079,
+        "p50_ms": 0.431373,
+        "p95_ms": 0.579657,
+        "rows_returned": 10,
+        "stddev_ms": 0.20458166639434214
+      },
+      "mode": "M2 Safe-view-only",
+      "pattern": "Q1 SELECT",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.5913153,
+        "p50_ms": 0.507507,
+        "p95_ms": 1.646104,
+        "rows_returned": 10,
+        "stddev_ms": 0.37973988173670936
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 1.43688177,
+        "p50_ms": 1.2796815000000001,
+        "p95_ms": 2.372071,
+        "rows_returned": 10,
+        "stddev_ms": 0.5769282726565383
+      },
+      "mode": "M3 RLS + Safe View + Short Credential + Audit",
+      "pattern": "Q1 SELECT",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 2.4097103,
+        "p50_ms": 1.954586,
+        "p95_ms": 5.539303,
+        "rows_returned": 10,
+        "stddev_ms": 1.1177633418008528
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 159.68781396,
+        "p50_ms": 153.9602255,
+        "p95_ms": 195.87139,
+        "rows_returned": 10,
+        "stddev_ms": 18.626853421142794
+      },
+      "mode": "M4 SessionBound without receipts",
+      "pattern": "Q1 SELECT",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 156.4138946,
+        "p50_ms": 154.28832649999998,
+        "p95_ms": 198.121899,
+        "rows_returned": 10,
+        "stddev_ms": 14.492660554384685
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 155.49955603,
+        "p50_ms": 152.9479915,
+        "p95_ms": 177.680998,
+        "rows_returned": 10,
+        "stddev_ms": 11.63238894271087
+      },
+      "mode": "M5 SessionBound without budget updates",
+      "pattern": "Q1 SELECT",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 165.09968659999998,
+        "p50_ms": 160.12761,
+        "p95_ms": 193.047738,
+        "rows_returned": 10,
+        "stddev_ms": 14.341321935108901
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 157.85901318,
+        "p50_ms": 152.9232695,
+        "p95_ms": 188.088165,
+        "rows_returned": 10,
+        "stddev_ms": 14.93261167650596
+      },
+      "mode": "M6 SessionBound full",
+      "pattern": "Q1 SELECT",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 149.47678409999997,
+        "p50_ms": 147.88473,
+        "p95_ms": 161.686432,
+        "rows_returned": 10,
+        "stddev_ms": 5.691255487756008
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.20188745,
+        "p50_ms": 0.17898599999999998,
+        "p95_ms": 0.338159,
+        "rows_returned": 10,
+        "stddev_ms": 0.09325973823621585
+      },
+      "mode": "M0 Raw PostgreSQL",
+      "pattern": "Q2 JOIN",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.3737937,
+        "p50_ms": 0.30065949999999997,
+        "p95_ms": 0.879179,
+        "rows_returned": 10,
+        "stddev_ms": 0.18970598997293156
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.19138049,
+        "p50_ms": 0.171133,
+        "p95_ms": 0.308483,
+        "rows_returned": 10,
+        "stddev_ms": 0.0893217886431407
+      },
+      "mode": "M1 Role-only read-only credential",
+      "pattern": "Q2 JOIN",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.3529643,
+        "p50_ms": 0.28690499999999997,
+        "p95_ms": 1.108669,
+        "rows_returned": 10,
+        "stddev_ms": 0.2674045763322124
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.24561239,
+        "p50_ms": 0.212298,
+        "p95_ms": 0.390209,
+        "rows_returned": 10,
+        "stddev_ms": 0.13344662258685266
+      },
+      "mode": "M2 Safe-view-only",
+      "pattern": "Q2 JOIN",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.46117559999999996,
+        "p50_ms": 0.3509995,
+        "p95_ms": 1.396474,
+        "rows_returned": 10,
+        "stddev_ms": 0.346361742705282
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 1.08551723,
+        "p50_ms": 0.968855,
+        "p95_ms": 1.799221,
+        "rows_returned": 10,
+        "stddev_ms": 0.35465604687778424
+      },
+      "mode": "M3 RLS + Safe View + Short Credential + Audit",
+      "pattern": "Q2 JOIN",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 1.5749292000000001,
+        "p50_ms": 1.3549125000000002,
+        "p95_ms": 3.562222,
+        "rows_returned": 10,
+        "stddev_ms": 0.7688053912821893
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 153.69643992,
+        "p50_ms": 150.8795475,
+        "p95_ms": 175.083284,
+        "rows_returned": 10,
+        "stddev_ms": 11.50741499859529
+      },
+      "mode": "M4 SessionBound without receipts",
+      "pattern": "Q2 JOIN",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 161.9537622,
+        "p50_ms": 157.96595200000002,
+        "p95_ms": 180.238634,
+        "rows_returned": 10,
+        "stddev_ms": 11.525186395043596
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 162.37190998,
+        "p50_ms": 156.0854325,
+        "p95_ms": 194.467098,
+        "rows_returned": 10,
+        "stddev_ms": 14.88625840926898
+      },
+      "mode": "M5 SessionBound without budget updates",
+      "pattern": "Q2 JOIN",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 164.54918170000002,
+        "p50_ms": 156.250529,
+        "p95_ms": 223.282082,
+        "rows_returned": 10,
+        "stddev_ms": 21.431363400472144
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 161.9521815,
+        "p50_ms": 158.98013500000002,
+        "p95_ms": 183.353767,
+        "rows_returned": 10,
+        "stddev_ms": 13.363443585571853
+      },
+      "mode": "M6 SessionBound full",
+      "pattern": "Q2 JOIN",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 151.1945391,
+        "p50_ms": 151.2065445,
+        "p95_ms": 158.344277,
+        "rows_returned": 10,
+        "stddev_ms": 2.9841112267374177
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.24864259,
+        "p50_ms": 0.224668,
+        "p95_ms": 0.355315,
+        "rows_returned": 1,
+        "stddev_ms": 0.1169093925573215
+      },
+      "mode": "M0 Raw PostgreSQL",
+      "pattern": "Q3 GROUP BY",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.40440129999999996,
+        "p50_ms": 0.33213550000000003,
+        "p95_ms": 1.332216,
+        "rows_returned": 1,
+        "stddev_ms": 0.32130788297116214
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.22860059,
+        "p50_ms": 0.2056445,
+        "p95_ms": 0.326809,
+        "rows_returned": 1,
+        "stddev_ms": 0.10349040345598184
+      },
+      "mode": "M1 Role-only read-only credential",
+      "pattern": "Q3 GROUP BY",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.3682395,
+        "p50_ms": 0.2797725,
+        "p95_ms": 1.161718,
+        "rows_returned": 1,
+        "stddev_ms": 0.2735071309107863
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.28283484999999997,
+        "p50_ms": 0.260306,
+        "p95_ms": 0.442637,
+        "rows_returned": 1,
+        "stddev_ms": 0.12812123569403905
+      },
+      "mode": "M2 Safe-view-only",
+      "pattern": "Q3 GROUP BY",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.4656319,
+        "p50_ms": 0.3808675,
+        "p95_ms": 1.453039,
+        "rows_returned": 1,
+        "stddev_ms": 0.34825749013178453
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 1.2617728099999999,
+        "p50_ms": 1.1100785,
+        "p95_ms": 2.088371,
+        "rows_returned": 1,
+        "stddev_ms": 0.4894041099628138
+      },
+      "mode": "M3 RLS + Safe View + Short Credential + Audit",
+      "pattern": "Q3 GROUP BY",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 1.5753111,
+        "p50_ms": 1.2950525000000002,
+        "p95_ms": 3.37575,
+        "rows_returned": 1,
+        "stddev_ms": 0.6366679522976557
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "stddev_ms": null
+      },
+      "mode": "M4 SessionBound without receipts",
+      "pattern": "Q3 GROUP BY",
+      "reason": "direct aggregate/window release is denied pending approved aggregate templates",
+      "supported": false,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "stddev_ms": null
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "stddev_ms": null
+      },
+      "mode": "M5 SessionBound without budget updates",
+      "pattern": "Q3 GROUP BY",
+      "reason": "direct aggregate/window release is denied pending approved aggregate templates",
+      "supported": false,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "stddev_ms": null
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "stddev_ms": null
+      },
+      "mode": "M6 SessionBound full",
+      "pattern": "Q3 GROUP BY",
+      "reason": "direct aggregate/window release is denied pending approved aggregate templates",
+      "supported": false,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "stddev_ms": null
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.22227555,
+        "p50_ms": 0.204095,
+        "p95_ms": 0.346173,
+        "rows_returned": 10,
+        "stddev_ms": 0.11085306908754262
+      },
+      "mode": "M0 Raw PostgreSQL",
+      "pattern": "Q4 CTE detail",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.3826536,
+        "p50_ms": 0.3102315,
+        "p95_ms": 1.243421,
+        "rows_returned": 10,
+        "stddev_ms": 0.30025419423688327
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.20678007999999998,
+        "p50_ms": 0.179573,
+        "p95_ms": 0.311547,
+        "rows_returned": 10,
+        "stddev_ms": 0.11198428574131998
+      },
+      "mode": "M1 Role-only read-only credential",
+      "pattern": "Q4 CTE detail",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.353361,
+        "p50_ms": 0.308772,
+        "p95_ms": 1.175183,
+        "rows_returned": 10,
+        "stddev_ms": 0.28821965783027365
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.24591846,
+        "p50_ms": 0.2138385,
+        "p95_ms": 0.387147,
+        "rows_returned": 10,
+        "stddev_ms": 0.14172902527347178
+      },
+      "mode": "M2 Safe-view-only",
+      "pattern": "Q4 CTE detail",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.48775019999999997,
+        "p50_ms": 0.47209,
+        "p95_ms": 1.399689,
+        "rows_returned": 10,
+        "stddev_ms": 0.33668989705597047
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 1.0433907,
+        "p50_ms": 0.9104015000000001,
+        "p95_ms": 1.964157,
+        "rows_returned": 10,
+        "stddev_ms": 0.3777274261445017
+      },
+      "mode": "M3 RLS + Safe View + Short Credential + Audit",
+      "pattern": "Q4 CTE detail",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 1.2928831,
+        "p50_ms": 1.0957314999999999,
+        "p95_ms": 3.152769,
+        "rows_returned": 10,
+        "stddev_ms": 0.6524501646646202
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 158.30189922,
+        "p50_ms": 155.3809205,
+        "p95_ms": 186.272168,
+        "rows_returned": 10,
+        "stddev_ms": 11.266001201403698
+      },
+      "mode": "M4 SessionBound without receipts",
+      "pattern": "Q4 CTE detail",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 165.4117698,
+        "p50_ms": 160.3185975,
+        "p95_ms": 191.628768,
+        "rows_returned": 10,
+        "stddev_ms": 13.386623845171117
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 161.6544233,
+        "p50_ms": 157.473122,
+        "p95_ms": 185.854527,
+        "rows_returned": 10,
+        "stddev_ms": 13.652571974266463
+      },
+      "mode": "M5 SessionBound without budget updates",
+      "pattern": "Q4 CTE detail",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 157.4710965,
+        "p50_ms": 156.41569149999998,
+        "p95_ms": 174.850485,
+        "rows_returned": 10,
+        "stddev_ms": 9.762170973492903
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 154.9340794,
+        "p50_ms": 151.161427,
+        "p95_ms": 176.729215,
+        "rows_returned": 10,
+        "stddev_ms": 11.495362345284283
+      },
+      "mode": "M6 SessionBound full",
+      "pattern": "Q4 CTE detail",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 155.7467949,
+        "p50_ms": 154.0294375,
+        "p95_ms": 166.338094,
+        "rows_returned": 10,
+        "stddev_ms": 5.830212771108966
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.25159843,
+        "p50_ms": 0.231501,
+        "p95_ms": 0.373248,
+        "rows_returned": 20,
+        "stddev_ms": 0.11130644164353248
+      },
+      "mode": "M0 Raw PostgreSQL",
+      "pattern": "Q5 window function",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.4250279,
+        "p50_ms": 0.3279415,
+        "p95_ms": 1.195622,
+        "rows_returned": 20,
+        "stddev_ms": 0.2716991361246664
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.284949,
+        "p50_ms": 0.2646965,
+        "p95_ms": 0.365088,
+        "rows_returned": 20,
+        "stddev_ms": 0.09934613758621923
+      },
+      "mode": "M1 Role-only read-only credential",
+      "pattern": "Q5 window function",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.4516344,
+        "p50_ms": 0.3861515,
+        "p95_ms": 1.267874,
+        "rows_returned": 20,
+        "stddev_ms": 0.2867848477553164
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 0.30945244,
+        "p50_ms": 0.270135,
+        "p95_ms": 0.473625,
+        "rows_returned": 20,
+        "stddev_ms": 0.1487727047183266
+      },
+      "mode": "M2 Safe-view-only",
+      "pattern": "Q5 window function",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 0.5314432,
+        "p50_ms": 0.440444,
+        "p95_ms": 1.460383,
+        "rows_returned": 20,
+        "stddev_ms": 0.33578329064823936
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 100,
+        "mean_ms": 1.12874772,
+        "p50_ms": 0.9869110000000001,
+        "p95_ms": 2.132656,
+        "rows_returned": 20,
+        "stddev_ms": 0.37731931714112066
+      },
+      "mode": "M3 RLS + Safe View + Short Credential + Audit",
+      "pattern": "Q5 window function",
+      "supported": true,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 10,
+        "mean_ms": 1.528389,
+        "p50_ms": 1.2905415,
+        "p95_ms": 3.196096,
+        "rows_returned": 20,
+        "stddev_ms": 0.650890723412617
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "stddev_ms": null
+      },
+      "mode": "M4 SessionBound without receipts",
+      "pattern": "Q5 window function",
+      "reason": "direct aggregate/window release is denied pending approved aggregate templates",
+      "supported": false,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "stddev_ms": null
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "stddev_ms": null
+      },
+      "mode": "M5 SessionBound without budget updates",
+      "pattern": "Q5 window function",
+      "reason": "direct aggregate/window release is denied pending approved aggregate templates",
+      "supported": false,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "stddev_ms": null
+      }
+    },
+    {
+      "measurement": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "stddev_ms": null
+      },
+      "mode": "M6 SessionBound full",
+      "pattern": "Q5 window function",
+      "reason": "direct aggregate/window release is denied pending approved aggregate templates",
+      "supported": false,
+      "warmup": {
+        "error_count": 0,
+        "errors": [],
+        "iterations": 0,
+        "mean_ms": null,
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "stddev_ms": null
+      }
+    }
+  ],
+  "run": {
+    "commit": "baa0048",
+    "measurement_iterations": 100,
+    "notes": [
+      "Measurements use direct PostgreSQL connections from the compose network.",
+      "HTTP, model calls, and API-layer AST parsing are excluded from this overhead breakdown.",
+      "M3 applies PostgreSQL RLS over raw tables, field-limited safe views, a short-lived read-only role, and a basic query audit insert."
+    ],
+    "timestamp": "2026-07-19T07:09:51Z",
+    "warmup_iterations": 10
+  }
+}

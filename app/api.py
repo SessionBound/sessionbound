@@ -1,6 +1,7 @@
 import json
 import os
 import secrets
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -51,7 +52,7 @@ class CreateTaskRequest(BaseModel):
     budgets: dict[str, int] | None = None
     aggregate_policy: dict[str, Any] | None = None
     max_queries: int = Field(default=5, ge=1, le=100)
-    max_rows: int = Field(default=4, ge=1, le=5000)
+    max_rows: int = Field(default=4, ge=1, le=200000)
 
 
 class QueryRequest(BaseModel):
@@ -440,22 +441,81 @@ def ast_preflight(
             denied_columns=payload.get("denied_columns", []),
             aggregate_policy=payload.get("aggregate_policy", {}),
         )
-    if not result.allowed:
-        try:
-            cur.execute(
-                "SELECT taskbound.fail_receipt(%s, %s)",
-                (sql_text, f"AST preflight denied query: {result.reason_text()}"),
-            )
-        except Exception:
-            pass
     return result
+
+
+def record_preflight_denial_receipt(payload_text: str, sql_text: str, reason: str) -> None:
+    """Append a trusted API preflight-denial receipt for the active binding.
+
+    The dynamic agent credential must not be granted a public receipt-writing
+    function: that would let the untrusted agent forge denial events.  The API
+    is part of the trusted control plane for AST preflight, so it records the
+    denial through the admin connection after locating the live fenced binding
+    row for the signed token.
+    """
+
+    try:
+        payload = json.loads(payload_text)
+    except json.JSONDecodeError:
+        return
+
+    task_id = payload.get("task_id") or ""
+    credential_id = payload.get("credential_id") or ""
+    if not task_id or not credential_id:
+        return
+
+    token_digest = hashlib.sha256(payload_text.encode("utf-8")).hexdigest()
+    query_digest = hashlib.sha256(sql_text.encode("utf-8")).hexdigest()
+
+    with admin_connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT binding_id, fence_token
+                FROM taskbound.active_sessions
+                WHERE task_id = %s
+                  AND credential_id = %s
+                  AND token_digest = %s
+                ORDER BY bound_at DESC
+                LIMIT 1
+                """,
+                (task_id, credential_id, token_digest),
+            )
+            binding = cur.fetchone()
+            if not binding:
+                return
+
+            cur.execute(
+                """
+                SELECT taskbound.audit_append_receipt(
+                  %s, %s, %s::uuid, %s, %s, 'denied',
+                  0, 0, NULL, %s, true, NULL, %s,
+                  taskbound.extract_touched_views(%s, %s::text[])
+                )
+                """,
+                (
+                    task_id,
+                    payload.get("budget_account") or task_id,
+                    str(binding[0]),
+                    binding[1],
+                    query_digest,
+                    reason,
+                    payload.get("actor") or "",
+                    sql_text,
+                    [
+                        view
+                        for view in payload.get("allowed_views", [])
+                        if isinstance(view, str)
+                    ],
+                ),
+            )
 
 
 def fetch_receipts(cur) -> list[dict[str, Any]]:
     cur.execute(
         """
         SELECT decision, rows_returned, unique_rows_added,
-               remaining_unique_row_budget, reason, created_at
+               remaining_unique_row_budget, reason, touched_views, created_at
         FROM taskbound.receipts()
         LIMIT 20
         """
@@ -1165,6 +1225,11 @@ def index():
 
 @app.post("/tasks")
 def create_task(req: CreateTaskRequest):
+    if not req.credential_id:
+        raise HTTPException(
+            status_code=400,
+            detail="credential_id is required; issue a short-lived runtime credential before creating a task token",
+        )
     requested_scope = dict(req.scope or {})
     if req.department_id:
         requested_scope["department_id"] = req.department_id
@@ -1386,6 +1451,11 @@ def query(req: QueryRequest):
                 bound = session.bind_task(req.payload_text, req.signature)
                 validation = ast_preflight(cur, req.payload_text, req.sql)
                 if not validation.allowed:
+                    record_preflight_denial_receipt(
+                        req.payload_text,
+                        req.sql,
+                        f"AST preflight denied query: {validation.reason_text()}",
+                    )
                     state = session.inspect_state()
                     receipts = session.receipts()
                     return {
@@ -1438,6 +1508,11 @@ def agent_query(req: AgentQueryRequest):
                 bound = session.bind_task(req.payload_text, req.signature)
                 validation = ast_preflight(cur, req.payload_text, req.sql)
                 if not validation.allowed:
+                    record_preflight_denial_receipt(
+                        req.payload_text,
+                        req.sql,
+                        f"AST preflight denied query: {validation.reason_text()}",
+                    )
                     state = session.inspect_state()
                     receipts = session.receipts()
                     return {
@@ -1531,6 +1606,11 @@ def agent_question(req: AgentQuestionRequest):
                 bound = session.bind_task(req.payload_text, req.signature)
                 validation = ast_preflight(cur, req.payload_text, sql_text)
                 if not validation.allowed:
+                    record_preflight_denial_receipt(
+                        req.payload_text,
+                        sql_text,
+                        f"AST preflight denied query: {validation.reason_text()}",
+                    )
                     state = session.inspect_state()
                     receipts = session.receipts()
                     return {

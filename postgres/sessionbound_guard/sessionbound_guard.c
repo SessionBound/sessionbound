@@ -17,6 +17,7 @@
 #include "nodes/nodes.h"
 #include "nodes/parsenodes.h"
 #include "nodes/plannodes.h"
+#include "nodes/primnodes.h"
 #include "parser/analyze.h"
 #include "parser/parsetree.h"
 #include "tcop/dest.h"
@@ -42,6 +43,7 @@ void _PG_fini(void);
 
 PG_FUNCTION_INFO_V1(sessionbound_guard_status);
 PG_FUNCTION_INFO_V1(sessionbound_guard_check);
+PG_FUNCTION_INFO_V1(sessionbound_guard_touched_view_oids);
 PG_FUNCTION_INFO_V1(sessionbound_guard_install_binding);
 PG_FUNCTION_INFO_V1(sessionbound_guard_clear_binding);
 
@@ -54,6 +56,7 @@ typedef struct GuardContext
 	bool saw_non_public_runtime_function;
 	bool defer_safe_view_requirement;
 	bool explicit_check;
+	Query *current_query;
 } GuardContext;
 
 typedef struct RelationScanContext
@@ -62,6 +65,11 @@ typedef struct RelationScanContext
 	bool saw_guarded_relation;
 	bool saw_private_taskbound_function;
 } RelationScanContext;
+
+typedef struct TouchedViewContext
+{
+	List *allowed_view_oids;
+} TouchedViewContext;
 
 typedef struct PlannedRuntimeContext
 {
@@ -130,6 +138,7 @@ static int guard_min_group_size = 5;
 static char *guard_task_id = NULL;
 static char *guard_budget_account = NULL;
 static char *guard_allowed_view_oids = NULL;
+static char *guard_denied_columns = NULL;
 static char *guard_binding_id = NULL;
 static char *guard_token_digest = NULL;
 static char *guard_credential_id = NULL;
@@ -140,6 +149,8 @@ static bool guard_in_internal_spi = false;
 /* taskbound.run() records the caught error once; avoid one receipt per nested
  * SPI parse node while its explicit guard check is running. */
 static bool guard_suppress_receipts = false;
+static bool guard_collect_touched_oids = false;
+static List *guard_touched_view_oids = NIL;
 static const char *guard_current_sql = NULL;
 static NativeQueryState *native_states = NULL;
 
@@ -166,6 +177,9 @@ static void guard_check_group_policy(Query *query);
 static void guard_deny(const char *detail);
 static bool guard_expr_walker(Node *node, void *context);
 static bool relation_scan_walker(Node *node, void *context);
+static void collect_touched_views_from_query(Query *query, TouchedViewContext *ctx);
+static bool touched_view_walker(Node *node, void *context);
+static ArrayType *oid_list_to_array(List *oids);
 static bool planned_runtime_expr_walker(Node *node, void *context);
 
 static bool
@@ -228,6 +242,7 @@ clear_trusted_binding_state(void)
 	assign_top_string(&guard_task_id, "");
 	assign_top_string(&guard_budget_account, "");
 	assign_top_string(&guard_allowed_view_oids, "");
+	assign_top_string(&guard_denied_columns, "");
 	assign_top_string(&guard_binding_id, "");
 	assign_top_string(&guard_token_digest, "");
 	assign_top_string(&guard_credential_id, "");
@@ -371,13 +386,105 @@ guard_deny(const char *detail)
 }
 
 static bool
+token_denied_bare_name(const char *name)
+{
+	char *copy;
+	char *token;
+	bool denied = false;
+
+	if (name == NULL || guard_denied_columns == NULL || guard_denied_columns[0] == '\0')
+		return false;
+
+	copy = pstrdup(guard_denied_columns);
+	token = strtok(copy, ",");
+	while (token != NULL)
+	{
+		char *last_dot;
+		char *column_name;
+
+		while (*token == ' ' || *token == '\t' || *token == '\n')
+			token++;
+		last_dot = strrchr(token, '.');
+		column_name = last_dot != NULL ? last_dot + 1 : token;
+		if (pg_strcasecmp(column_name, name) == 0)
+		{
+			denied = true;
+			break;
+		}
+		token = strtok(NULL, ",");
+	}
+	pfree(copy);
+	return denied;
+}
+
+static bool
+token_denied_column_reference(const char *namespace_name, const char *relation_name, const char *column_name)
+{
+	char *copy;
+	char *token;
+	bool denied = false;
+
+	if (column_name == NULL || guard_denied_columns == NULL || guard_denied_columns[0] == '\0')
+		return false;
+
+	copy = pstrdup(guard_denied_columns);
+	token = strtok(copy, ",");
+	while (token != NULL)
+	{
+		char *last_dot;
+		char *candidate_column;
+		char *qualifier = NULL;
+		char *qualifier_last_dot;
+		char qualified_relation[NAMEDATALEN * 2 + 2];
+
+		while (*token == ' ' || *token == '\t' || *token == '\n')
+			token++;
+		last_dot = strrchr(token, '.');
+		candidate_column = last_dot != NULL ? last_dot + 1 : token;
+		if (pg_strcasecmp(candidate_column, column_name) != 0)
+		{
+			token = strtok(NULL, ",");
+			continue;
+		}
+
+		if (last_dot == NULL)
+		{
+			denied = true;
+			break;
+		}
+
+		*last_dot = '\0';
+		qualifier = token;
+		qualifier_last_dot = strrchr(qualifier, '.');
+		if (namespace_name != NULL && relation_name != NULL)
+			snprintf(qualified_relation, sizeof(qualified_relation), "%s.%s", namespace_name, relation_name);
+		else
+			qualified_relation[0] = '\0';
+
+		if ((relation_name != NULL && pg_strcasecmp(qualifier, relation_name) == 0) ||
+			(qualified_relation[0] != '\0' && pg_strcasecmp(qualifier, qualified_relation) == 0) ||
+			(qualifier_last_dot != NULL && relation_name != NULL &&
+			 pg_strcasecmp(qualifier_last_dot + 1, relation_name) == 0))
+		{
+			denied = true;
+			break;
+		}
+
+		token = strtok(NULL, ",");
+	}
+	pfree(copy);
+	return denied;
+}
+
+static bool
 name_is_sensitive(const char *name)
 {
 	if (name == NULL)
 		return false;
 	return pg_strcasecmp(name, "salary") == 0 ||
 		   pg_strcasecmp(name, "bank_account") == 0 ||
-		   pg_strcasecmp(name, "phone") == 0;
+		   pg_strcasecmp(name, "phone") == 0 ||
+		   token_denied_bare_name(name);
 }
 
 static bool
@@ -405,6 +512,46 @@ function_is_payload_aggregation(const char *name)
 }
 
 static bool
+function_is_allowed_task_function(const char *namespace_name, const char *funcname)
+{
+	if (namespace_name == NULL || funcname == NULL)
+		return false;
+	if (pg_strcasecmp(namespace_name, "pg_catalog") != 0)
+		return false;
+
+	return pg_strcasecmp(funcname, "abs") == 0 ||
+		   pg_strcasecmp(funcname, "avg") == 0 ||
+		   pg_strcasecmp(funcname, "bool") == 0 ||
+		   pg_strcasecmp(funcname, "bpchar") == 0 ||
+		   pg_strcasecmp(funcname, "chr") == 0 ||
+		   pg_strcasecmp(funcname, "coalesce") == 0 ||
+		   pg_strcasecmp(funcname, "count") == 0 ||
+		   pg_strcasecmp(funcname, "date") == 0 ||
+		   pg_strcasecmp(funcname, "date_part") == 0 ||
+		   pg_strcasecmp(funcname, "date_trunc") == 0 ||
+		   pg_strcasecmp(funcname, "extract") == 0 ||
+		   pg_strcasecmp(funcname, "float4") == 0 ||
+		   pg_strcasecmp(funcname, "float8") == 0 ||
+		   pg_strcasecmp(funcname, "greatest") == 0 ||
+		   pg_strcasecmp(funcname, "int2") == 0 ||
+		   pg_strcasecmp(funcname, "int4") == 0 ||
+		   pg_strcasecmp(funcname, "int8") == 0 ||
+		   pg_strcasecmp(funcname, "least") == 0 ||
+		   pg_strcasecmp(funcname, "lower") == 0 ||
+		   pg_strcasecmp(funcname, "max") == 0 ||
+		   pg_strcasecmp(funcname, "min") == 0 ||
+		   pg_strcasecmp(funcname, "now") == 0 ||
+		   pg_strcasecmp(funcname, "nullif") == 0 ||
+		   pg_strcasecmp(funcname, "numeric") == 0 ||
+		   pg_strcasecmp(funcname, "round") == 0 ||
+		   pg_strcasecmp(funcname, "sum") == 0 ||
+		   pg_strcasecmp(funcname, "text") == 0 ||
+		   pg_strcasecmp(funcname, "timestamp") == 0 ||
+		   pg_strcasecmp(funcname, "timestamptz") == 0 ||
+		   pg_strcasecmp(funcname, "upper") == 0;
+}
+
+static bool
 function_is_public_runtime_entrypoint(const char *namespace_name, const char *funcname)
 {
 	if (namespace_name == NULL || funcname == NULL)
@@ -422,8 +569,7 @@ function_is_public_runtime_entrypoint(const char *namespace_name, const char *fu
 		   pg_strcasecmp(funcname, "run") == 0 ||
 		   pg_strcasecmp(funcname, "command") == 0 ||
 		   pg_strcasecmp(funcname, "inspect_task_state") == 0 ||
-		   pg_strcasecmp(funcname, "receipts") == 0 ||
-		   pg_strcasecmp(funcname, "fail_receipt") == 0;
+		   pg_strcasecmp(funcname, "receipts") == 0;
 }
 
 static bool
@@ -516,6 +662,9 @@ guard_check_group_policy(Query *query)
 	if (query == NULL)
 		return;
 
+	if (query->hasWindowFuncs)
+		guard_deny("window functions require an approved aggregate template");
+
 	if (query->havingQual != NULL)
 		guard_deny("minimum group-size policy denies HAVING predicates");
 
@@ -530,6 +679,15 @@ guard_check_group_policy(Query *query)
 		if (target_entry_is_direct_entity_group(query, tle))
 			guard_deny("minimum group-size policy denies grouping by sensitive entity identifiers");
 	}
+
+	if (query->groupClause != NIL)
+		guard_deny("GROUP BY aggregate release requires an approved aggregate template");
+
+	if (query->hasAggs && query->jointree != NULL && query->jointree->quals != NULL)
+		guard_deny("filtered aggregate release requires an approved aggregate template");
+
+	if (query->hasAggs)
+		guard_deny("aggregate release requires an approved aggregate template");
 }
 
 static void
@@ -563,18 +721,22 @@ guard_check_function(Oid funcid, GuardContext *ctx)
 		return;
 	}
 
-	if (ctx != NULL)
-		ctx->saw_non_public_runtime_function = true;
-
 	if (function_is_taskbound_private(namespace_name, funcname))
+	{
+		if (ctx != NULL)
+			ctx->saw_non_public_runtime_function = true;
 		guard_deny("direct access to taskbound runtime helper functions is not allowed");
+	}
 
-	if (namespace_name == NULL || pg_strcasecmp(namespace_name, "pg_catalog") != 0)
-		ereport(ERROR,
-				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-				 errmsg("SessionBound guard denied query: non-catalog function %s.%s is not allowed in task SQL",
-						namespace_name ? namespace_name : "<unknown>",
-						funcname ? funcname : "<unknown>")));
+	if (!function_is_allowed_task_function(namespace_name, funcname))
+	{
+		char detail[256];
+		snprintf(detail, sizeof(detail),
+				 "function %s.%s is not allowed in task SQL",
+				 namespace_name ? namespace_name : "<unknown>",
+				 funcname ? funcname : "<unknown>");
+		guard_deny(detail);
+	}
 }
 
 static bool
@@ -642,6 +804,8 @@ guard_check_rte(RangeTblEntry *rte, GuardContext *ctx)
 	switch (rte->rtekind)
 	{
 		case RTE_RELATION:
+			if (rte->tablesample != NULL)
+				guard_deny("TABLESAMPLE is not allowed in task SQL");
 			guard_check_relation(rte->relid, ctx);
 			break;
 		case RTE_SUBQUERY:
@@ -673,12 +837,14 @@ guard_check_rte(RangeTblEntry *rte, GuardContext *ctx)
 static bool
 guard_expr_walker(Node *node, void *context)
 {
+	GuardContext *ctx = (GuardContext *) context;
+
 	if (node == NULL)
 		return false;
 
 	if (IsA(node, Query))
 	{
-		guard_check_query((Query *) node, (GuardContext *) context);
+		guard_check_query((Query *) node, ctx);
 		return false;
 	}
 
@@ -694,11 +860,47 @@ guard_expr_walker(Node *node, void *context)
 	}
 	else if (IsA(node, Aggref))
 	{
-		guard_check_function(((Aggref *) node)->aggfnoid, (GuardContext *) context);
+		guard_check_function(((Aggref *) node)->aggfnoid, ctx);
+	}
+	else if (IsA(node, WindowFunc))
+	{
+		guard_deny("window functions require an approved aggregate template");
+	}
+	else if (IsA(node, Var))
+	{
+		Var *var = (Var *) node;
+		Query *query = ctx != NULL ? ctx->current_query : NULL;
+		RangeTblEntry *rte = NULL;
+		char *attname = NULL;
+		char *relname = NULL;
+		char *namespace_name = NULL;
+
+		if (query != NULL &&
+			var->varattno > 0 &&
+			var->varno > 0 &&
+			var->varno <= list_length(query->rtable))
+			rte = rt_fetch(var->varno, query->rtable);
+
+		if (rte != NULL && rte->rtekind == RTE_RELATION)
+		{
+			attname = get_attname(rte->relid, var->varattno, false);
+			relname = get_rel_name(rte->relid);
+			namespace_name = get_namespace_name(get_rel_namespace(rte->relid));
+		}
+		else if (rte != NULL &&
+				 rte->eref != NULL &&
+				 var->varattno <= list_length(rte->eref->colnames))
+		{
+			attname = strVal(list_nth(rte->eref->colnames, var->varattno - 1));
+		}
+
+		if (name_is_sensitive(attname) ||
+			token_denied_column_reference(namespace_name, relname, attname))
+			guard_deny("denied column is outside this task capability");
 	}
 	else if (IsA(node, SQLValueFunction))
 	{
-		((GuardContext *) context)->saw_non_public_runtime_function = true;
+		ctx->saw_non_public_runtime_function = true;
 	}
 
 	return expression_tree_walker(node, guard_expr_walker, context);
@@ -783,6 +985,7 @@ static void
 guard_check_query(Query *query, GuardContext *ctx)
 {
 	ListCell *lc;
+	Query *old_current_query;
 
 	if (query == NULL)
 		return;
@@ -813,7 +1016,10 @@ guard_check_query(Query *query, GuardContext *ctx)
 	foreach(lc, query->rtable)
 		guard_check_rte((RangeTblEntry *) lfirst(lc), ctx);
 
+	old_current_query = ctx->current_query;
+	ctx->current_query = query;
 	query_tree_walker(query, guard_expr_walker, ctx, QTW_IGNORE_RANGE_TABLE);
+	ctx->current_query = old_current_query;
 }
 
 static bool
@@ -862,6 +1068,169 @@ relation_scan_walker(Node *node, void *context)
 	}
 
 	return expression_tree_walker(node, relation_scan_walker, context);
+}
+
+static void
+collect_touched_relation_oid(Oid relid, TouchedViewContext *ctx)
+{
+	char relkind;
+
+	if (ctx == NULL || !OidIsValid(relid))
+		return;
+	if (!list_member_oid(ctx->allowed_view_oids, relid))
+		return;
+
+	relkind = get_rel_relkind(relid);
+	if (relkind != RELKIND_VIEW && relkind != RELKIND_MATVIEW)
+		return;
+
+	if (!list_member_oid(guard_touched_view_oids, relid))
+		guard_touched_view_oids = lappend_oid(guard_touched_view_oids, relid);
+}
+
+static void
+collect_touched_views_from_utility(Node *utility_stmt, TouchedViewContext *ctx)
+{
+	if (utility_stmt == NULL)
+		return;
+
+	switch (nodeTag(utility_stmt))
+	{
+		case T_CopyStmt:
+		{
+			CopyStmt *stmt = (CopyStmt *) utility_stmt;
+			if (stmt->query != NULL && IsA(stmt->query, Query))
+				collect_touched_views_from_query((Query *) stmt->query, ctx);
+			return;
+		}
+		case T_ExplainStmt:
+		{
+			ExplainStmt *stmt = (ExplainStmt *) utility_stmt;
+			if (stmt->query != NULL && IsA(stmt->query, Query))
+				collect_touched_views_from_query((Query *) stmt->query, ctx);
+			return;
+		}
+		case T_PrepareStmt:
+		{
+			PrepareStmt *stmt = (PrepareStmt *) utility_stmt;
+			if (stmt->query != NULL && IsA(stmt->query, Query))
+				collect_touched_views_from_query((Query *) stmt->query, ctx);
+			return;
+		}
+		case T_DeclareCursorStmt:
+		{
+			DeclareCursorStmt *stmt = (DeclareCursorStmt *) utility_stmt;
+			if (stmt->query != NULL && IsA(stmt->query, Query))
+				collect_touched_views_from_query((Query *) stmt->query, ctx);
+			return;
+		}
+		default:
+			return;
+	}
+}
+
+static void
+collect_touched_views_from_query(Query *query, TouchedViewContext *ctx)
+{
+	ListCell *lc;
+
+	if (query == NULL || ctx == NULL)
+		return;
+
+	if (query->commandType == CMD_UTILITY)
+	{
+		collect_touched_views_from_utility(query->utilityStmt, ctx);
+		return;
+	}
+
+	foreach(lc, query->cteList)
+	{
+		CommonTableExpr *cte = (CommonTableExpr *) lfirst(lc);
+		if (cte != NULL && cte->ctequery != NULL && IsA(cte->ctequery, Query))
+			collect_touched_views_from_query((Query *) cte->ctequery, ctx);
+	}
+
+	foreach(lc, query->rtable)
+	{
+		RangeTblEntry *rte = (RangeTblEntry *) lfirst(lc);
+		if (rte == NULL)
+			continue;
+
+		switch (rte->rtekind)
+		{
+			case RTE_RELATION:
+				collect_touched_relation_oid(rte->relid, ctx);
+				break;
+			case RTE_SUBQUERY:
+				collect_touched_views_from_query(rte->subquery, ctx);
+				break;
+			case RTE_FUNCTION:
+			{
+				ListCell *flc;
+				foreach(flc, rte->functions)
+				{
+					RangeTblFunction *rtfunc = (RangeTblFunction *) lfirst(flc);
+					if (rtfunc != NULL)
+						touched_view_walker(rtfunc->funcexpr, ctx);
+				}
+				break;
+			}
+			default:
+				break;
+		}
+	}
+
+	if (query->setOperations == NULL)
+	{
+		touched_view_walker((Node *) query->targetList, ctx);
+		if (query->jointree != NULL)
+			touched_view_walker(query->jointree->quals, ctx);
+		touched_view_walker(query->havingQual, ctx);
+	}
+}
+
+static bool
+touched_view_walker(Node *node, void *context)
+{
+	if (node == NULL)
+		return false;
+
+	if (IsA(node, Query))
+	{
+		collect_touched_views_from_query((Query *) node, (TouchedViewContext *) context);
+		return false;
+	}
+	if (IsA(node, SubLink))
+	{
+		SubLink *sublink = (SubLink *) node;
+		if (sublink->subselect != NULL && IsA(sublink->subselect, Query))
+			collect_touched_views_from_query((Query *) sublink->subselect,
+											 (TouchedViewContext *) context);
+	}
+
+	return expression_tree_walker(node, touched_view_walker, context);
+}
+
+static ArrayType *
+oid_list_to_array(List *oids)
+{
+	int n = list_length(oids);
+	Datum *values;
+	ListCell *lc;
+	int i = 0;
+	int16 typlen;
+	bool typbyval;
+	char typalign;
+
+	if (n == 0)
+		return construct_empty_array(OIDOID);
+
+	values = palloc(sizeof(Datum) * n);
+	foreach(lc, oids)
+		values[i++] = ObjectIdGetDatum(lfirst_oid(lc));
+
+	get_typlenbyvalalign(OIDOID, &typlen, &typbyval, &typalign);
+	return construct_array(values, n, OIDOID, typlen, typbyval, typalign);
 }
 
 static void
@@ -916,19 +1285,30 @@ sessionbound_guard_post_parse_analyze(ParseState *pstate, Query *query,
 		ctx.saw_non_public_runtime_function = false;
 		ctx.defer_safe_view_requirement = false;
 		ctx.explicit_check = guard_enabled;
+		ctx.current_query = NULL;
 
-		if ((guard_enabled || scan.saw_guarded_relation) && ctx.allowed_view_oids == NIL)
-			guard_deny("no approved safe views are bound to this session");
+		if (guard_collect_touched_oids)
+		{
+			TouchedViewContext touched_ctx;
 
-		guard_check_query(query, &ctx);
+			touched_ctx.allowed_view_oids = ctx.allowed_view_oids;
+			collect_touched_views_from_query(query, &touched_ctx);
+		}
+		else
+		{
+			if ((guard_enabled || scan.saw_guarded_relation) && ctx.allowed_view_oids == NIL)
+				guard_deny("no approved safe views are bound to this session");
 
-		if ((guard_enabled || guard_task_bound || scan.saw_guarded_relation) &&
-			ctx.allowed_relation_refs == 0 &&
-			!ctx.defer_safe_view_requirement &&
-			(!ctx.saw_public_runtime_entrypoint ||
-			 ctx.saw_non_public_runtime_function ||
-			 ctx.saw_relation))
-			guard_deny("task SQL must reference at least one approved safe view");
+			guard_check_query(query, &ctx);
+
+			if ((guard_enabled || guard_task_bound || scan.saw_guarded_relation) &&
+				ctx.allowed_relation_refs == 0 &&
+				!ctx.defer_safe_view_requirement &&
+				(!ctx.saw_public_runtime_entrypoint ||
+				 ctx.saw_non_public_runtime_function ||
+				 ctx.saw_relation))
+				guard_deny("task SQL must reference at least one approved safe view");
+		}
 	}
 	PG_CATCH();
 	{
@@ -1024,9 +1404,9 @@ native_reserve_utility_query(const char *query_string)
 static void
 native_finish_utility_query(const char *query_string)
 {
-	Oid argtypes[10] = {TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
-	Datum values[10];
-	char nulls[10] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
+	Oid argtypes[11] = {TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
+	Datum values[11];
+	char nulls[11] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
 	Datum empty_array;
 
 	if (!valid_guard_task_id() || !valid_guard_binding_identity())
@@ -1041,15 +1421,16 @@ native_finish_utility_query(const char *query_string)
 	values[2] = CStringGetTextDatum(query_string != NULL ? query_string : "");
 	values[3] = Int64GetDatum(0);
 	values[4] = empty_array;
-	values[5] = Int32GetDatum(guard_max_unique_expense_rows);
-	values[6] = BoolGetDatum(guard_budget_accounting_enabled);
-	values[7] = BoolGetDatum(guard_receipts_enabled);
-	values[8] = CStringGetTextDatum(guard_binding_id);
-	values[9] = Int64GetDatum(guard_fence_token);
+	values[5] = Int32GetDatum(guard_max_queries);
+	values[6] = Int32GetDatum(guard_max_unique_expense_rows);
+	values[7] = BoolGetDatum(guard_budget_accounting_enabled);
+	values[8] = BoolGetDatum(guard_receipts_enabled);
+	values[9] = CStringGetTextDatum(guard_binding_id);
+	values[10] = Int64GetDatum(guard_fence_token);
 
 	spi_call_void(
-		"SELECT taskbound.native_finish_query($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid, $10)",
-		10,
+		"SELECT taskbound.native_finish_query($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::uuid, $11)",
+		11,
 		argtypes,
 		values,
 		nulls);
@@ -1327,6 +1708,20 @@ planned_stmt_is_runtime_entrypoint_only(PlannedStmt *plannedstmt)
 }
 
 static bool
+source_text_calls_public_runtime_entrypoint(const char *source_text)
+{
+	if (source_text == NULL)
+		return false;
+
+	return strstr(source_text, "taskbound.bind_task") != NULL ||
+		   strstr(source_text, "taskbound.unbind_task") != NULL ||
+		   strstr(source_text, "taskbound.run") != NULL ||
+		   strstr(source_text, "taskbound.command") != NULL ||
+		   strstr(source_text, "taskbound.inspect_task_state") != NULL ||
+		   strstr(source_text, "taskbound.receipts") != NULL;
+}
+
+static bool
 should_account_query(QueryDesc *query_desc)
 {
 	bool references_allowed_safe_view;
@@ -1358,6 +1753,9 @@ should_account_query(QueryDesc *query_desc)
 	 * literals, aliases, and helper-name substrings cannot forge that OID.
 	 */
 	if (GetUserId() != GetOuterUserId())
+		return false;
+
+	if (source_text_calls_public_runtime_entrypoint(query_desc->sourceText))
 		return false;
 
 	references_allowed_safe_view =
@@ -1400,9 +1798,9 @@ native_reserve_query(NativeQueryState *state)
 static void
 native_finish_query(NativeQueryState *state)
 {
-	Oid argtypes[10] = {TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
-	Datum values[10];
-	char nulls[10] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
+	Oid argtypes[11] = {TEXTOID, TEXTOID, TEXTOID, INT8OID, TEXTARRAYOID, INT4OID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
+	Datum values[11];
+	char nulls[11] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
 	Datum empty_array;
 
 	/*
@@ -1417,15 +1815,16 @@ native_finish_query(NativeQueryState *state)
 	values[2] = CStringGetTextDatum(state->source_text != NULL ? state->source_text : "");
 	values[3] = Int64GetDatum((int64) state->rows_returned);
 	values[4] = empty_array;
-	values[5] = Int32GetDatum(state->max_unique_expense_rows);
-	values[6] = BoolGetDatum(state->budget_accounting_enabled);
-	values[7] = BoolGetDatum(state->receipts_enabled);
-	values[8] = CStringGetTextDatum(state->binding_id);
-	values[9] = Int64GetDatum(state->fence_token);
+	values[5] = Int32GetDatum(guard_max_queries);
+	values[6] = Int32GetDatum(state->max_unique_expense_rows);
+	values[7] = BoolGetDatum(state->budget_accounting_enabled);
+	values[8] = BoolGetDatum(state->receipts_enabled);
+	values[9] = CStringGetTextDatum(state->binding_id);
+	values[10] = Int64GetDatum(state->fence_token);
 
 	spi_call_void(
-		"SELECT taskbound.native_finish_query($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid, $10)",
-		10,
+		"SELECT taskbound.native_finish_query($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::uuid, $11)",
+		11,
 		argtypes,
 		values,
 		nulls);
@@ -1697,12 +2096,43 @@ sessionbound_guard_ExecutorRun(QueryDesc *queryDesc,
 			state->aborted = true;
 			native_record_state_denial(state, edata->message);
 		}
-		else if (valid_guard_task_id())
+		else if (valid_guard_task_id() &&
+				 (queryDesc == NULL ||
+				  queryDesc->plannedstmt == NULL ||
+				  !planned_stmt_is_runtime_entrypoint_only(queryDesc->plannedstmt)))
 			record_denied_receipt(queryDesc != NULL ? queryDesc->sourceText : guard_current_sql,
 								  edata->message);
 		ReThrowError(edata);
 	}
 	PG_END_TRY();
+
+	/*
+	 * Plain SELECT portals do not reliably pass through ExecutorFinish before
+	 * the client result stream is finalized.  For the ordinary full-result
+	 * execution path, release the buffered tuples here after the fenced budget
+	 * and receipt transition succeeds.  Cursor-style partial fetches keep the
+	 * existing ExecutorFinish/ExecutorEnd fallback semantics.
+	 */
+	if (state != NULL && !state->aborted && !state->finished && count == 0)
+	{
+		PG_TRY();
+		{
+			native_finish_query(state);
+			native_release_buffer(state);
+		}
+		PG_CATCH();
+		{
+			ErrorData *edata;
+
+			MemoryContextSwitchTo(ErrorContext);
+			edata = CopyErrorData();
+			FlushErrorState();
+			state->aborted = true;
+			native_record_state_denial(state, edata->message);
+			ReThrowError(edata);
+		}
+		PG_END_TRY();
+	}
 }
 
 static void
@@ -1960,16 +2390,17 @@ sessionbound_guard_install_binding(PG_FUNCTION_ARGS)
 	assign_top_string(&guard_task_id, text_arg_to_top_cstring(fcinfo, 0));
 	assign_top_string(&guard_budget_account, text_arg_to_top_cstring(fcinfo, 1));
 	assign_top_string(&guard_allowed_view_oids, text_arg_to_top_cstring(fcinfo, 2));
-	guard_max_queries = PG_GETARG_INT32(3);
-	guard_max_unique_expense_rows = PG_GETARG_INT32(4);
-	guard_min_group_size = PG_GETARG_INT32(5);
-	guard_receipts_enabled = PG_GETARG_BOOL(6);
-	guard_budget_accounting_enabled = PG_GETARG_BOOL(7);
-	assign_top_string(&guard_binding_id, text_arg_to_top_cstring(fcinfo, 8));
-	guard_fence_token = PG_GETARG_INT64(9);
-	guard_advisory_lock_key = PG_GETARG_INT64(10);
-	assign_top_string(&guard_token_digest, text_arg_to_top_cstring(fcinfo, 11));
-	assign_top_string(&guard_credential_id, text_arg_to_top_cstring(fcinfo, 12));
+	assign_top_string(&guard_denied_columns, text_arg_to_top_cstring(fcinfo, 3));
+	guard_max_queries = PG_GETARG_INT32(4);
+	guard_max_unique_expense_rows = PG_GETARG_INT32(5);
+	guard_min_group_size = PG_GETARG_INT32(6);
+	guard_receipts_enabled = PG_GETARG_BOOL(7);
+	guard_budget_accounting_enabled = PG_GETARG_BOOL(8);
+	assign_top_string(&guard_binding_id, text_arg_to_top_cstring(fcinfo, 9));
+	guard_fence_token = PG_GETARG_INT64(10);
+	guard_advisory_lock_key = PG_GETARG_INT64(11);
+	assign_top_string(&guard_token_digest, text_arg_to_top_cstring(fcinfo, 12));
+	assign_top_string(&guard_credential_id, text_arg_to_top_cstring(fcinfo, 13));
 	guard_bound_session_user_oid = GetSessionUserId();
 	guard_task_bound = true;
 	guard_enabled = false;
@@ -2028,4 +2459,71 @@ sessionbound_guard_check(PG_FUNCTION_ARGS)
 	PG_END_TRY();
 
 	PG_RETURN_VOID();
+}
+
+Datum
+sessionbound_guard_touched_view_oids(PG_FUNCTION_ARGS)
+{
+	text *sql_text = PG_GETARG_TEXT_PP(0);
+	char *sql = text_to_cstring(sql_text);
+	bool old_guard_enabled = guard_enabled;
+	bool old_suppress_receipts = guard_suppress_receipts;
+	bool old_collect_touched = guard_collect_touched_oids;
+	bool old_internal_spi = guard_in_internal_spi;
+	List *old_touched_view_oids = guard_touched_view_oids;
+	MemoryContext result_context = CurrentMemoryContext;
+	MemoryContext old_context;
+	bool spi_connected = false;
+	SPIPlanPtr plan = NULL;
+	ArrayType *result_array = NULL;
+
+	PG_TRY();
+	{
+		int rc;
+
+		rc = SPI_connect();
+		if (rc != SPI_OK_CONNECT)
+			elog(ERROR, "SPI_connect failed: %d", rc);
+		spi_connected = true;
+
+		guard_enabled = true;
+		guard_suppress_receipts = true;
+		guard_collect_touched_oids = true;
+		guard_in_internal_spi = false;
+		guard_touched_view_oids = NIL;
+
+		plan = SPI_prepare(sql, 0, NULL);
+		if (plan == NULL)
+			elog(ERROR, "SPI_prepare failed for SessionBound touched-view extraction: %d", SPI_result);
+		SPI_freeplan(plan);
+
+		old_context = MemoryContextSwitchTo(result_context);
+		result_array = oid_list_to_array(guard_touched_view_oids);
+		MemoryContextSwitchTo(old_context);
+
+		guard_enabled = old_guard_enabled;
+		guard_suppress_receipts = old_suppress_receipts;
+		guard_collect_touched_oids = old_collect_touched;
+		guard_in_internal_spi = old_internal_spi;
+		guard_touched_view_oids = old_touched_view_oids;
+
+		rc = SPI_finish();
+		if (rc != SPI_OK_FINISH)
+			elog(ERROR, "SPI_finish failed: %d", rc);
+		spi_connected = false;
+	}
+	PG_CATCH();
+	{
+		guard_enabled = old_guard_enabled;
+		guard_suppress_receipts = old_suppress_receipts;
+		guard_collect_touched_oids = old_collect_touched;
+		guard_in_internal_spi = old_internal_spi;
+		guard_touched_view_oids = old_touched_view_oids;
+		if (spi_connected)
+			SPI_finish();
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	PG_RETURN_ARRAYTYPE_P(result_array);
 }

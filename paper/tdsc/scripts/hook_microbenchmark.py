@@ -36,26 +36,17 @@ CASES: list[dict[str, str]] = [
     },
     {
         "id": "HM03",
-        "name": "guard_check_group_by",
+        "name": "guard_check_cte_detail",
         "sql": """
-            SELECT department_name, count(*) AS expense_count, sum(amount) AS total_amount
-            FROM expenses
-            GROUP BY department_name
-            ORDER BY total_amount DESC
-        """,
-    },
-    {
-        "id": "HM04",
-        "name": "guard_check_cte_window",
-        "sql": """
-            WITH ranked AS (
-              SELECT expense_id, department_name, amount,
-                     row_number() OVER (PARTITION BY department_name ORDER BY amount DESC) AS rn
+            WITH high AS (
+              SELECT expense_id, department_name, amount
               FROM expenses
+              WHERE amount > 1000
             )
             SELECT department_name, expense_id, amount
-            FROM ranked
-            WHERE rn = 1
+            FROM high
+            ORDER BY amount DESC
+            LIMIT 10
         """,
     },
 ]
@@ -72,6 +63,29 @@ DENIED_CASES: list[dict[str, str]] = [
         "name": "guard_blocks_union",
         "sql": "SELECT expense_id FROM expenses UNION SELECT employee_id FROM employees",
         "expected_reason": "UNION, INTERSECT, and EXCEPT are not allowed",
+    },
+    {
+        "id": "HD03",
+        "name": "guard_blocks_group_by_without_template",
+        "sql": """
+            SELECT department_name, count(*) AS expense_count, sum(amount) AS total_amount
+            FROM expenses
+            GROUP BY department_name
+            ORDER BY total_amount DESC
+        """,
+        "expected_reason": "GROUP BY aggregate release requires an approved aggregate template",
+    },
+    {
+        "id": "HD04",
+        "name": "guard_blocks_window_without_template",
+        "sql": """
+            SELECT expense_id, department_name, amount,
+                   row_number() OVER (PARTITION BY department_name ORDER BY amount DESC) AS rn
+            FROM expenses
+            ORDER BY amount DESC
+            LIMIT 10
+        """,
+        "expected_reason": "window functions require an approved aggregate template",
     },
 ]
 
@@ -93,7 +107,7 @@ def sql_literal(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
-def psql_command(stop_on_error: bool) -> list[str]:
+def psql_command(stop_on_error: bool, *, user: str = "postgres", password: str = "postgres") -> list[str]:
     return [
         "docker",
         "compose",
@@ -101,22 +115,24 @@ def psql_command(stop_on_error: bool) -> list[str]:
         "-T",
         "postgres",
         "env",
-        "PGPASSWORD=postgres",
+        f"PGPASSWORD={password}",
         "psql",
         "-X",
         "-q",
         "-v",
         f"ON_ERROR_STOP={'1' if stop_on_error else '0'}",
         "-U",
-        "postgres",
+        user,
         "-d",
         "travel",
     ]
 
 
-def run_psql(sql_script: str, *, stop_on_error: bool = True) -> dict[str, Any]:
+def run_psql(sql_script: str, *, stop_on_error: bool = True, as_agent: bool = False) -> dict[str, Any]:
+    user = "agent_app" if as_agent else "postgres"
+    password = "agentpass" if as_agent else "postgres"
     proc = subprocess.run(
-        psql_command(stop_on_error),
+        psql_command(stop_on_error, user=user, password=password),
         cwd=REPO_ROOT,
         input=sql_script,
         text=True,
@@ -135,46 +151,60 @@ def setup_sql() -> str:
     return """
 \\pset tuples_only on
 \\pset pager off
-SET search_path = taskbound, pg_temp;
-CREATE OR REPLACE FUNCTION pg_temp.enable_hook_microbenchmark()
+CREATE SCHEMA IF NOT EXISTS tdsc_bench;
+CREATE OR REPLACE FUNCTION tdsc_bench.enable_hook_microbenchmark()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = taskbound, public, pg_temp
 AS $$
+DECLARE
+  allowed_oids text;
 BEGIN
-  PERFORM set_config(
-    'sessionbound_guard.allowed_view_oids',
-    (
-      SELECT string_agg((database_object::regclass)::oid::text, ',' ORDER BY view_name)
-      FROM taskbound.safe_view_registry
-      WHERE view_name = ANY(ARRAY['expenses','employees','departments','approval_events','ledger_entries'])
-    ),
-    false
+  SELECT string_agg((database_object::regclass)::oid::text, ',' ORDER BY view_name)
+  INTO allowed_oids
+  FROM taskbound.safe_view_registry
+  WHERE view_name = ANY(ARRAY['expenses','employees','departments','approval_events','ledger_entries']);
+
+  PERFORM public.sessionbound_guard_install_binding(
+    'hook_microbenchmark',
+    'hook_microbenchmark',
+    COALESCE(allowed_oids, ''),
+    '',
+    1000000,
+    1000000,
+    5,
+    false,
+    false,
+    'hook_microbenchmark_binding',
+    1,
+    0,
+    'hook_microbenchmark_token',
+    'hook_microbenchmark_credential',
+    now() + interval '1 hour'
   );
-  PERFORM set_config('sessionbound_guard.task_id', 'hook_microbenchmark', false);
-  PERFORM set_config('sessionbound_guard.budget_account', 'hook_microbenchmark', false);
-  PERFORM set_config('sessionbound_guard.max_queries', '1000000', false);
-  PERFORM set_config('sessionbound_guard.max_unique_expense_rows', '1000000', false);
-  PERFORM set_config('sessionbound_guard.receipts_enabled', 'off', false);
-  PERFORM set_config('sessionbound_guard.budget_accounting_enabled', 'off', false);
-  PERFORM set_config('sessionbound_guard.task_bound', 'on', false);
 END;
 $$;
-CREATE OR REPLACE FUNCTION pg_temp.guard_check(sql_text text)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, taskbound, pg_temp
-AS $$
-BEGIN
-  PERFORM public.sessionbound_guard_check(sql_text);
-END;
-$$;
-GRANT EXECUTE ON FUNCTION pg_temp.guard_check(text) TO agent_app;
-SET ROLE agent_app;
+GRANT USAGE ON SCHEMA tdsc_bench TO agent_app;
+GRANT EXECUTE ON FUNCTION tdsc_bench.enable_hook_microbenchmark() TO agent_app;
+GRANT EXECUTE ON FUNCTION public.sessionbound_guard_check(text) TO agent_app;
+"""
+
+
+def cleanup_sql() -> str:
+    return """
+REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_check(text) FROM agent_app;
+DROP FUNCTION IF EXISTS tdsc_bench.enable_hook_microbenchmark();
+DROP SCHEMA IF EXISTS tdsc_bench;
+"""
+
+
+def measurement_setup_sql() -> str:
+    return """
+\\pset tuples_only on
+\\pset pager off
 SET search_path = taskbound, pg_temp;
-SELECT pg_temp.enable_hook_microbenchmark();
+SELECT tdsc_bench.enable_hook_microbenchmark();
 """
 
 
@@ -201,18 +231,18 @@ def summarize(latencies_ms: list[float]) -> dict[str, float | int | None]:
 
 
 def measure_case(case: dict[str, str], warmup: int, measured: int) -> dict[str, Any]:
-    statements = [setup_sql()]
+    statements = [measurement_setup_sql()]
     statements.extend(
-        f"SELECT pg_temp.guard_check({sql_literal(case['sql'])});"
+        f"SELECT public.sessionbound_guard_check({sql_literal(case['sql'])});"
         for _ in range(warmup)
     )
     statements.append("\\timing on")
     statements.extend(
-        f"SELECT pg_temp.guard_check({sql_literal(case['sql'])});"
+        f"SELECT public.sessionbound_guard_check({sql_literal(case['sql'])});"
         for _ in range(measured)
     )
     statements.append("\\timing off")
-    result = run_psql("\n".join(statements))
+    result = run_psql("\n".join(statements), as_agent=True)
     timings = [float(match.group(1)) for match in TIME_RE.finditer(result["stdout"] + result["stderr"])]
     return {
         **case,
@@ -228,11 +258,11 @@ def run_denied_checks() -> list[dict[str, Any]]:
     for case in DENIED_CASES:
         sql_script = "\n".join(
             [
-                setup_sql(),
-                f"SELECT pg_temp.guard_check({sql_literal(case['sql'])});",
+                measurement_setup_sql(),
+                f"SELECT public.sessionbound_guard_check({sql_literal(case['sql'])});",
             ]
         )
-        result = run_psql(sql_script, stop_on_error=False)
+        result = run_psql(sql_script, stop_on_error=False, as_agent=True)
         output = result["stdout"] + result["stderr"]
         records.append(
             {
@@ -246,6 +276,9 @@ def run_denied_checks() -> list[dict[str, Any]]:
 
 
 def run_eval(warmup: int, measured: int) -> dict[str, Any]:
+    setup_result = run_psql(setup_sql())
+    if setup_result["returncode"] != 0:
+        raise RuntimeError(f"hook microbenchmark setup failed: {setup_result['output_tail']}")
     records = [measure_case(case, warmup, measured) for case in CASES]
     denied_records = run_denied_checks()
     failed = sum(1 for record in records + denied_records if not record["passed"])
@@ -266,6 +299,7 @@ def run_eval(warmup: int, measured: int) -> dict[str, Any]:
         },
         "records": records,
         "denied_checks": denied_records,
+        "setup": setup_result,
     }
 
 
@@ -278,13 +312,16 @@ def main() -> int:
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    payload = run_eval(args.warmup, args.measured)
-    timestamp = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-    output_path = output_dir / f"hook_microbenchmark_{timestamp}.json"
-    output_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    print(output_path)
-    print(json.dumps(payload["run"], indent=2, sort_keys=True))
-    return 0 if payload["run"]["failed"] == 0 else 1
+    try:
+        payload = run_eval(args.warmup, args.measured)
+        timestamp = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+        output_path = output_dir / f"hook_microbenchmark_{timestamp}.json"
+        output_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        print(output_path)
+        print(json.dumps(payload["run"], indent=2, sort_keys=True))
+        return 0 if payload["run"]["failed"] == 0 else 1
+    finally:
+        run_psql(cleanup_sql(), stop_on_error=False)
 
 
 if __name__ == "__main__":

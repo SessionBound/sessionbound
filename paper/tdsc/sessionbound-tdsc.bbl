@@ -28,25 +28,17 @@ D.~Hardt, ``{The OAuth 2.0 Authorization Framework},'' RFC 6749, 2012.
 \BIBentrySTDinterwordspacing
 
 \bibitem{south2025authenticateddelegation}
-\BIBentryALTinterwordspacing
 T.~South, S.~Marro, T.~Hardjono, R.~Mahari, C.~D. Whitney, D.~Greenwood,
   A.~Chan, and A.~Pentland, ``{Authenticated Delegation and Authorized AI
-  Agents},'' 2025. [Online]. Available: \url{https://arxiv.org/abs/2501.09674}
-\BIBentrySTDinterwordspacing
+  Agents},'' 2025.
 
 \bibitem{sharma2026pauth}
-\BIBentryALTinterwordspacing
 R.~K. Sharma, L.~Jiang, Z.~Lin, and S.~Chen, ``{PAuth - Precise Task-Scoped
-  Authorization For Agents},'' 2026. [Online]. Available:
-  \url{https://arxiv.org/abs/2603.17170}
-\BIBentrySTDinterwordspacing
+  Authorization For Agents},'' 2026.
 
 \bibitem{tonnarelli2026dataproductmcp}
-\BIBentryALTinterwordspacing
 M.~Tonnarelli, F.~Scaramuzza, S.~Harrer, and L.~W. Dietz, ``{Data Product MCP:
-  Chat with your Enterprise Data},'' 2026. [Online]. Available:
-  \url{https://arxiv.org/abs/2601.08687}
-\BIBentrySTDinterwordspacing
+  Chat with your Enterprise Data},'' 2026.
 
 \bibitem{mcp2025specification}
 \BIBentryALTinterwordspacing
@@ -77,71 +69,109 @@ M.~Tonnarelli, F.~Scaramuzza, S.~Harrer, and L.~W. Dietz, ``{Data Product MCP:
 \BIBentrySTDinterwordspacing
 
 \bibitem{agrawal2002hippocratic}
-\BIBentryALTinterwordspacing
 R.~Agrawal, J.~Kiernan, R.~Srikant, and Y.~Xu, ``{Hippocratic Databases},'' in
   \emph{Proceedings of the 28th International Conference on Very Large Data
-  Bases}, 2002, pp. 143--154. [Online]. Available:
-  \url{https://www.vldb.org/conf/2002/S05P02.pdf}
-\BIBentrySTDinterwordspacing
+  Bases}, 2002, pp. 143--154.
 
 \bibitem{byun2008purpose}
-\BIBentryALTinterwordspacing
 J.-W. Byun and N.~Li, ``{Purpose Based Access Control for Privacy Protection in
   Relational Database Systems},'' \emph{The VLDB Journal}, vol.~17, no.~4, pp.
-  603--619, 2008. [Online]. Available:
-  \url{https://doi.org/10.1007/s00778-006-0023-0}
-\BIBentrySTDinterwordspacing
+  603--619, 2008.
 
 \bibitem{kleinberg2000auditing}
-\BIBentryALTinterwordspacing
 J.~Kleinberg, C.~Papadimitriou, and P.~Raghavan, ``{Auditing Boolean
   Attributes},'' in \emph{Proceedings of the Nineteenth ACM
   SIGMOD-SIGACT-SIGART Symposium on Principles of Database Systems}, 2000.
-  [Online]. Available: \url{https://doi.org/10.1145/335168.335210}
-\BIBentrySTDinterwordspacing
 
 \bibitem{nabar2006robustness}
-\BIBentryALTinterwordspacing
 S.~U. Nabar, B.~Marthi, K.~Kenthapadi, N.~Mishra, and R.~Motwani, ``{Towards
   Robustness in Query Auditing},'' in \emph{Proceedings of the 32nd
   International Conference on Very Large Data Bases}, 2006, pp. 151--162.
-  [Online]. Available: \url{https://www.vldb.org/conf/2006/p151-nabar.pdf}
-\BIBentrySTDinterwordspacing
 
 \bibitem{pang2019zanzibar}
-\BIBentryALTinterwordspacing
 R.~Pang, R.~Caceres, M.~Burrows, Z.~Chen, P.~Dave, N.~Germer, A.~Golynski,
   K.~Graney, N.~Kang, L.~Kissner, J.~L. Korn, A.~Parmar, C.~D. Richards, and
   M.~Wang, ``{Zanzibar: Google's Consistent, Global Authorization System},'' in
   \emph{2019 USENIX Annual Technical Conference (USENIX ATC 19)}.\hskip 1em
-  plus 0.5em minus 0.4em\relax USENIX Association, 2019, pp. 33--46. [Online].
-  Available: \url{https://www.usenix.org/conference/atc19/presentation/pang}
-\BIBentrySTDinterwordspacing
+  plus 0.5em minus 0.4em\relax USENIX Association, 2019, pp. 33--46.
 
 \bibitem{adam1989securitycontrol}
-\BIBentryALTinterwordspacing
 N.~R. Adam and J.~C. Wortmann, ``{Security-Control Methods for Statistical
   Databases: A Comparative Study},'' \emph{ACM Computing Surveys}, vol.~21,
-  no.~4, pp. 515--556, 1989. [Online]. Available:
-  \url{https://doi.org/10.1145/76894.76895}
-\BIBentrySTDinterwordspacing
+  no.~4, pp. 515--556, 1989.
 
 \bibitem{dwork2014algorithmic}
-\BIBentryALTinterwordspacing
 C.~Dwork and A.~Roth, \emph{{The Algorithmic Foundations of Differential
   Privacy}}, ser. Foundations and Trends in Theoretical Computer Science.\hskip
-  1em plus 0.5em minus 0.4em\relax Now Publishers, 2014, vol.~9. [Online].
-  Available: \url{https://doi.org/10.1561/0400000042}
-\BIBentrySTDinterwordspacing
+  1em plus 0.5em minus 0.4em\relax Now Publishers, 2014, vol.~9.
+
+\bibitem{thomas1997tbac}
+R.~K. Thomas and R.~S. Sandhu, ``{Task-Based Authorization Controls (TBAC): A
+  Family of Models for Active and Enterprise-Oriented Authorization
+  Management},'' in \emph{{Database Security XI: Status and Prospects}}.\hskip
+  1em plus 0.5em minus 0.4em\relax Springer, 1997.
+
+\bibitem{park2004ucon}
+J.~Park and R.~S. Sandhu, ``{The UCONABC Usage Control Model},'' \emph{ACM
+  Transactions on Information and System Security}, vol.~7, no.~1, pp.
+  128--174, 2004.
+
+\bibitem{macaroons2014}
+A.~Birgisson, J.~G. Politz, {\'U}.~Erlingsson, A.~Taly, M.~Vrable, and
+  M.~Lentczner, ``{Macaroons: Cookies with Contextual Caveats for Decentralized
+  Authorization in the Cloud},'' in \emph{Network and Distributed System
+  Security Symposium}.\hskip 1em plus 0.5em minus 0.4em\relax Internet Society,
+  2014.
+
+\bibitem{qapla2017}
+A.~Mehta, E.~Elnikety, K.~Harvey, D.~Garg, and P.~Druschel, ``{Qapla: Policy
+  Compliance for Database-Backed Systems},'' in \emph{26th USENIX Security
+  Symposium (USENIX Security 17)}.\hskip 1em plus 0.5em minus 0.4em\relax
+  USENIX Association, 2017, pp. 1463--1479.
+
+\bibitem{zhang2022blockaid}
+W.~Zhang, E.~Sheng, M.~Chang, A.~Panda, M.~Sagiv, and S.~Shenker, ``{Blockaid:
+  Data Access Policy Enforcement for Web Applications},'' in \emph{16th USENIX
+  Symposium on Operating Systems Design and Implementation (OSDI 22)}.\hskip
+  1em plus 0.5em minus 0.4em\relax USENIX Association, 2022, pp. 701--718.
+
+\bibitem{pappachan2020sieve}
+P.~Pappachan, R.~Yus, S.~Mehrotra, and J.-C. Freytag, ``{Sieve: A Middleware
+  Approach to Scalable Access Control for Database Management Systems},''
+  \emph{Proceedings of the VLDB Endowment}, vol.~13, no.~12, pp. 2424--2437,
+  2020.
+
+\bibitem{shi2025progent}
+T.~Shi, J.~He, Z.~Wang, H.~Li, L.~Wu, W.~Guo, and D.~Song, ``{Progent: Securing
+  AI Agents with Privilege Control},'' 2025.
+
+\bibitem{wang2025agentspec}
+H.~Wang, C.~M. Poskitt, and J.~Sun, ``{AgentSpec: Customizable Runtime
+  Enforcement for Safe and Reliable LLM Agents},'' 2025.
+
+\bibitem{jia2025taskshield}
+F.~Jia, T.~Wu, X.~Qin, and A.~Squicciarini, ``{The Task Shield: Enforcing Task
+  Alignment to Defend Against Indirect Prompt Injection in LLM Agents},'' in
+  \emph{Proceedings of the 63rd Annual Meeting of the Association for
+  Computational Linguistics (Volume 1: Long Papers)}.\hskip 1em plus 0.5em
+  minus 0.4em\relax Vienna, Austria: Association for Computational Linguistics,
+  2025, pp. 29\,680--29\,697.
+
+\bibitem{debenedetti2025camel}
+E.~Debenedetti, I.~Shumailov, T.~Fan, J.~Hayes, N.~Carlini, D.~Fabian, C.~Kern,
+  C.~Shi, A.~Terzis, and F.~Tram{\`e}r, ``{Defeating Prompt Injections by
+  Design},'' 2025.
+
+\bibitem{costa2025ifcagents}
+M.~Costa, B.~K{\"o}pf, A.~Kolluri, A.~Paverd, M.~Russinovich, A.~Salem,
+  S.~Tople, L.~Wutschitz, and S.~Zanella-B{\'e}guelin, ``{Securing AI Agents
+  with Information-Flow Control},'' 2025.
 
 \bibitem{nist2019abac}
-\BIBentryALTinterwordspacing
 V.~C. Hu, D.~Ferraiolo, R.~Kuhn, A.~Schnitzer, K.~Sandlin, R.~Miller, and
   K.~Scarfone, ``{Guide to Attribute Based Access Control (ABAC) Definition and
   Considerations},'' National Institute of Standards and Technology, Special
-  Publication 800-162, 2019. [Online]. Available:
-  \url{https://doi.org/10.6028/NIST.SP.800-162}
-\BIBentrySTDinterwordspacing
+  Publication 800-162, 2019.
 
 \bibitem{oasis2013xacml}
 \BIBentryALTinterwordspacing
@@ -151,36 +181,25 @@ V.~C. Hu, D.~Ferraiolo, R.~Kuhn, A.~Schnitzer, K.~Sandlin, R.~Miller, and
 \BIBentrySTDinterwordspacing
 
 \bibitem{dennis1966programming}
-\BIBentryALTinterwordspacing
 J.~B. Dennis and E.~C. Van~Horn, ``{Programming Semantics for Multiprogrammed
   Computations},'' \emph{Communications of the ACM}, vol.~9, no.~3, pp.
-  143--155, 1966. [Online]. Available:
-  \url{https://doi.org/10.1145/365230.365252}
-\BIBentrySTDinterwordspacing
+  143--155, 1966.
 
 \bibitem{miller2003capability}
-\BIBentryALTinterwordspacing
 M.~S. Miller, K.-P. Yee, and J.~Shapiro, ``{Capability Myths Demolished},''
   Johns Hopkins University Systems Research Laboratory, Tech. Rep. SRL2003-02,
-  2003. [Online]. Available:
-  \url{https://classpages.cselabs.umn.edu/Fall-2021/csci5271/papers/SRL2003-02.pdf}
-\BIBentrySTDinterwordspacing
+  2003.
 
 \bibitem{greshake2023indirect}
-\BIBentryALTinterwordspacing
 K.~Greshake, S.~Abdelnabi, S.~Mishra, C.~Endres, T.~Holz, and M.~Fritz, ``{Not
   What You've Signed Up For: Compromising Real-World LLM-Integrated
   Applications with Indirect Prompt Injection},'' in \emph{Proceedings of the
-  16th ACM Workshop on Artificial Intelligence and Security}, 2023. [Online].
-  Available: \url{https://doi.org/10.1145/3605764.3623985}
-\BIBentrySTDinterwordspacing
+  16th ACM Workshop on Artificial Intelligence and Security}, 2023.
 
 \bibitem{liu2023promptinjection}
-\BIBentryALTinterwordspacing
 Y.~Liu, G.~Deng, Y.~Li, K.~Wang, T.~Zhang, Y.~Liu, H.~Wang, Y.~Zheng, and
   Y.~Liu, ``{Prompt Injection Attack against LLM-integrated Applications},''
-  2023. [Online]. Available: \url{https://arxiv.org/abs/2306.05499}
-\BIBentrySTDinterwordspacing
+  2023.
 
 \bibitem{owasp2025llm01}
 \BIBentryALTinterwordspacing
@@ -190,20 +209,9 @@ Y.~Liu, G.~Deng, Y.~Li, K.~Wang, T.~Zhang, Y.~Liu, H.~Wang, Y.~Zheng, and
 \BIBentrySTDinterwordspacing
 
 \bibitem{myers1997difc}
-\BIBentryALTinterwordspacing
 A.~C. Myers and B.~Liskov, ``{A Decentralized Model for Information Flow
   Control},'' in \emph{Proceedings of the Sixteenth ACM Symposium on Operating
-  Systems Principles}, 1997, pp. 129--142. [Online]. Available:
-  \url{https://www.cs.cornell.edu/andru/papers/iflow-sosp97/paper.html}
-\BIBentrySTDinterwordspacing
-
-\bibitem{costa2025ifcagents}
-\BIBentryALTinterwordspacing
-M.~Costa, B.~K{\"o}pf, A.~Kolluri, A.~Paverd, M.~Russinovich, A.~Salem,
-  S.~Tople, L.~Wutschitz, and S.~Zanella-B{\'e}guelin, ``{Securing AI Agents
-  with Information-Flow Control},'' 2025. [Online]. Available:
-  \url{https://arxiv.org/abs/2505.23643}
-\BIBentrySTDinterwordspacing
+  Systems Principles}, 1997, pp. 129--142.
 
 \bibitem{oracle2026deepdatasecuritybrief}
 \BIBentryALTinterwordspacing
@@ -213,19 +221,13 @@ M.~Costa, B.~K{\"o}pf, A.~Kolluri, A.~Paverd, M.~Russinovich, A.~Salem,
 \BIBentrySTDinterwordspacing
 
 \bibitem{boyd2004sqlrand}
-\BIBentryALTinterwordspacing
 S.~W. Boyd and A.~D. Keromytis, ``{SQLrand: Preventing SQL Injection
   Attacks},'' in \emph{Applied Cryptography and Network Security}.\hskip 1em
-  plus 0.5em minus 0.4em\relax Springer, 2004, pp. 292--302. [Online].
-  Available: \url{https://doi.org/10.1007/978-3-540-24852-1_21}
-\BIBentrySTDinterwordspacing
+  plus 0.5em minus 0.4em\relax Springer, 2004, pp. 292--302.
 
 \bibitem{su2006essence}
-\BIBentryALTinterwordspacing
 Z.~Su and G.~Wassermann, ``{The Essence of Command Injection Attacks in Web
   Applications},'' in \emph{Proceedings of the 33rd ACM SIGPLAN-SIGACT
   Symposium on Principles of Programming Languages}, 2006, pp. 372--382.
-  [Online]. Available: \url{https://doi.org/10.1145/1111037.1111070}
-\BIBentrySTDinterwordspacing
 
 \end{thebibliography}

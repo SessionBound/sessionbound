@@ -348,10 +348,26 @@ REVOKE ALL ON SCHEMA taskbound FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA taskbound FROM PUBLIC;
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA taskbound FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_check(text) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_install_binding(text, text, text, int, int, int, boolean, boolean, text, bigint, bigint, text, text, timestamptz) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_touched_view_oids(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_install_binding(text, text, text, text, int, int, int, boolean, boolean, text, bigint, bigint, text, text, timestamptz) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_clear_binding() FROM PUBLIC;
 
+REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_touched_view_oids(text) FROM agent_runtime;
+REVOKE EXECUTE ON FUNCTION taskbound.extract_touched_views(text, text[]) FROM agent_runtime;
+REVOKE EXECUTE ON FUNCTION taskbound.fail_receipt(text, text) FROM agent_runtime;
+DO $$
+BEGIN
+  IF to_regprocedure('taskbound.audit_append_receipt(text,text,uuid,bigint,text,text,bigint,bigint,bigint,text,boolean)') IS NOT NULL THEN
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION taskbound.audit_append_receipt(text,text,uuid,bigint,text,text,bigint,bigint,bigint,text,boolean) FROM agent_runtime';
+  END IF;
+  IF to_regprocedure('taskbound.audit_append_receipt(text,text,uuid,bigint,text,text,bigint,bigint,bigint,text,boolean,uuid,text,text[])') IS NOT NULL THEN
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION taskbound.audit_append_receipt(text,text,uuid,bigint,text,text,bigint,bigint,bigint,text,boolean,uuid,text,text[]) FROM agent_runtime';
+  END IF;
+END;
+$$;
+
 GRANT USAGE ON SCHEMA taskbound TO agent_runtime;
+GRANT USAGE ON SCHEMA app_data TO agent_runtime;
 GRANT SELECT ON TABLE
   taskbound.expenses,
   taskbound.departments,
@@ -361,16 +377,14 @@ GRANT SELECT ON TABLE
 TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.bind_task(text, text) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.unbind_task() TO agent_runtime;
-GRANT EXECUTE ON FUNCTION taskbound.fail_receipt(text, text) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.validate_active_binding(text, uuid, bigint, bigint) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.claim(text[]) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.current_payload() TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.require_payload() TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.native_denied_receipt(text, text, text, text, boolean, uuid, bigint) TO agent_runtime;
-GRANT EXECUTE ON FUNCTION taskbound.audit_append_receipt(text, text, uuid, bigint, text, text, bigint, bigint, bigint, text, boolean) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.native_reserve_query(text, text, text, int, boolean, boolean, uuid, bigint) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.native_seen_expense_rows(text) TO agent_runtime;
-GRANT EXECUTE ON FUNCTION taskbound.native_finish_query(text, text, text, bigint, text[], int, boolean, boolean, uuid, bigint) TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.native_finish_query(text, text, text, bigint, text[], int, int, boolean, boolean, uuid, bigint) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.native_partial_denied_receipt(text, text, text, text, bigint, text[], int, boolean, boolean, uuid, bigint) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.run(text) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.command(text, jsonb) TO agent_runtime;

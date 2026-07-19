@@ -1,5 +1,10 @@
 # TDSC Hardening Report
 
+> Superseded status note (2026-07-19): this report is a historical snapshot.
+> Current claim status and raw-result pointers are in
+> `paper/tdsc/ARTIFACT_MANIFEST.md`, `paper/tdsc/SUBMISSION_STATUS.md`, and
+> `CHANGELOG_TDSC_HARDENING.md`.
+
 ## Baseline State
 
 - Date: 2026-07-08

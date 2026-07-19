@@ -86,8 +86,8 @@ SAFE_VIEWS: dict[str, dict[str, Any]] = {
         "view_name": "employees",
         "database_object": "taskbound.employees",
         "owner": "data-platform",
-        "description": "Employee dimension with sensitive HR and payment fields removed.",
-        "raw_tables": ["app_data.employees"],
+        "description": "Employee dimension scoped to employees with in-scope expense rows; sensitive HR and payment fields removed.",
+        "raw_tables": ["app_data.employees", "app_data.expenses"],
         "safe_columns": [
             "employee_id",
             "department_id",
@@ -101,14 +101,16 @@ SAFE_VIEWS: dict[str, dict[str, Any]] = {
         ],
         "enforced_scope_claims": [
             "tenant_id",
+            "row_scope.expense_month",
+            "row_scope.department_id",
         ],
     },
     "departments": {
         "view_name": "departments",
         "database_object": "taskbound.departments",
         "owner": "data-platform",
-        "description": "Department dimension scoped by tenant.",
-        "raw_tables": ["app_data.departments"],
+        "description": "Department dimension scoped by tenant, expense month, and optional department through in-scope expense rows.",
+        "raw_tables": ["app_data.departments", "app_data.expenses"],
         "safe_columns": [
             "department_id",
             "department_name",
@@ -117,14 +119,16 @@ SAFE_VIEWS: dict[str, dict[str, Any]] = {
         "not_exposed_columns": [],
         "enforced_scope_claims": [
             "tenant_id",
+            "row_scope.expense_month",
+            "row_scope.department_id",
         ],
     },
     "approval_events": {
         "view_name": "approval_events",
         "database_object": "taskbound.approval_events",
         "owner": "data-platform",
-        "description": "Workflow audit events emitted by SessionBoundDB commands.",
-        "raw_tables": ["app_data.approval_events"],
+        "description": "Workflow audit events emitted by SessionBoundDB commands and scoped through in-scope expense rows.",
+        "raw_tables": ["app_data.approval_events", "app_data.expenses"],
         "safe_columns": [
             "event_id",
             "expense_id",
@@ -136,14 +140,18 @@ SAFE_VIEWS: dict[str, dict[str, Any]] = {
             "created_at",
         ],
         "not_exposed_columns": [],
-        "enforced_scope_claims": ["tenant_id"],
+        "enforced_scope_claims": [
+            "tenant_id",
+            "row_scope.expense_month",
+            "row_scope.department_id",
+        ],
     },
     "ledger_entries": {
         "view_name": "ledger_entries",
         "database_object": "taskbound.ledger_entries",
         "owner": "finance-platform",
-        "description": "Ledger entries created by controlled payment commands.",
-        "raw_tables": ["app_data.ledger_entries"],
+        "description": "Ledger entries created by controlled payment commands and scoped through in-scope expense rows.",
+        "raw_tables": ["app_data.ledger_entries", "app_data.expenses"],
         "safe_columns": [
             "ledger_id",
             "expense_id",
@@ -155,7 +163,11 @@ SAFE_VIEWS: dict[str, dict[str, Any]] = {
             "created_at",
         ],
         "not_exposed_columns": [],
-        "enforced_scope_claims": ["tenant_id"],
+        "enforced_scope_claims": [
+            "tenant_id",
+            "row_scope.expense_month",
+            "row_scope.department_id",
+        ],
     },
 }
 
@@ -325,7 +337,7 @@ TASK_TEMPLATES: dict[str, dict[str, Any]] = {
         },
         "max_budgets": {
             "max_queries": 100,
-            "max_unique_expense_rows": 5000,
+            "max_unique_expense_rows": 200000,
         },
         "ttl_minutes": 30,
         "policy_version": "travel-demo-v1",

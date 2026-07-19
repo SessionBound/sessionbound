@@ -10,10 +10,16 @@ RETURNS void
 AS 'MODULE_PATHNAME', 'sessionbound_guard_check'
 LANGUAGE C STRICT;
 
+CREATE FUNCTION sessionbound_guard_touched_view_oids(sql_text text)
+RETURNS oid[]
+AS 'MODULE_PATHNAME', 'sessionbound_guard_touched_view_oids'
+LANGUAGE C STRICT;
+
 CREATE FUNCTION sessionbound_guard_install_binding(
   task_id text,
   budget_account text,
   allowed_view_oids text,
+  denied_columns text,
   max_queries int,
   max_unique_expense_rows int,
   min_group_size int,

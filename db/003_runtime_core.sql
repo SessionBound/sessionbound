@@ -596,6 +596,12 @@ DECLARE
   v_max_rows int;
   v_min_group_size int;
   v_token_nonce text;
+  v_allowed_views text[];
+  v_denied_columns text[];
+  v_denied_column_names text;
+  v_expected_view_count int;
+  v_actual_view_count int;
+  v_policy_violation text;
   v_binding_id uuid := gen_random_uuid();
   v_fence_token bigint;
   v_advisory_lock_key bigint;
@@ -636,6 +642,22 @@ BEGIN
   v_max_queries := COALESCE((p #>> ARRAY['budgets', 'max_queries'])::int, 100);
   v_max_rows := COALESCE((p #>> ARRAY['budgets', 'max_unique_expense_rows'])::int, 1000000);
   v_min_group_size := COALESCE((p #>> ARRAY['aggregate_policy', 'min_group_size'])::int, 5);
+  IF jsonb_typeof(p->'allowed_views') IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'task token allowed_views claim must be a non-empty array';
+  END IF;
+  v_allowed_views := taskbound.jsonb_text_array(p->'allowed_views');
+  IF cardinality(v_allowed_views) = 0 THEN
+    RAISE EXCEPTION 'task token allowed_views claim must be a non-empty array';
+  END IF;
+  IF p ? 'denied_columns'
+     AND jsonb_typeof(p->'denied_columns') IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'task token denied_columns claim must be an array when present';
+  END IF;
+  v_denied_columns := taskbound.jsonb_text_array(COALESCE(p->'denied_columns', '[]'::jsonb));
+  SELECT COALESCE(string_agg(lower(trim(d)), ',' ORDER BY lower(trim(d))), '')
+  INTO v_denied_column_names
+  FROM unnest(v_denied_columns) AS denied(d)
+  WHERE NULLIF(trim(d), '') IS NOT NULL;
   v_fence_token := nextval('taskbound.binding_fence_token_seq');
   v_advisory_lock_key := taskbound.binding_advisory_lock_key(v_task_id, v_token_digest, v_credential_id);
   v_session_user := session_user;
@@ -649,21 +671,117 @@ BEGIN
     RAISE EXCEPTION 'task token audience is not valid for SessionBoundDB';
   END IF;
 
-  IF p ? 'safe_view_registry' THEN
-    v_expected_snapshot := taskbound.safe_view_registry_snapshot(taskbound.jsonb_text_array(p->'allowed_views'));
-    IF p->'safe_view_registry' <> v_expected_snapshot THEN
-      RAISE EXCEPTION 'task token safe-view registry snapshot is stale; re-approval is required';
-    END IF;
-    IF p->>'safe_view_registry_version' <> v_expected_snapshot->>'safe_view_registry_version' THEN
-      RAISE EXCEPTION 'task token safe-view registry version is stale; re-approval is required';
-    END IF;
-    IF p->>'view_definition_hash' <> v_expected_snapshot->>'view_definition_hash' THEN
-      RAISE EXCEPTION 'task token safe-view definition hash is stale; re-approval is required';
-    END IF;
-    IF p ? 'exposed_column_hash'
-       AND p->>'exposed_column_hash' <> v_expected_snapshot->>'exposed_column_hash' THEN
-      RAISE EXCEPTION 'task token exposed-column hash is stale; re-approval is required';
-    END IF;
+  IF COALESCE(v_task_id, '') = '' THEN
+    RAISE EXCEPTION 'task token task_id claim is required';
+  END IF;
+  IF COALESCE(p->>'tenant_id', '') = '' THEN
+    RAISE EXCEPTION 'task token tenant_id claim is required';
+  END IF;
+  IF COALESCE(p->>'delegator', '') = '' THEN
+    RAISE EXCEPTION 'task token delegator claim is required';
+  END IF;
+  IF COALESCE(p->>'actor', '') = '' THEN
+    RAISE EXCEPTION 'task token actor claim is required';
+  END IF;
+  IF COALESCE(p->>'purpose', '') = '' THEN
+    RAISE EXCEPTION 'task token purpose claim is required';
+  END IF;
+  IF COALESCE(v_credential_id, '') = '' THEN
+    RAISE EXCEPTION 'task token credential_id claim is required';
+  END IF;
+  IF jsonb_typeof(p->'row_scope') IS DISTINCT FROM 'object' THEN
+    RAISE EXCEPTION 'task token row_scope claim must be an object';
+  END IF;
+  IF COALESCE(p #>> ARRAY['row_scope', 'expense_month'], '') = '' THEN
+    RAISE EXCEPTION 'task token row_scope.expense_month claim is required';
+  END IF;
+
+  SELECT cardinality(v_allowed_views) INTO v_expected_view_count;
+  SELECT count(*)::int
+  INTO v_actual_view_count
+  FROM taskbound.safe_view_registry
+  WHERE view_name = ANY(v_allowed_views);
+  IF v_actual_view_count <> v_expected_view_count THEN
+    RAISE EXCEPTION 'task token references an unknown safe view';
+  END IF;
+
+  WITH token_scope AS (
+    SELECT 'tenant_id'::text AS scope_key
+    UNION
+    SELECT key
+    FROM jsonb_each_text(p->'row_scope') AS scope_item(key, value)
+    WHERE NULLIF(value, '') IS NOT NULL
+  ),
+  missing AS (
+    SELECT r.view_name, token_scope.scope_key
+    FROM taskbound.safe_view_registry r
+    CROSS JOIN token_scope
+    WHERE r.view_name = ANY(v_allowed_views)
+      AND NOT token_scope.scope_key = ANY(r.scope_fields)
+  )
+  SELECT string_agg(view_name || ':' || scope_key, ', ' ORDER BY view_name, scope_key)
+  INTO v_policy_violation
+  FROM missing;
+  IF v_policy_violation IS NOT NULL THEN
+    RAISE EXCEPTION 'approved safe view does not enforce required task scope: %', v_policy_violation;
+  END IF;
+
+  WITH denied AS (
+    SELECT lower(trim(d)) AS raw
+    FROM unnest(v_denied_columns) AS denied_item(d)
+    WHERE NULLIF(trim(d), '') IS NOT NULL
+  ),
+  parsed AS (
+    SELECT
+      raw,
+      parts[cardinality(parts)] AS column_name,
+      CASE WHEN cardinality(parts) > 1 THEN parts[cardinality(parts) - 1] ELSE NULL END AS qualifier
+    FROM denied
+    CROSS JOIN LATERAL (SELECT string_to_array(raw, '.') AS parts) AS p
+  ),
+  exposed AS (
+    SELECT r.view_name, a.attname
+    FROM taskbound.safe_view_registry r
+    JOIN pg_catalog.pg_attribute a
+      ON a.attrelid = r.database_object::regclass
+     AND a.attnum > 0
+     AND NOT a.attisdropped
+    JOIN parsed d
+      ON lower(a.attname) = d.column_name
+     AND (
+       d.qualifier IS NULL
+       OR d.qualifier = lower(r.view_name)
+       OR d.qualifier = lower(split_part(r.database_object, '.', 2))
+       OR d.qualifier = lower(r.database_object)
+     )
+    WHERE r.view_name = ANY(v_allowed_views)
+  )
+  SELECT string_agg(view_name || '.' || attname, ', ' ORDER BY view_name, attname)
+  INTO v_policy_violation
+  FROM exposed;
+  IF v_policy_violation IS NOT NULL THEN
+    RAISE EXCEPTION 'task token denied column remains exposed by an approved safe view: %', v_policy_violation;
+  END IF;
+
+  IF NOT (p ? 'safe_view_registry')
+     OR NOT (p ? 'safe_view_registry_version')
+     OR NOT (p ? 'view_definition_hash')
+     OR NOT (p ? 'exposed_column_hash') THEN
+    RAISE EXCEPTION 'task token must carry safe-view registry drift claims';
+  END IF;
+
+  v_expected_snapshot := taskbound.safe_view_registry_snapshot(v_allowed_views);
+  IF p->'safe_view_registry' <> v_expected_snapshot THEN
+    RAISE EXCEPTION 'task token safe-view registry snapshot is stale; re-approval is required';
+  END IF;
+  IF p->>'safe_view_registry_version' <> v_expected_snapshot->>'safe_view_registry_version' THEN
+    RAISE EXCEPTION 'task token safe-view registry version is stale; re-approval is required';
+  END IF;
+  IF p->>'view_definition_hash' <> v_expected_snapshot->>'view_definition_hash' THEN
+    RAISE EXCEPTION 'task token safe-view definition hash is stale; re-approval is required';
+  END IF;
+  IF p->>'exposed_column_hash' <> v_expected_snapshot->>'exposed_column_hash' THEN
+    RAISE EXCEPTION 'task token exposed-column hash is stale; re-approval is required';
   END IF;
 
   SELECT task_id, credential_id
@@ -715,7 +833,7 @@ BEGIN
   SELECT COALESCE(string_agg((database_object::regclass)::oid::text, ',' ORDER BY view_name), '')
   INTO v_allowed_view_oids
   FROM taskbound.safe_view_registry
-  WHERE view_name = ANY(taskbound.jsonb_text_array(p->'allowed_views'));
+  WHERE view_name = ANY(v_allowed_views);
 
   SELECT public.dblink_get_connections() INTO v_connections;
   IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
@@ -805,6 +923,7 @@ BEGIN
       v_task_id,
       v_budget_account,
       v_allowed_view_oids,
+      v_denied_column_names,
       v_max_queries,
       v_max_rows,
       v_min_group_size,
@@ -936,6 +1055,8 @@ BEGIN
       r.database_object,
       r.registry_version,
       r.policy_version,
+      r.scope_fields,
+      r.sensitive_fields_excluded,
       encode(public.digest(COALESCE(pg_catalog.pg_get_viewdef(r.database_object::regclass, true), ''), 'sha256'), 'hex') AS definition_hash,
       (
         SELECT encode(
@@ -974,6 +1095,8 @@ BEGIN
           jsonb_build_object(
             'policy_version', policy_version,
             'registry_version', registry_version,
+            'scope_fields', scope_fields,
+            'sensitive_fields_excluded', sensitive_fields_excluded,
             'view_definition_hash', definition_hash,
             'exposed_column_hash', exposed_column_hash
           )
