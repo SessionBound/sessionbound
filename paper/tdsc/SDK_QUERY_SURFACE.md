@@ -44,7 +44,8 @@ available as a compatibility wrapper.
 
 The smoke run returned two rows through `TaskboundSession.query(sql)`, then one
 row through a bound direct safe-view `SELECT`. The task state showed
-`query_count = 2`, `returned_rows = 3`, and receipts for both native reads.
-Both allowed receipts included the touched safe view `expenses`.
+`query_count = 2`, `returned_rows = 3` release-barrier-authorized rows, and
+receipts for both native reads. Both allowed receipts included the touched safe
+view `expenses`.
 After `unbind_task()`, the same direct safe-view query failed with
 `no trusted task binding is active`.

@@ -1,0 +1,79 @@
+{
+  "run": {
+    "timestamp": "2026-07-19T14:02:26Z",
+    "commit": "d1625b1",
+    "base_url": "http://localhost:8000",
+    "case_count": 8,
+    "passed": 8,
+    "failed": 0,
+    "all_control_plane_auth_checks_passed": true
+  },
+  "records": [
+    {
+      "name": "credentials_without_key_rejected",
+      "passed": true,
+      "response": {
+        "http_status": 401,
+        "detail": "issuer control-plane key is required"
+      }
+    },
+    {
+      "name": "credentials_wrong_key_rejected",
+      "passed": true,
+      "response": {
+        "http_status": 401,
+        "detail": "issuer control-plane key is required"
+      }
+    },
+    {
+      "name": "credentials_with_key_allowed",
+      "passed": true,
+      "response": {
+        "http_status": 200,
+        "credential_id": "agent_auth_ok_20260719_140226_1338ecf5",
+        "db_user": "agent_auth_ok_20260719_140226_1338ecf5",
+        "actor": "agent:travel-expense-analyst"
+      }
+    },
+    {
+      "name": "tasks_without_key_rejected",
+      "passed": true,
+      "response": {
+        "http_status": 401,
+        "detail": "issuer control-plane key is required"
+      }
+    },
+    {
+      "name": "tasks_with_key_allowed",
+      "passed": true,
+      "response": {
+        "http_status": 200,
+        "signature": "acbbd17dafa9df169c6829756d04091f3fd08a277284a5bc0728e46acf42bbbc"
+      }
+    },
+    {
+      "name": "runtime_security_switch_rejected_after_auth",
+      "passed": true,
+      "response": {
+        "http_status": 400,
+        "detail": "runtime_options.receipts_enabled cannot be disabled"
+      }
+    },
+    {
+      "name": "admin_without_key_rejected",
+      "passed": true,
+      "response": {
+        "http_status": 401,
+        "detail": "admin control-plane key is required"
+      }
+    },
+    {
+      "name": "admin_with_key_allowed",
+      "passed": true,
+      "response": {
+        "http_status": 200,
+        "template_count": 3
+      }
+    }
+  ]
+}

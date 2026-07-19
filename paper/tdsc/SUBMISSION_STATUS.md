@@ -17,9 +17,11 @@ not unresolved evidence blockers for the current conservative claim contract.
   evidence)
 - Working branch: `high-standard-tdsc-pdsc-revision`
 - Manifest: `paper/tdsc/ARTIFACT_MANIFEST.md`
+- Static-review closure audit:
+  `paper/tdsc/STATIC_REVIEW_CLOSURE_AUDIT.md`
 - Manuscript source: `paper/tdsc/sessionbound-tdsc.tex`
 - Manuscript PDF: `paper/tdsc/sessionbound-tdsc.pdf`
-- Current compiled length: 16 pages
+- Current compiled length: 17 pages
 - Current abstract length: 199 words
 
 ## Official Submission-Format Check: 2026-07-19
@@ -37,7 +39,7 @@ Checked sources:
 Current local checks:
 
 - PDF builds cleanly with `make` from `paper/tdsc/`.
-- Page count is 16 pages. For a TDSC regular paper this is above the 12-page
+- Page count is 17 pages. For a TDSC regular paper this is above the 12-page
   regular-paper overlength threshold and therefore should be treated as
   MOPC-subject if accepted, but it is within the currently stated
   submission-length ceiling for regular papers.
@@ -76,8 +78,11 @@ Broad validation on an isolated Docker database passed after these changes:
 - AST validation: `ast_validation_20260719_162614.json`, 21 / 21.
 - Adversarial SQL: `adversarial_sql_20260719_162614.json`, 140 / 140
   with 130 blocked and 10 allowed/accounted.
-- Native hook/executor: `sessionbound_guard_hook_20260719_162553.json`,
-  18 / 18.
+- Historical fail-receipt crash triage:
+  `fail_receipt_segfault_triage.json`, 0 signal-11 triggers reproduced in the
+  one-at-a-time adversarial endpoint probe.
+- Native hook/executor: `sessionbound_guard_hook_20260719_230317.json`,
+  19 / 19.
 - Rollback audit: `rollback_audit_20260719_162553.json`, 5 / 5, including
   API preflight, wrapper, direct native, and rollback-surviving receipt paths.
 - Credential-token and safe-view drift:
@@ -93,27 +98,37 @@ Broad validation on an isolated Docker database passed after these changes:
   `aggregate_template_gating_20260719_113133.json`, 12 / 12 cases and
   36 / 36 API, direct-wrapper, and direct-native path decisions.
 - Function side-effect/default-deny policy:
-  `function_side_effect_20260719_113937.json`, 12 / 12 cases and 36 / 36
-  API, direct-wrapper, and direct-native path decisions, with side-effect
-  oracles confirming no `pg_sleep` delay, no held tested session advisory lock,
-  and no delivered `pg_notify` notification.
+  `function_side_effect_20260719_150354.json`, 13 / 13 cases and 38 / 38
+  evaluated API, direct-wrapper, and direct-native path decisions, with
+  side-effect oracles confirming no `pg_sleep` delay, no held tested session
+  advisory lock, no delivered `pg_notify` notification, and blocked temporary
+  operator/function mediation.
+- Pre-bind runtime mediation: `prebind_runtime_20260719_150119.json`, 7 / 7,
+  confirming runtime credentials cannot run ordinary SQL, utility/TEMP SQL, or
+  private helpers before binding while `taskbound.bind_task(...)` remains
+  usable as the public binding entrypoint.
 - Receipt fault/forgeability:
-  `receipt_fault_20260719_114420.json`, 5 / 5, covering receipt hash
-  recomputation, previous-hash chaining, required hardened fields, tamper
-  sensitivity, wrong-fence append rejection, and direct agent forgery attempts.
+  `receipt_fault_20260719_135735.json`, 7 / 7, covering receipt hash
+  recomputation, contiguous receipt sequence, previous-hash chaining, required
+  hardened fields, tamper sensitivity, wrong-fence append rejection, direct
+  agent forgery attempts, and controlled-command allow/deny receipts.
 - Concurrent isolation: `concurrent_isolation_20260719_065546.json`, 6 / 6.
 - Single-active binding:
   `single_active_binding_20260719_065728.json`, passed with 20 repeated
   races and 10 contenders.
-- Native partial budget: `native_partial_budget_20260719_162615.json`, 1 / 1.
+- Native partial budget: `native_partial_budget_20260719_215902.json`, 1 / 1.
 - SDK direct-query smoke: `sdk_query_20260719_082553.json`, 3 / 3.
 - Functionally equivalent external-PEP cumulative baseline:
   `functional_equivalent_baseline_20260719_164723.json`, 8 / 8.
 - Path consistency:
-  `path_consistency_20260719_184242.json`, 12 / 12 across 36 API,
+  `path_consistency_20260719_215758.json`, 13 / 13 across 39 API,
   direct-wrapper, and direct-native observations, with two direct-native
   PostgreSQL pre-analysis errors excluded from receipt equivalence and recorded
   as scoped observations.
+- Binding lifecycle: `binding_lifecycle_20260719_142819.json`, 4 / 4,
+  including snapshot metadata coverage and release-time view-option drift.
+- Control-plane authentication: `control_plane_auth_20260719_140226.json`,
+  8 / 8.
 - Hook microbenchmark: `hook_microbenchmark_20260719_150550.json`, 7 / 7.
 - Overhead breakdown: `overhead_breakdown_20260719_150951.json`.
 - Native end-to-end diagnostic:
@@ -191,11 +206,12 @@ still documenting that direct database use of the baseline role bypasses the
 external PEP unless complete mediation is part of the deployment TCB.
 
 Novelty review: the defensible contribution is narrow. The manuscript now
-includes a nearest-neighbor matrix against TBAC/UCON, Macaroons,
-Qapla/Blockaid/Sieve, Progent/AgentSpec/Task Shield/PAuth, and CaMeL/IFC
-agents. The positioned contribution is database-centered task-session
-composition for open-ended SQL with credential binding, safe-view drift checks,
-cumulative budgets, and receipts, not a new standalone authorization model.
+includes a nearest-neighbor matrix against TBAC/UCON, Macaroons, Qapla,
+Blockaid, Sieve, ShillDB, Estrela, PICACHV,
+Progent/AgentSpec/Task Shield, PAuth, and CaMeL/IFC agents. The positioned
+contribution is database-centered task-session composition for open-ended SQL
+with credential binding, safe-view drift checks, cumulative budgets, and
+receipts, not a new standalone authorization model.
 
 Canonical audit notes:
 
@@ -239,8 +255,11 @@ is prepared from the TDSC text.
   credential-id matching, actor matching, audience validation,
   cross-credential replay rejection, expiration, revocation, and
   same-session rebind rejection.
-- Implemented and measured safe-view drift invalidation using registry version,
-  policy version, view-definition hash, and exposed-column hash checks.
+- Implemented safe-view drift invalidation using registry version, policy
+  version, database/view identity, dependency hash, option hash,
+  view-definition hash, and exposed-column hash checks. The current lifecycle
+  run directly checks snapshot metadata coverage and release-time view-option
+  drift denial.
 - Added a scope-completeness evaluator that checks every task-allowed safe view
   in monthly, finance workflow, and payment ledger task shapes against
   raw-table tenant/month/department provenance.
@@ -255,6 +274,8 @@ is prepared from the TDSC text.
   advisory locks, notifications, session/config probes, catalog and file
   introspection, SRFs, payload serialization, and an unlisted aggregate across
   API, direct-wrapper, and direct-native paths.
+- Retained a historical fail-receipt backend-crash triage probe and recorded a
+  zero-trigger raw result for the one-at-a-time adversarial endpoint run.
 - Added a receipt fault/forgeability evaluator that recomputes the receipt hash
   chain from raw database rows, verifies hardened fields and tamper
   sensitivity, rejects wrong-fence append attempts, and confirms direct agent
@@ -275,7 +296,7 @@ is prepared from the TDSC text.
 - Switched the manuscript entrypoint to `\documentclass[journal]{IEEEtran}`.
 - Added IEEE keywords.
 - Compressed the TDSC manuscript from an over-explanatory long draft into a
-  16-page candidate by shortening motivation, discussion, related work, future
+  shorter regular-paper candidate by shortening motivation, discussion, related
   work, and limitations.
 - Moved the full canonical validation table out of the manuscript body and into
   the artifact evidence.
@@ -291,7 +312,7 @@ is prepared from the TDSC text.
 - Confirm the current CAS / Chinese Academy of Sciences journal partition using
   the author's institution-approved list if that classification matters for
   internal approval.
-- Treat the current 16-page regular-paper candidate as MOPC-subject if
+- Treat the current 17-page regular-paper candidate as MOPC-subject if
   accepted, because it exceeds the 12-page regular-paper threshold.
 - Do not broaden the manuscript to claim positive aggregate/window release
   until aggregate templates are designed and validated. The current artifact

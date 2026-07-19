@@ -95,6 +95,11 @@ USER_HTML = r"""
       gap: 8px;
       flex-wrap: wrap;
     }
+    .top-actions input {
+      width: 260px;
+      min-width: 220px;
+      min-height: 38px;
+    }
     .pill {
       display: inline-flex;
       align-items: center;
@@ -260,6 +265,7 @@ USER_HTML = r"""
     <div class="top-actions">
       <span class="pill">SessionBound Demo</span>
       <span id="sessionStatus" class="pill locked">No approved session</span>
+      <input id="controlPlaneKey" type="password" autocomplete="off" placeholder="Control-plane key" oninput="saveControlPlaneKey()" />
       <a href="/admin">Policy Console</a>
     </div>
   </header>
@@ -428,6 +434,7 @@ USER_HTML = r"""
     const steps = ["Apply", "Approve", "Issue Session", "Analyze", "Receipt"];
     const safeViews = ["expenses", "departments", "employees", "approval_events", "ledger_entries"];
     const deniedFields = ["salary", "bank_account", "phone", "identity_number"];
+    const CONTROL_PLANE_KEY_STORAGE = "taskbound.controlPlaneKey";
     const taskTemplates = {
       monthly_travel_expense_review: {
         label: "Monthly Travel Expense Analysis",
@@ -481,6 +488,23 @@ USER_HTML = r"""
       state.queryRuns = 0;
       state.rowsReturned = 0;
       state.latestResult = null;
+    }
+    function initControlPlaneKey() {
+      document.getElementById("controlPlaneKey").value = localStorage.getItem(CONTROL_PLANE_KEY_STORAGE) || "";
+    }
+    function controlPlaneKey() {
+      return document.getElementById("controlPlaneKey")?.value.trim() || "";
+    }
+    function saveControlPlaneKey() {
+      const key = controlPlaneKey();
+      if (key) localStorage.setItem(CONTROL_PLANE_KEY_STORAGE, key);
+      else localStorage.removeItem(CONTROL_PLANE_KEY_STORAGE);
+    }
+    function authHeaders(headers = {}) {
+      const merged = {...headers};
+      const key = controlPlaneKey();
+      if (key) merged["X-TaskBound-Control-Plane-Key"] = key;
+      return merged;
     }
     function resetAnalysisOutput() {
       document.getElementById("decisionBadge").textContent = "Locked until session issued";
@@ -725,7 +749,7 @@ USER_HTML = r"""
       try {
         const credential = await fetch("/credentials", {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: authHeaders({"Content-Type": "application/json"}),
           body: JSON.stringify({
             agent_id: "sessionbound-demo-agent",
             actor: "agent:travel-expense-analyst",
@@ -734,7 +758,7 @@ USER_HTML = r"""
         }).then(r => r.json());
         const task = await fetch("/tasks", {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: authHeaders({"Content-Type": "application/json"}),
           body: JSON.stringify({
             task_id: "task_june_expense_analysis_" + Date.now(),
             task_type: state.application.taskType,
@@ -906,6 +930,7 @@ USER_HTML = r"""
       resetAnalysisOutput();
       renderAll();
     }
+    initControlPlaneKey();
     renderAll();
   </script>
 </body>

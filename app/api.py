@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 import psycopg
 from psycopg import sql as psql
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, Header, HTTPException, FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -38,6 +38,17 @@ AGENT_QUERY_DB_PORT = os.environ.get("AGENT_QUERY_DB_PORT")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+CONTROL_PLANE_HEADER = "X-TaskBound-Control-Plane-Key"
+CONTROL_PLANE_ISSUER_KEY = (
+    os.environ.get("TASKBOUND_CONTROL_PLANE_ISSUER_KEY")
+    or os.environ.get("TASKBOUND_CONTROL_PLANE_KEY")
+    or ""
+)
+CONTROL_PLANE_ADMIN_KEY = (
+    os.environ.get("TASKBOUND_CONTROL_PLANE_ADMIN_KEY")
+    or os.environ.get("TASKBOUND_CONTROL_PLANE_KEY")
+    or ""
+)
 
 
 class CreateTaskRequest(BaseModel):
@@ -143,6 +154,53 @@ def connect_with_credential(credential: AgentCredential):
     conn = psycopg.connect(conninfo)
     conn.autocommit = True
     return conn
+
+
+def require_control_plane_key(
+    expected: str,
+    presented: str | None,
+    *,
+    label: str,
+) -> None:
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail=f"{label} control-plane key is not configured",
+        )
+    if not presented or not secrets.compare_digest(presented, expected):
+        raise HTTPException(
+            status_code=401,
+            detail=f"{label} control-plane key is required",
+        )
+
+
+def require_control_plane_issuer(
+    x_taskbound_control_plane_key: str | None = Header(
+        default=None,
+        alias=CONTROL_PLANE_HEADER,
+    ),
+) -> None:
+    if CONTROL_PLANE_ADMIN_KEY and x_taskbound_control_plane_key:
+        if secrets.compare_digest(x_taskbound_control_plane_key, CONTROL_PLANE_ADMIN_KEY):
+            return
+    require_control_plane_key(
+        CONTROL_PLANE_ISSUER_KEY,
+        x_taskbound_control_plane_key,
+        label="issuer",
+    )
+
+
+def require_control_plane_admin(
+    x_taskbound_control_plane_key: str | None = Header(
+        default=None,
+        alias=CONTROL_PLANE_HEADER,
+    ),
+) -> None:
+    require_control_plane_key(
+        CONTROL_PLANE_ADMIN_KEY,
+        x_taskbound_control_plane_key,
+        label="admin",
+    )
 
 
 def reap_expired_runtime_credentials(grace_minutes: int = 0) -> dict[str, Any]:
@@ -316,9 +374,12 @@ def fetch_safe_view_registry_claims(allowed_views: list[str]) -> dict[str, Any]:
             snapshot = cur.fetchone()[0]
     return {
         "safe_view_registry": snapshot,
+        "database_oid": snapshot["database_oid"],
         "safe_view_registry_version": snapshot["safe_view_registry_version"],
         "view_definition_hash": snapshot["view_definition_hash"],
         "exposed_column_hash": snapshot["exposed_column_hash"],
+        "view_dependency_hash": snapshot["view_dependency_hash"],
+        "view_option_hash": snapshot["view_option_hash"],
     }
 
 
@@ -1223,8 +1284,7 @@ def index():
     return USER_HTML
 
 
-@app.post("/tasks")
-def create_task(req: CreateTaskRequest):
+def create_task_response(req: CreateTaskRequest) -> dict[str, Any]:
     if not req.credential_id:
         raise HTTPException(
             status_code=400,
@@ -1236,6 +1296,13 @@ def create_task(req: CreateTaskRequest):
     requested_budgets = dict(req.budgets or {})
     requested_budgets.setdefault("max_queries", req.max_queries)
     requested_budgets.setdefault("max_unique_expense_rows", req.max_rows)
+    if req.runtime_options:
+        for option_name in ("receipts_enabled", "budget_accounting_enabled"):
+            if req.runtime_options.get(option_name) is False:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"runtime_options.{option_name} cannot be disabled",
+                )
     try:
         payload, payload_text, signature = build_task_from_template(
             task_id=req.task_id,
@@ -1280,6 +1347,14 @@ def create_task(req: CreateTaskRequest):
     }
 
 
+@app.post("/tasks")
+def create_task(
+    req: CreateTaskRequest,
+    _auth: None = Depends(require_control_plane_issuer),
+):
+    return create_task_response(req)
+
+
 @app.post("/task-schema")
 def describe_task_schema(req: QueryRequest):
     try:
@@ -1290,17 +1365,20 @@ def describe_task_schema(req: QueryRequest):
 
 
 @app.get("/admin/task-templates")
-def list_task_templates():
+def list_task_templates(_auth: None = Depends(require_control_plane_admin)):
     return {"templates": TASK_TEMPLATES}
 
 
 @app.get("/admin/safe-views")
-def list_safe_views():
+def list_safe_views(_auth: None = Depends(require_control_plane_admin)):
     return {"safe_views": SAFE_VIEWS}
 
 
 @app.post("/admin/task-templates")
-def save_task_template(req: TaskTemplateRequest):
+def save_task_template(
+    req: TaskTemplateRequest,
+    _auth: None = Depends(require_control_plane_admin),
+):
     if "task_type" not in req.template:
         raise HTTPException(status_code=400, detail="template.task_type is required")
     if "purpose" not in req.template:
@@ -1313,12 +1391,15 @@ def save_task_template(req: TaskTemplateRequest):
 
 
 @app.get("/admin/task-grants")
-def list_task_grants():
+def list_task_grants(_auth: None = Depends(require_control_plane_admin)):
     return {"grants": TASK_GRANTS}
 
 
 @app.post("/admin/task-grants")
-def save_task_grant(req: TaskGrantRequest):
+def save_task_grant(
+    req: TaskGrantRequest,
+    _auth: None = Depends(require_control_plane_admin),
+):
     if "delegator" not in req.grant:
         raise HTTPException(status_code=400, detail="grant.delegator is required")
     if "task_type" not in req.grant:
@@ -1335,7 +1416,10 @@ def admin_page():
 
 
 @app.post("/todos")
-def list_todos(req: TodoListRequest):
+def list_todos(
+    req: TodoListRequest,
+    _auth: None = Depends(require_control_plane_issuer),
+):
     role = user_role(req.delegator)
     with admin_connect() as conn:
         with conn.cursor() as cur:
@@ -1388,8 +1472,7 @@ def list_todos(req: TodoListRequest):
     }
 
 
-@app.post("/credentials")
-def issue_credential(req: CredentialRequest):
+def issue_credential_response(req: CredentialRequest) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(minutes=req.ttl_minutes)
     safe_agent = "".join(ch if ch.isalnum() else "_" for ch in req.agent_id.lower())[:40]
@@ -1437,8 +1520,19 @@ def issue_credential(req: CredentialRequest):
     }
 
 
+@app.post("/credentials")
+def issue_credential(
+    req: CredentialRequest,
+    _auth: None = Depends(require_control_plane_issuer),
+):
+    return issue_credential_response(req)
+
+
 @app.post("/credentials/reap-expired")
-def reap_expired_credentials(req: CredentialReapRequest):
+def reap_expired_credentials(
+    req: CredentialReapRequest,
+    _auth: None = Depends(require_control_plane_admin),
+):
     return reap_expired_runtime_credentials(req.grace_minutes)
 
 
@@ -1691,15 +1785,18 @@ def agent_command(req: AgentCommandRequest):
 
 
 @app.post("/agent-chat")
-def agent_chat(req: AgentChatRequest):
-    credential_dict = issue_credential(
+def agent_chat(
+    req: AgentChatRequest,
+    _auth: None = Depends(require_control_plane_issuer),
+):
+    credential_dict = issue_credential_response(
         CredentialRequest(
             agent_id="deepseek-agent",
             actor="agent:deepseek-travel-analyst",
             ttl_minutes=15,
         )
     )
-    task_dict = create_task(
+    task_dict = create_task_response(
         CreateTaskRequest(
             task_id=f"task_deepseek_{secrets.token_hex(4)}",
             task_type=req.task_type,

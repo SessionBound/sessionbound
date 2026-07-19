@@ -1,0 +1,134 @@
+{
+  "run": {
+    "timestamp": "2026-07-19T14:28:19Z",
+    "commit": "d1625b1",
+    "base_url": "http://localhost:8000",
+    "case_count": 4,
+    "passed": 4,
+    "failed": 0
+  },
+  "records": [
+    {
+      "name": "snapshot_contract_metadata_present",
+      "passed": true,
+      "checks": {
+        "top_level_database_oid": true,
+        "top_level_dependency_hash": true,
+        "top_level_option_hash": true,
+        "view_oid": true,
+        "view_database_oid": true,
+        "view_dependency_hash": true,
+        "view_options": true,
+        "dependencies": true
+      },
+      "snapshot_summary": {
+        "database_oid": "16384",
+        "view_definition_hash": "3927d8d75c2156b561185eb4856a5b2969001342b8397b74428c26eeecf01e2f",
+        "view_dependency_hash": "184ba00b96a3c81371453f58f29ca8dd54d578d964650692021f5816cea0273c",
+        "view_option_hash": "4a83c7a4bbda781bf18f8b2d7c6c94b579f2ee4a5de7c93d945a2cd528d1d164",
+        "expenses_view_oid": "16679",
+        "expenses_dependency_count": 19,
+        "expenses_view_options": []
+      }
+    },
+    {
+      "name": "release_time_token_expiry_denied",
+      "passed": true,
+      "expected_reason": "task token is expired",
+      "error": "task token is expired",
+      "binding": {
+        "bound": true,
+        "purpose": "monthly_travel_expense_anomaly_review",
+        "task_id": "task_lifecycle_20260719_142819_release_time_token_expiry_denied",
+        "binding_id": "fd585b9b-82a5-4b05-a8d7-fc65f058565b",
+        "fence_token": 104,
+        "credential_id": "agent_lifecycle_20260719_142819_release_time_t_7ebdfd57",
+        "budget_account": "task_lifecycle_20260719_142819_release_time_token_expiry_denied",
+        "stale_recovered": false,
+        "advisory_lock_key": -9138904391570684836
+      },
+      "state": {
+        "query_count": 0,
+        "returned_rows": 0,
+        "unique_expense_rows": 0,
+        "revoked": false
+      },
+      "receipts": [
+        {
+          "decision": "denied",
+          "reason": "task token is expired",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": 5000,
+          "created_at": "2026-07-19 14:28:19.730136+00"
+        }
+      ]
+    },
+    {
+      "name": "release_time_safe_view_drift_denied",
+      "passed": true,
+      "expected_reason": "task token safe-view registry snapshot is stale; re-approval is required",
+      "error": "task token safe-view registry snapshot is stale; re-approval is required",
+      "binding": {
+        "bound": true,
+        "purpose": "monthly_travel_expense_anomaly_review",
+        "task_id": "task_lifecycle_20260719_142819_release_time_safe_view_drift_denied",
+        "binding_id": "5a7461d3-aa6e-4e8b-a664-868786df824f",
+        "fence_token": 105,
+        "credential_id": "agent_lifecycle_20260719_142819_release_time_s_691eeb20",
+        "budget_account": "task_lifecycle_20260719_142819_release_time_safe_view_drift_denied",
+        "stale_recovered": false,
+        "advisory_lock_key": -6534935605679929079
+      },
+      "state": {
+        "query_count": 0,
+        "returned_rows": 0,
+        "unique_expense_rows": 0,
+        "revoked": false
+      },
+      "receipts": [
+        {
+          "decision": "denied",
+          "reason": "task token safe-view registry snapshot is stale; re-approval is required",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": 5000,
+          "created_at": "2026-07-19 14:28:19.839481+00"
+        }
+      ]
+    },
+    {
+      "name": "release_time_view_option_drift_denied",
+      "passed": true,
+      "expected_reason": "task token safe-view registry snapshot is stale; re-approval is required",
+      "error": "task token safe-view registry snapshot is stale; re-approval is required",
+      "binding": {
+        "bound": true,
+        "purpose": "monthly_travel_expense_anomaly_review",
+        "task_id": "task_lifecycle_20260719_142819_release_time_view_option_drift_denied",
+        "binding_id": "deeec70b-0608-4161-abf2-580f2cb6e28d",
+        "fence_token": 106,
+        "credential_id": "agent_lifecycle_20260719_142819_release_time_v_b4091607",
+        "budget_account": "task_lifecycle_20260719_142819_release_time_view_option_drift_denied",
+        "stale_recovered": false,
+        "advisory_lock_key": 4859296904034525991
+      },
+      "state": {
+        "query_count": 0,
+        "returned_rows": 0,
+        "unique_expense_rows": 0,
+        "revoked": false
+      },
+      "receipts": [
+        {
+          "decision": "denied",
+          "reason": "task token safe-view registry snapshot is stale; re-approval is required",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": 5000,
+          "created_at": "2026-07-19 14:28:19.94909+00"
+        }
+      ]
+    }
+  ]
+}

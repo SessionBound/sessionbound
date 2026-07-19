@@ -141,9 +141,31 @@ P.~Pappachan, R.~Yus, S.~Mehrotra, and J.-C. Freytag, ``{Sieve: A Middleware
   \emph{Proceedings of the VLDB Endowment}, vol.~13, no.~12, pp. 2424--2437,
   2020.
 
+\bibitem{zigmond2020shilldb}
+E.~Zigmond, S.~Chong, C.~Dimoulas, and S.~Moore, ``{Fine-Grained,
+  Language-Based Access Control for Database-Backed Applications},'' \emph{The
+  Art, Science, and Engineering of Programming}, vol.~4, no.~2, p.~3, 2020.
+
+\bibitem{bichhawat2020estrela}
+A.~Bichhawat, M.~Fredrikson, J.~Yang, and A.~Trehan, ``{Contextual and Granular
+  Policy Enforcement in Database-backed Applications},'' in \emph{Proceedings
+  of the 15th ACM Asia Conference on Computer and Communications
+  Security}.\hskip 1em plus 0.5em minus 0.4em\relax Association for Computing
+  Machinery, 2020, pp. 479--491.
+
+\bibitem{chen2025picachv}
+\BIBentryALTinterwordspacing
+H.~H. Chen, H.~Chen, M.~Sun, C.~Wang, and X.~Wang, ``{PICACHV: Formally
+  Verified Data Use Policy Enforcement for Secure Data Analytics},'' in
+  \emph{34th USENIX Security Symposium (USENIX Security 25)}.\hskip 1em plus
+  0.5em minus 0.4em\relax Seattle, WA: USENIX Association, 2025, pp.
+  5053--5070. [Online]. Available:
+  \url{https://www.usenix.org/conference/usenixsecurity25/presentation/chen-haobin}
+\BIBentrySTDinterwordspacing
+
 \bibitem{shi2025progent}
-T.~Shi, J.~He, Z.~Wang, H.~Li, L.~Wu, W.~Guo, and D.~Song, ``{Progent: Securing
-  AI Agents with Privilege Control},'' 2025.
+T.~Shi, J.~He, Z.~Wang, H.~Li, L.~Wu, W.~Guo, and D.~Song, ``{Progent:
+  Programmable Privilege Control for LLM Agents},'' 2025.
 
 \bibitem{wang2025agentspec}
 H.~Wang, C.~M. Poskitt, and J.~Sun, ``{AgentSpec: Customizable Runtime
@@ -218,6 +240,19 @@ A.~C. Myers and B.~Liskov, ``{A Decentralized Model for Information Flow
 {Oracle}, \emph{{Oracle Deep Data Security Technical Brief}}, Oracle, 2026.
   [Online]. Available:
   \url{https://www.oracle.com/a/ocom/docs/security/deep-data-security-technical-brief.pdf}
+\BIBentrySTDinterwordspacing
+
+\bibitem{alneyadi2016dlps}
+S.~Alneyadi, E.~Sithirasenan, and V.~Muthukkumarasamy, ``{A Survey on Data
+  Leakage Prevention Systems},'' \emph{Journal of Network and Computer
+  Applications}, vol.~62, pp. 137--152, 2016.
+
+\bibitem{nist2026dlpglossary}
+\BIBentryALTinterwordspacing
+{National Institute of Standards and Technology}, \emph{{Data Loss
+  Prevention}}, NIST Computer Security Resource Center Glossary, 2026.
+  [Online]. Available:
+  \url{https://csrc.nist.gov/glossary/term/data_loss_prevention}
 \BIBentrySTDinterwordspacing
 
 \bibitem{boyd2004sqlrand}

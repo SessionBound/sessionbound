@@ -1,0 +1,1579 @@
+{
+  "records": [
+    {
+      "excluded_path_observations": {},
+      "expected": "Allowed",
+      "expected_ok": true,
+      "id": "PC01",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper",
+        "direct_native"
+      ],
+      "name": "detail_projection_allowed",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": true,
+          "classification": "Allowed",
+          "error": "",
+          "path": "api_wrapper",
+          "reason_bucket": "allowed",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 2
+          },
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Allowed",
+          "error": "",
+          "path": "direct_native",
+          "reason_bucket": "allowed",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 2
+          },
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Allowed",
+          "error": "",
+          "path": "direct_wrapper",
+          "reason_bucket": "allowed",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 2
+          },
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          }
+        }
+      },
+      "reason_bucket": "allowed",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Allowed",
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed",
+          "query_count": 1,
+          "reason_bucket": "allowed",
+          "receipt_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2
+        },
+        "direct_native": {
+          "classification": "Allowed",
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed",
+          "query_count": 1,
+          "reason_bucket": "allowed",
+          "receipt_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2
+        },
+        "direct_wrapper": {
+          "classification": "Allowed",
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed",
+          "query_count": 1,
+          "reason_bucket": "allowed",
+          "receipt_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2
+        }
+      },
+      "sql": "SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2"
+    },
+    {
+      "excluded_path_observations": {},
+      "expected": "Allowed",
+      "expected_ok": true,
+      "id": "PC02",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper",
+        "direct_native"
+      ],
+      "name": "safe_view_join_allowed",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": true,
+          "classification": "Allowed",
+          "error": "",
+          "path": "api_wrapper",
+          "reason_bucket": "allowed",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_touched_views": [
+              "departments",
+              "expenses"
+            ],
+            "latest_unique_rows_added": 2
+          },
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Allowed",
+          "error": "",
+          "path": "direct_native",
+          "reason_bucket": "allowed",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_touched_views": [
+              "departments",
+              "expenses"
+            ],
+            "latest_unique_rows_added": 2
+          },
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Allowed",
+          "error": "",
+          "path": "direct_wrapper",
+          "reason_bucket": "allowed",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_touched_views": [
+              "departments",
+              "expenses"
+            ],
+            "latest_unique_rows_added": 2
+          },
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          }
+        }
+      },
+      "reason_bucket": "allowed",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Allowed",
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed",
+          "query_count": 1,
+          "reason_bucket": "allowed",
+          "receipt_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2
+        },
+        "direct_native": {
+          "classification": "Allowed",
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed",
+          "query_count": 1,
+          "reason_bucket": "allowed",
+          "receipt_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2
+        },
+        "direct_wrapper": {
+          "classification": "Allowed",
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed",
+          "query_count": 1,
+          "reason_bucket": "allowed",
+          "receipt_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2
+        }
+      },
+      "sql": "SELECT e.expense_id, d.department_name FROM expenses e JOIN departments d USING (department_id) ORDER BY e.expense_id LIMIT 2"
+    },
+    {
+      "excluded_path_observations": {},
+      "expected": "Allowed",
+      "expected_ok": true,
+      "id": "PC03",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper",
+        "direct_native"
+      ],
+      "name": "non_aggregate_cte_allowed",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": true,
+          "classification": "Allowed",
+          "error": "",
+          "path": "api_wrapper",
+          "reason_bucket": "allowed",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 3,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 3
+          },
+          "row_count": 3,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 3,
+            "unique_expense_rows": 3
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Allowed",
+          "error": "",
+          "path": "direct_native",
+          "reason_bucket": "allowed",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 3,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 3
+          },
+          "row_count": 3,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 3,
+            "unique_expense_rows": 3
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Allowed",
+          "error": "",
+          "path": "direct_wrapper",
+          "reason_bucket": "allowed",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 3,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 3
+          },
+          "row_count": 3,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 3,
+            "unique_expense_rows": 3
+          }
+        }
+      },
+      "reason_bucket": "allowed",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Allowed",
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed",
+          "query_count": 1,
+          "reason_bucket": "allowed",
+          "receipt_count": 1,
+          "returned_rows": 3,
+          "unique_expense_rows": 3
+        },
+        "direct_native": {
+          "classification": "Allowed",
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed",
+          "query_count": 1,
+          "reason_bucket": "allowed",
+          "receipt_count": 1,
+          "returned_rows": 3,
+          "unique_expense_rows": 3
+        },
+        "direct_wrapper": {
+          "classification": "Allowed",
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed",
+          "query_count": 1,
+          "reason_bucket": "allowed",
+          "receipt_count": 1,
+          "returned_rows": 3,
+          "unique_expense_rows": 3
+        }
+      },
+      "sql": "WITH recent AS (  SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 3) SELECT expense_id FROM recent ORDER BY expense_id"
+    },
+    {
+      "excluded_path_observations": {},
+      "expected": "Allowed",
+      "expected_ok": true,
+      "id": "PC13",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper",
+        "direct_native"
+      ],
+      "name": "schema_qualified_safe_view_allowed",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": true,
+          "classification": "Allowed",
+          "error": "",
+          "path": "api_wrapper",
+          "reason_bucket": "allowed",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 2
+          },
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Allowed",
+          "error": "",
+          "path": "direct_native",
+          "reason_bucket": "allowed",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 2
+          },
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Allowed",
+          "error": "",
+          "path": "direct_wrapper",
+          "reason_bucket": "allowed",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 2
+          },
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          }
+        }
+      },
+      "reason_bucket": "allowed",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Allowed",
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed",
+          "query_count": 1,
+          "reason_bucket": "allowed",
+          "receipt_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2
+        },
+        "direct_native": {
+          "classification": "Allowed",
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed",
+          "query_count": 1,
+          "reason_bucket": "allowed",
+          "receipt_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2
+        },
+        "direct_wrapper": {
+          "classification": "Allowed",
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed",
+          "query_count": 1,
+          "reason_bucket": "allowed",
+          "receipt_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2
+        }
+      },
+      "sql": "SELECT expense_id, amount FROM taskbound.expenses ORDER BY amount DESC LIMIT 2"
+    },
+    {
+      "excluded_path_observations": {
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "denied_column",
+          "receipt_count": 0
+        }
+      },
+      "excluded_paths_from_consistency": [
+        "direct_native"
+      ],
+      "exclusion_reason": "salary is not exposed by the hardened safe view, so direct native PostgreSQL rejects it as an undefined column before post-parse policy hooks can emit a receipt",
+      "expected": "Blocked",
+      "expected_ok": true,
+      "id": "PC04",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper"
+      ],
+      "name": "denied_column_blocked",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": false,
+          "classification": "Blocked",
+          "error": "AST preflight denied query: denied column salary is outside this task capability",
+          "path": "api_wrapper",
+          "reason_bucket": "denied_column",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "denied_column",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "employees"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "column \"salary\" does not exist",
+          "path": "direct_native",
+          "reason_bucket": "denied_column",
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBoundDB denied query: sensitive column is outside this task capability",
+          "path": "direct_wrapper",
+          "reason_bucket": "denied_column",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "denied_column",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "employees"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        }
+      },
+      "reason_bucket": "denied_column",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "denied_column",
+          "query_count": 0,
+          "reason_bucket": "denied_column",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "latest_receipt_decision": null,
+          "latest_receipt_reason_bucket": null,
+          "query_count": 0,
+          "reason_bucket": "denied_column",
+          "receipt_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "denied_column",
+          "query_count": 0,
+          "reason_bucket": "denied_column",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        }
+      },
+      "sql": "SELECT employee_name, salary FROM employees"
+    },
+    {
+      "excluded_path_observations": {},
+      "expected": "Blocked",
+      "expected_ok": true,
+      "id": "PC05",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper",
+        "direct_native"
+      ],
+      "name": "raw_schema_blocked",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": false,
+          "classification": "Blocked",
+          "error": "AST preflight denied query: direct access to schema app_data is not allowed; schema-qualified relation app_data.expenses is outside the safe-view registry",
+          "path": "api_wrapper",
+          "reason_bucket": "raw_schema",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "raw_schema",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBound guard denied query: raw application schema access is not allowed",
+          "path": "direct_native",
+          "reason_bucket": "raw_schema",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "raw_schema",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBoundDB denied query: direct access to internal schemas or state tables is not allowed",
+          "path": "direct_wrapper",
+          "reason_bucket": "raw_schema",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "raw_schema",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        }
+      },
+      "reason_bucket": "raw_schema",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "raw_schema",
+          "query_count": 0,
+          "reason_bucket": "raw_schema",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "raw_schema",
+          "query_count": 0,
+          "reason_bucket": "raw_schema",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "raw_schema",
+          "query_count": 0,
+          "reason_bucket": "raw_schema",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        }
+      },
+      "sql": "SELECT expense_id FROM app_data.expenses LIMIT 1"
+    },
+    {
+      "excluded_path_observations": {},
+      "expected": "Blocked",
+      "expected_ok": true,
+      "id": "PC06",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper",
+        "direct_native"
+      ],
+      "name": "catalog_blocked",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": false,
+          "classification": "Blocked",
+          "error": "AST preflight denied query: catalog relation pg_tables is not allowed; relation pg_tables is not in the approved safe-view registry",
+          "path": "api_wrapper",
+          "reason_bucket": "catalog",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "catalog",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBound guard denied query: catalog access is not allowed",
+          "path": "direct_native",
+          "reason_bucket": "catalog",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "catalog",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBoundDB denied query: catalog access is not allowed",
+          "path": "direct_wrapper",
+          "reason_bucket": "catalog",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "catalog",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        }
+      },
+      "reason_bucket": "catalog",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "catalog",
+          "query_count": 0,
+          "reason_bucket": "catalog",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "catalog",
+          "query_count": 0,
+          "reason_bucket": "catalog",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "catalog",
+          "query_count": 0,
+          "reason_bucket": "catalog",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        }
+      },
+      "sql": "SELECT tablename FROM pg_tables LIMIT 1"
+    },
+    {
+      "excluded_path_observations": {},
+      "expected": "Blocked",
+      "expected_ok": true,
+      "id": "PC07",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper",
+        "direct_native"
+      ],
+      "name": "set_operation_blocked",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": false,
+          "classification": "Blocked",
+          "error": "AST preflight denied query: UNION, INTERSECT, and EXCEPT query shapes are not allowed",
+          "path": "api_wrapper",
+          "reason_bucket": "set_operation",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "set_operation",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "employees",
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBound guard denied query: UNION, INTERSECT, and EXCEPT are not allowed",
+          "path": "direct_native",
+          "reason_bucket": "set_operation",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "set_operation",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "employees",
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBoundDB denied query: UNION, INTERSECT, and EXCEPT are not allowed",
+          "path": "direct_wrapper",
+          "reason_bucket": "set_operation",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "set_operation",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "employees",
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        }
+      },
+      "reason_bucket": "set_operation",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "set_operation",
+          "query_count": 0,
+          "reason_bucket": "set_operation",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "set_operation",
+          "query_count": 0,
+          "reason_bucket": "set_operation",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "set_operation",
+          "query_count": 0,
+          "reason_bucket": "set_operation",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        }
+      },
+      "sql": "SELECT expense_id FROM expenses UNION SELECT employee_id FROM employees"
+    },
+    {
+      "excluded_path_observations": {},
+      "expected": "Blocked",
+      "expected_ok": true,
+      "id": "PC08",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper",
+        "direct_native"
+      ],
+      "name": "grouped_aggregate_blocked",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": false,
+          "classification": "Blocked",
+          "error": "AST preflight denied query: GROUP BY aggregate release requires an approved aggregate template; aggregate release requires an approved aggregate template",
+          "path": "api_wrapper",
+          "reason_bucket": "aggregate_template_required",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBound guard denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "path": "direct_native",
+          "reason_bucket": "aggregate_template_required",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBoundDB denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "path": "direct_wrapper",
+          "reason_bucket": "aggregate_template_required",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        }
+      },
+      "reason_bucket": "aggregate_template_required",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "reason_bucket": "aggregate_template_required",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "reason_bucket": "aggregate_template_required",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "reason_bucket": "aggregate_template_required",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        }
+      },
+      "sql": "SELECT merchant, count(*) AS expense_count FROM expenses GROUP BY merchant"
+    },
+    {
+      "excluded_path_observations": {},
+      "expected": "Blocked",
+      "expected_ok": true,
+      "id": "PC09",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper",
+        "direct_native"
+      ],
+      "name": "ungrouped_aggregate_blocked",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": false,
+          "classification": "Blocked",
+          "error": "AST preflight denied query: aggregate release requires an approved aggregate template",
+          "path": "api_wrapper",
+          "reason_bucket": "aggregate_template_required",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBound guard denied query: aggregate release requires an approved aggregate template",
+          "path": "direct_native",
+          "reason_bucket": "aggregate_template_required",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBoundDB denied query: aggregate release requires an approved aggregate template",
+          "path": "direct_wrapper",
+          "reason_bucket": "aggregate_template_required",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        }
+      },
+      "reason_bucket": "aggregate_template_required",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "reason_bucket": "aggregate_template_required",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "reason_bucket": "aggregate_template_required",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "reason_bucket": "aggregate_template_required",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        }
+      },
+      "sql": "SELECT count(*) AS expense_count FROM expenses"
+    },
+    {
+      "excluded_path_observations": {},
+      "expected": "Blocked",
+      "expected_ok": true,
+      "id": "PC10",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper",
+        "direct_native"
+      ],
+      "name": "window_release_blocked",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": false,
+          "classification": "Blocked",
+          "error": "AST preflight denied query: window functions require an approved aggregate template",
+          "path": "api_wrapper",
+          "reason_bucket": "aggregate_template_required",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBound guard denied query: window functions require an approved aggregate template",
+          "path": "direct_native",
+          "reason_bucket": "aggregate_template_required",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBoundDB denied query: window functions require an approved aggregate template",
+          "path": "direct_wrapper",
+          "reason_bucket": "aggregate_template_required",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        }
+      },
+      "reason_bucket": "aggregate_template_required",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "reason_bucket": "aggregate_template_required",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "reason_bucket": "aggregate_template_required",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "reason_bucket": "aggregate_template_required",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        }
+      },
+      "sql": "SELECT expense_id, row_number() OVER (ORDER BY amount DESC) AS rn FROM expenses LIMIT 2"
+    },
+    {
+      "excluded_path_observations": {},
+      "expected": "Blocked",
+      "expected_ok": true,
+      "id": "PC11",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper",
+        "direct_native"
+      ],
+      "name": "side_effect_function_blocked",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": false,
+          "classification": "Blocked",
+          "error": "AST preflight denied query: unknown function pg_sleep is not allowed",
+          "path": "api_wrapper",
+          "reason_bucket": "function_policy",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBound guard denied query: function pg_catalog.pg_sleep is not allowed in task SQL",
+          "path": "direct_native",
+          "reason_bucket": "function_policy",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBoundDB denied query: SessionBound guard denied query: function pg_catalog.pg_sleep is not allowed in task SQL",
+          "path": "direct_wrapper",
+          "reason_bucket": "function_policy",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "function_policy",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        }
+      },
+      "reason_bucket": "function_policy",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy",
+          "query_count": 0,
+          "reason_bucket": "function_policy",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy",
+          "query_count": 0,
+          "reason_bucket": "function_policy",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "function_policy",
+          "query_count": 0,
+          "reason_bucket": "function_policy",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        }
+      },
+      "sql": "SELECT pg_sleep(0) FROM expenses LIMIT 1"
+    },
+    {
+      "excluded_path_observations": {
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "tablesample",
+          "receipt_count": 0
+        }
+      },
+      "excluded_paths_from_consistency": [
+        "direct_native"
+      ],
+      "exclusion_reason": "TABLESAMPLE on a view is rejected by PostgreSQL analysis before the native policy hook receives an analyzed query tree",
+      "expected": "Blocked",
+      "expected_ok": true,
+      "id": "PC12",
+      "included_paths_for_consistency": [
+        "api_wrapper",
+        "direct_wrapper"
+      ],
+      "name": "tablesample_blocked",
+      "passed": true,
+      "path_consistent": true,
+      "path_results": {
+        "api_wrapper": {
+          "ast_allowed": false,
+          "classification": "Blocked",
+          "error": "AST preflight denied query: TABLESAMPLE is not allowed",
+          "path": "api_wrapper",
+          "reason_bucket": "tablesample",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "tablesample",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_native": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "TABLESAMPLE clause can only be applied to tables and materialized views",
+          "path": "direct_native",
+          "reason_bucket": "tablesample",
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        },
+        "direct_wrapper": {
+          "ast_allowed": null,
+          "classification": "Blocked",
+          "error": "SessionBoundDB denied query: TABLESAMPLE is not allowed in task SQL",
+          "path": "direct_wrapper",
+          "reason_bucket": "tablesample",
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "tablesample",
+            "latest_rows_returned": 0,
+            "latest_touched_views": [
+              "expenses"
+            ],
+            "latest_unique_rows_added": 0
+          },
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          }
+        }
+      },
+      "reason_bucket": "tablesample",
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "tablesample",
+          "query_count": 0,
+          "reason_bucket": "tablesample",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "latest_receipt_decision": null,
+          "latest_receipt_reason_bucket": null,
+          "query_count": 0,
+          "reason_bucket": "tablesample",
+          "receipt_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "tablesample",
+          "query_count": 0,
+          "reason_bucket": "tablesample",
+          "receipt_count": 1,
+          "returned_rows": 0,
+          "unique_expense_rows": 0
+        }
+      },
+      "sql": "SELECT expense_id FROM expenses TABLESAMPLE SYSTEM (10)"
+    }
+  ],
+  "run": {
+    "all_path_consistent": true,
+    "all_receipted": true,
+    "base_url": "http://localhost:8000",
+    "case_count": 13,
+    "commit": "d1625b1",
+    "evaluated_path_decisions": 39,
+    "excluded_path_observation_count": 2,
+    "failed": 0,
+    "passed": 13,
+    "path_count": 3,
+    "timestamp": "2026-07-19T13:57:58Z"
+  }
+}

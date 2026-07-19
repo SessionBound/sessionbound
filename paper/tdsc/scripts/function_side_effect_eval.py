@@ -163,6 +163,39 @@ CASES: list[dict[str, Any]] = [
         "reason_bucket": "function_policy",
         "sql": "SELECT * FROM unnest(ARRAY[1, 2, 3]) AS u(x)",
     },
+    {
+        "id": "FN12",
+        "name": "non_catalog_operator_procedure_denied_without_notify",
+        "expected": "Blocked",
+        "reason_bucket": "function_policy",
+        "paths": ["direct_wrapper", "direct_native"],
+        "sql_template": (
+            "SELECT expense_id FROM expenses "
+            "WHERE amount OPERATOR({operator_schema}.===) amount LIMIT 1"
+        ),
+        "admin_setup_template": """
+DROP SCHEMA IF EXISTS {operator_schema} CASCADE;
+CREATE SCHEMA {operator_schema};
+CREATE FUNCTION {operator_schema}.notify_eq(numeric, numeric)
+RETURNS boolean
+LANGUAGE plpgsql
+AS $fn$
+BEGIN
+  PERFORM pg_notify('{notify_channel}', 'operator-fired');
+  RETURN $1 = $2;
+END
+$fn$;
+CREATE OPERATOR {operator_schema}.=== (
+  PROCEDURE = {operator_schema}.notify_eq,
+  LEFTARG = numeric,
+  RIGHTARG = numeric
+);
+GRANT USAGE ON SCHEMA {operator_schema} TO agent_runtime;
+GRANT EXECUTE ON FUNCTION {operator_schema}.notify_eq(numeric, numeric) TO agent_runtime;
+""",
+        "admin_cleanup_template": "DROP SCHEMA IF EXISTS {operator_schema} CASCADE;",
+        "side_effect": {"kind": "no_notification"},
+    },
 ]
 
 
@@ -191,6 +224,8 @@ def normalize_reason(text: str) -> str:
         or "table functions" in lowered
         or "set-returning" in lowered
         or "not allowed in task sql" in lowered
+        or "operator procedure" in lowered
+        or "coercion" in lowered
         or "not allowed for this task" in lowered
         or "session lock or trusted runtime state" in lowered
         or "pg_sleep" in lowered
@@ -273,9 +308,11 @@ def lock_key_for(run_id: str, case_id: str, path: str) -> int:
 
 def context_for(run_id: str, case: dict[str, Any], path: str) -> dict[str, Any]:
     channel = safe_identifier(f"tdsc_fn_{run_id}_{case['id'].lower()}_{path}")
+    operator_schema = safe_identifier(f"tdscop_{run_id}_{case['id'].lower()}_{path}")
     return {
         "lock_key": lock_key_for(run_id, case["id"], path),
         "notify_channel": channel,
+        "operator_schema": operator_schema,
         "sleep_seconds": SLEEP_SECONDS,
     }
 
@@ -284,6 +321,14 @@ def resolve_sql(case: dict[str, Any], ctx: dict[str, Any]) -> str:
     if "sql" in case:
         return str(case["sql"])
     return str(case["sql_template"]).format(**ctx)
+
+
+def run_admin_sql(sql_text: str) -> None:
+    if not sql_text.strip():
+        return
+    with psycopg.connect(ADMIN_DSN, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql_text)
 
 
 def advisory_lock_is_free(lock_key: int) -> dict[str, Any]:
@@ -514,22 +559,31 @@ def semantic_signature(record: dict[str, Any]) -> dict[str, Any]:
 def evaluate_case(base_url: str, run_id: str, case: dict[str, Any]) -> dict[str, Any]:
     path_results: dict[str, dict[str, Any]] = {}
     rendered_sql: dict[str, str] = {}
+    paths = list(case.get("paths") or PATHS)
 
-    for path in PATHS:
+    for path in paths:
         ctx = context_for(run_id, case, path)
         sql = resolve_sql(case, ctx)
         rendered_sql[path] = sql
-        issued = issue_task(base_url, run_id, case["id"], path)
-        if path == "api_wrapper":
-            path_results[path] = run_api_wrapper(base_url, issued, sql, case, ctx)
-        elif path == "direct_wrapper":
-            path_results[path] = run_db_path(issued, sql, case, ctx, native=False)
-        else:
-            path_results[path] = run_db_path(issued, sql, case, ctx, native=True)
+        setup_template = case.get("admin_setup_template")
+        cleanup_template = case.get("admin_cleanup_template")
+        if setup_template:
+            run_admin_sql(str(setup_template).format(**ctx))
+        try:
+            issued = issue_task(base_url, run_id, case["id"], path)
+            if path == "api_wrapper":
+                path_results[path] = run_api_wrapper(base_url, issued, sql, case, ctx)
+            elif path == "direct_wrapper":
+                path_results[path] = run_db_path(issued, sql, case, ctx, native=False)
+            else:
+                path_results[path] = run_db_path(issued, sql, case, ctx, native=True)
+        finally:
+            if cleanup_template:
+                run_admin_sql(str(cleanup_template).format(**ctx))
 
     signatures = {path: semantic_signature(result) for path, result in path_results.items()}
-    reference = signatures[PATHS[0]]
-    path_consistent = all(signatures[path] == reference for path in PATHS)
+    reference = signatures[paths[0]]
+    path_consistent = all(signatures[path] == reference for path in paths)
     expected_ok = all(
         result["classification"] == case["expected"]
         and result["reason_bucket"] == case["reason_bucket"]
@@ -557,8 +611,9 @@ def evaluate_case(base_url: str, run_id: str, case: dict[str, Any]) -> dict[str,
     return {
         "id": case["id"],
         "name": case["name"],
-        "sql": rendered_sql[PATHS[0]],
+        "sql": rendered_sql[paths[0]],
         "rendered_sql_by_path": rendered_sql,
+        "paths": paths,
         "expected": case["expected"],
         "reason_bucket": case["reason_bucket"],
         "side_effect_oracle": case.get("side_effect") or {"kind": "none"},
@@ -589,7 +644,7 @@ def run_eval(base_url: str) -> dict[str, Any]:
         "base_url": base_url,
         "case_count": len(records),
         "commit": git_commit(),
-        "evaluated_path_decisions": len(records) * len(PATHS),
+        "evaluated_path_decisions": sum(len(record["path_results"]) for record in records),
         "failed": sum(1 for record in records if not record["passed"]),
         "passed": sum(1 for record in records if record["passed"]),
         "path_count": len(PATHS),

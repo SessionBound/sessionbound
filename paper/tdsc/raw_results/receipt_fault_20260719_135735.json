@@ -1,0 +1,737 @@
+{
+  "run": {
+    "all_receipt_fault_checks_passed": true,
+    "base_url": "http://localhost:8000",
+    "case_count": 7,
+    "commit": "d1625b1",
+    "failed": 0,
+    "passed": 7,
+    "timestamp": "2026-07-19T13:57:35Z"
+  },
+  "records": [
+    {
+      "id": "RF01",
+      "name": "receipt_hash_chain_fields_and_wrong_fence_rejection",
+      "passed": true,
+      "expected": "two allowed receipts plus one denied receipt form a recomputable hash chain, required hardened fields are present, tampering changes the hash, and a wrong-fence append inserts nothing",
+      "actual": "passed",
+      "task_id": "task_receipt_fault_20260719_135732_chain_fault",
+      "binding": {
+        "binding_id": "ca23b6f6-577f-47d5-b62c-c830275aa2a6",
+        "fence_token": 1,
+        "credential_id": "agent_receipt_fault_20260719_135732_chain_faul_b8a1abb5",
+        "advisory_lock_key": 2404213914837120967
+      },
+      "state": {
+        "task_id": "task_receipt_fault_20260719_135732_chain_fault",
+        "budget_account": "task_receipt_fault_20260719_135732_chain_fault",
+        "query_count": 2,
+        "returned_rows": 3,
+        "unique_expense_rows": 3,
+        "revoked": false
+      },
+      "receipt_summary_visible_to_agent": [
+        {
+          "decision": "denied",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": null,
+          "reason": "function pg_catalog.pg_sleep is not allowed in task SQL",
+          "touched_views": [
+            "expenses"
+          ],
+          "created_at": "2026-07-19 13:57:34.849205+00:00"
+        },
+        {
+          "decision": "allowed",
+          "rows_returned": 1,
+          "unique_rows_added": 1,
+          "remaining_unique_row_budget": 4997,
+          "reason": null,
+          "touched_views": [
+            "expenses"
+          ],
+          "created_at": "2026-07-19 13:57:34.842569+00:00"
+        },
+        {
+          "decision": "allowed",
+          "rows_returned": 2,
+          "unique_rows_added": 2,
+          "remaining_unique_row_budget": 4998,
+          "reason": null,
+          "touched_views": [
+            "expenses"
+          ],
+          "created_at": "2026-07-19 13:57:33.579317+00:00"
+        }
+      ],
+      "raw_receipts": [
+        {
+          "receipt_id": "34675b8a-dc3d-402f-aa4c-aba0d5830e72",
+          "execution_id": "b901bbdf-396c-405e-adfe-c8268e944215",
+          "receipt_sequence": 1,
+          "task_id": "task_receipt_fault_20260719_135732_chain_fault",
+          "budget_account": "task_receipt_fault_20260719_135732_chain_fault",
+          "binding_id": "ca23b6f6-577f-47d5-b62c-c830275aa2a6",
+          "fence_token": 1,
+          "query_digest": "3367d8dc3ef026162eacf3811e9532131ba0757fc70b08dd841387aa06ee6595",
+          "decision": "allowed",
+          "rows_returned": 2,
+          "unique_rows_added": 2,
+          "remaining_unique_row_budget": 4998,
+          "reason": "",
+          "actor": "agent:travel-expense-analyst",
+          "touched_views": [
+            "expenses"
+          ],
+          "previous_receipt_hash": "",
+          "receipt_hash": "453018dd28aaef061c85be6d8488481509991aff417718be4d48aade0eca0345",
+          "created_at_text": "2026-07-19 13:57:33.579317+00"
+        },
+        {
+          "receipt_id": "dce8d554-0bba-454e-a370-471d0f6dff44",
+          "execution_id": "ae8ff95b-f64e-400f-a7da-75f57eeeb377",
+          "receipt_sequence": 2,
+          "task_id": "task_receipt_fault_20260719_135732_chain_fault",
+          "budget_account": "task_receipt_fault_20260719_135732_chain_fault",
+          "binding_id": "ca23b6f6-577f-47d5-b62c-c830275aa2a6",
+          "fence_token": 1,
+          "query_digest": "89fd96a6da44a2037771ef9be3c57625dd10ac6060a76defb527c9f46576605e",
+          "decision": "allowed",
+          "rows_returned": 1,
+          "unique_rows_added": 1,
+          "remaining_unique_row_budget": 4997,
+          "reason": "",
+          "actor": "agent:travel-expense-analyst",
+          "touched_views": [
+            "expenses"
+          ],
+          "previous_receipt_hash": "453018dd28aaef061c85be6d8488481509991aff417718be4d48aade0eca0345",
+          "receipt_hash": "dbd5ae3316becd456a0e48052523a353dc308b7df5f77d84fced25a8c2f6b3da",
+          "created_at_text": "2026-07-19 13:57:34.842569+00"
+        },
+        {
+          "receipt_id": "ea5a62a4-0c94-4a26-9b71-a8f301604b7e",
+          "execution_id": "c5c6264b-0d46-4ac5-9b6a-f672675a9ce1",
+          "receipt_sequence": 3,
+          "task_id": "task_receipt_fault_20260719_135732_chain_fault",
+          "budget_account": "task_receipt_fault_20260719_135732_chain_fault",
+          "binding_id": "ca23b6f6-577f-47d5-b62c-c830275aa2a6",
+          "fence_token": 1,
+          "query_digest": "fdb23b1eeb6678041952209d79480ca61371ace0bc6a2286908eb544084f9ce8",
+          "decision": "denied",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": null,
+          "reason": "function pg_catalog.pg_sleep is not allowed in task SQL",
+          "actor": "agent:travel-expense-analyst",
+          "touched_views": [
+            "expenses"
+          ],
+          "previous_receipt_hash": "dbd5ae3316becd456a0e48052523a353dc308b7df5f77d84fced25a8c2f6b3da",
+          "receipt_hash": "e97d8963f8351e2c8e5a8070075b2b0c5279ecb63486cb970cbe7ec88f292999",
+          "created_at_text": "2026-07-19 13:57:34.849205+00"
+        }
+      ],
+      "chain_verification": {
+        "receipt_count": 3,
+        "hash_checks": [
+          {
+            "receipt_id": "34675b8a-dc3d-402f-aa4c-aba0d5830e72",
+            "stored": "453018dd28aaef061c85be6d8488481509991aff417718be4d48aade0eca0345",
+            "recomputed": "453018dd28aaef061c85be6d8488481509991aff417718be4d48aade0eca0345",
+            "passed": true
+          },
+          {
+            "receipt_id": "dce8d554-0bba-454e-a370-471d0f6dff44",
+            "stored": "dbd5ae3316becd456a0e48052523a353dc308b7df5f77d84fced25a8c2f6b3da",
+            "recomputed": "dbd5ae3316becd456a0e48052523a353dc308b7df5f77d84fced25a8c2f6b3da",
+            "passed": true
+          },
+          {
+            "receipt_id": "ea5a62a4-0c94-4a26-9b71-a8f301604b7e",
+            "stored": "e97d8963f8351e2c8e5a8070075b2b0c5279ecb63486cb970cbe7ec88f292999",
+            "recomputed": "e97d8963f8351e2c8e5a8070075b2b0c5279ecb63486cb970cbe7ec88f292999",
+            "passed": true
+          }
+        ],
+        "chain_checks": [
+          {
+            "receipt_id": "34675b8a-dc3d-402f-aa4c-aba0d5830e72",
+            "expected_previous": "",
+            "actual_previous": "",
+            "passed": true
+          },
+          {
+            "receipt_id": "dce8d554-0bba-454e-a370-471d0f6dff44",
+            "expected_previous": "453018dd28aaef061c85be6d8488481509991aff417718be4d48aade0eca0345",
+            "actual_previous": "453018dd28aaef061c85be6d8488481509991aff417718be4d48aade0eca0345",
+            "passed": true
+          },
+          {
+            "receipt_id": "ea5a62a4-0c94-4a26-9b71-a8f301604b7e",
+            "expected_previous": "dbd5ae3316becd456a0e48052523a353dc308b7df5f77d84fced25a8c2f6b3da",
+            "actual_previous": "dbd5ae3316becd456a0e48052523a353dc308b7df5f77d84fced25a8c2f6b3da",
+            "passed": true
+          }
+        ],
+        "sequence_checks": [
+          {
+            "receipt_id": "34675b8a-dc3d-402f-aa4c-aba0d5830e72",
+            "expected_sequence": 1,
+            "actual_sequence": 1,
+            "passed": true
+          },
+          {
+            "receipt_id": "dce8d554-0bba-454e-a370-471d0f6dff44",
+            "expected_sequence": 2,
+            "actual_sequence": 2,
+            "passed": true
+          },
+          {
+            "receipt_id": "ea5a62a4-0c94-4a26-9b71-a8f301604b7e",
+            "expected_sequence": 3,
+            "actual_sequence": 3,
+            "passed": true
+          }
+        ],
+        "field_checks": [
+          {
+            "receipt_id": "34675b8a-dc3d-402f-aa4c-aba0d5830e72",
+            "missing": [],
+            "passed": true
+          },
+          {
+            "receipt_id": "dce8d554-0bba-454e-a370-471d0f6dff44",
+            "missing": [],
+            "passed": true
+          },
+          {
+            "receipt_id": "ea5a62a4-0c94-4a26-9b71-a8f301604b7e",
+            "missing": [],
+            "passed": true
+          }
+        ],
+        "tamper_checks": [
+          {
+            "receipt_id": "34675b8a-dc3d-402f-aa4c-aba0d5830e72",
+            "field": "execution_id",
+            "passed": true
+          },
+          {
+            "receipt_id": "34675b8a-dc3d-402f-aa4c-aba0d5830e72",
+            "field": "receipt_sequence",
+            "passed": true
+          },
+          {
+            "receipt_id": "34675b8a-dc3d-402f-aa4c-aba0d5830e72",
+            "field": "actor",
+            "passed": true
+          },
+          {
+            "receipt_id": "34675b8a-dc3d-402f-aa4c-aba0d5830e72",
+            "field": "touched_views",
+            "passed": true
+          },
+          {
+            "receipt_id": "34675b8a-dc3d-402f-aa4c-aba0d5830e72",
+            "field": "rows_returned",
+            "passed": true
+          },
+          {
+            "receipt_id": "dce8d554-0bba-454e-a370-471d0f6dff44",
+            "field": "execution_id",
+            "passed": true
+          },
+          {
+            "receipt_id": "dce8d554-0bba-454e-a370-471d0f6dff44",
+            "field": "receipt_sequence",
+            "passed": true
+          },
+          {
+            "receipt_id": "dce8d554-0bba-454e-a370-471d0f6dff44",
+            "field": "actor",
+            "passed": true
+          },
+          {
+            "receipt_id": "dce8d554-0bba-454e-a370-471d0f6dff44",
+            "field": "touched_views",
+            "passed": true
+          },
+          {
+            "receipt_id": "dce8d554-0bba-454e-a370-471d0f6dff44",
+            "field": "rows_returned",
+            "passed": true
+          },
+          {
+            "receipt_id": "ea5a62a4-0c94-4a26-9b71-a8f301604b7e",
+            "field": "execution_id",
+            "passed": true
+          },
+          {
+            "receipt_id": "ea5a62a4-0c94-4a26-9b71-a8f301604b7e",
+            "field": "receipt_sequence",
+            "passed": true
+          },
+          {
+            "receipt_id": "ea5a62a4-0c94-4a26-9b71-a8f301604b7e",
+            "field": "actor",
+            "passed": true
+          },
+          {
+            "receipt_id": "ea5a62a4-0c94-4a26-9b71-a8f301604b7e",
+            "field": "touched_views",
+            "passed": true
+          },
+          {
+            "receipt_id": "ea5a62a4-0c94-4a26-9b71-a8f301604b7e",
+            "field": "rows_returned",
+            "passed": true
+          }
+        ],
+        "unique_execution_ids": true,
+        "all_hashes_match": true,
+        "chain_ok": true,
+        "sequence_ok": true,
+        "required_fields_present": true,
+        "tamper_changes_hash": true
+      },
+      "wrong_fence_injection": {
+        "before_count": 3,
+        "after_count": 3,
+        "passed": true,
+        "attempted_fence_token": 2
+      },
+      "denied_error": "SessionBound guard denied query: function pg_catalog.pg_sleep is not allowed in task SQL"
+    },
+    {
+      "id": "RF06",
+      "name": "controlled_command_allowed_appends_hash_chained_receipt",
+      "passed": true,
+      "expected": "allowed controlled command mutates business state and appends one recomputable allowed receipt",
+      "actual": "passed",
+      "task_id": "task_receipt_fault_20260719_135732_command_allowed",
+      "binding": {
+        "binding_id": "cf6c3956-f93c-4c11-84a2-b2bce578395e",
+        "fence_token": 2,
+        "credential_id": "agent_receipt_fault_20260719_135732_command_al_983a2021"
+      },
+      "command_result": {
+        "ok": true,
+        "command": "finance_approve",
+        "receipt": "finance compliance recorded; department approval handoff enabled",
+        "next_role": "department_manager",
+        "expense_id": "exp_141",
+        "new_status": "department_approval_requested",
+        "receipt_id": "1d6c03c9-c7d6-44e1-8ad4-3fe07eae7edf",
+        "execution_id": "0e4af52b-162e-413b-b61e-5336b3fd6efd",
+        "receipt_hash": "523f114df28ba0fb9c39721903fc0c06bf65c27a73c1eb333488cafa3743ad83",
+        "next_task_type": "department_expense_approval",
+        "receipt_sequence": 1
+      },
+      "fixture_after_command": {
+        "expense_id": "exp_141",
+        "status": "department_approval_requested",
+        "marker_event_count": 1
+      },
+      "state": {
+        "task_id": "task_receipt_fault_20260719_135732_command_allowed",
+        "budget_account": "task_receipt_fault_20260719_135732_command_allowed",
+        "query_count": 0,
+        "returned_rows": 0,
+        "unique_expense_rows": 0,
+        "revoked": false
+      },
+      "receipt_summary_visible_to_agent": [
+        {
+          "decision": "allowed",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": 2000,
+          "reason": "controlled command allowed: finance_approve",
+          "touched_views": [
+            "expenses",
+            "approval_events"
+          ],
+          "created_at": "2026-07-19 13:57:34.954700+00:00"
+        }
+      ],
+      "raw_receipts": [
+        {
+          "receipt_id": "1d6c03c9-c7d6-44e1-8ad4-3fe07eae7edf",
+          "execution_id": "0e4af52b-162e-413b-b61e-5336b3fd6efd",
+          "receipt_sequence": 1,
+          "task_id": "task_receipt_fault_20260719_135732_command_allowed",
+          "budget_account": "task_receipt_fault_20260719_135732_command_allowed",
+          "binding_id": "cf6c3956-f93c-4c11-84a2-b2bce578395e",
+          "fence_token": 2,
+          "query_digest": "9cf3beaff9c93a82e63b189e147b81a4db95798dfb2735a895f29c5bbdb4931e",
+          "decision": "allowed",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": 2000,
+          "reason": "controlled command allowed: finance_approve",
+          "actor": "agent:finance-compliance-analyst",
+          "touched_views": [
+            "expenses",
+            "approval_events"
+          ],
+          "previous_receipt_hash": "",
+          "receipt_hash": "523f114df28ba0fb9c39721903fc0c06bf65c27a73c1eb333488cafa3743ad83",
+          "created_at_text": "2026-07-19 13:57:34.9547+00"
+        }
+      ],
+      "chain_verification": {
+        "receipt_count": 1,
+        "hash_checks": [
+          {
+            "receipt_id": "1d6c03c9-c7d6-44e1-8ad4-3fe07eae7edf",
+            "stored": "523f114df28ba0fb9c39721903fc0c06bf65c27a73c1eb333488cafa3743ad83",
+            "recomputed": "523f114df28ba0fb9c39721903fc0c06bf65c27a73c1eb333488cafa3743ad83",
+            "passed": true
+          }
+        ],
+        "chain_checks": [
+          {
+            "receipt_id": "1d6c03c9-c7d6-44e1-8ad4-3fe07eae7edf",
+            "expected_previous": "",
+            "actual_previous": "",
+            "passed": true
+          }
+        ],
+        "sequence_checks": [
+          {
+            "receipt_id": "1d6c03c9-c7d6-44e1-8ad4-3fe07eae7edf",
+            "expected_sequence": 1,
+            "actual_sequence": 1,
+            "passed": true
+          }
+        ],
+        "field_checks": [
+          {
+            "receipt_id": "1d6c03c9-c7d6-44e1-8ad4-3fe07eae7edf",
+            "missing": [],
+            "passed": true
+          }
+        ],
+        "tamper_checks": [
+          {
+            "receipt_id": "1d6c03c9-c7d6-44e1-8ad4-3fe07eae7edf",
+            "field": "execution_id",
+            "passed": true
+          },
+          {
+            "receipt_id": "1d6c03c9-c7d6-44e1-8ad4-3fe07eae7edf",
+            "field": "receipt_sequence",
+            "passed": true
+          },
+          {
+            "receipt_id": "1d6c03c9-c7d6-44e1-8ad4-3fe07eae7edf",
+            "field": "actor",
+            "passed": true
+          },
+          {
+            "receipt_id": "1d6c03c9-c7d6-44e1-8ad4-3fe07eae7edf",
+            "field": "touched_views",
+            "passed": true
+          },
+          {
+            "receipt_id": "1d6c03c9-c7d6-44e1-8ad4-3fe07eae7edf",
+            "field": "rows_returned",
+            "passed": true
+          }
+        ],
+        "unique_execution_ids": true,
+        "all_hashes_match": true,
+        "chain_ok": true,
+        "sequence_ok": true,
+        "required_fields_present": true,
+        "tamper_changes_hash": true
+      },
+      "error": ""
+    },
+    {
+      "id": "RF07",
+      "name": "controlled_command_requires_operation_claim_and_receipts_denial",
+      "passed": true,
+      "expected": "token without CONTROLLED_COMMAND binds for SELECT but command is denied with one receipt",
+      "actual": "passed",
+      "task_id": "task_receipt_fault_20260719_135732_command_op_denied",
+      "binding": {
+        "binding_id": "6d265bc3-44a8-480e-b206-12284f237699",
+        "fence_token": 3,
+        "credential_id": "agent_receipt_fault_20260719_135732_command_op_d5f334dd"
+      },
+      "error": "SessionBoundDB denied command: task token operations claim must permit CONTROLLED_COMMAND",
+      "fixture_after_command": {
+        "expense_id": "exp_141",
+        "status": "submitted",
+        "marker_event_count": 0
+      },
+      "raw_receipts": [
+        {
+          "receipt_id": "f7d77c5d-dc45-4a0d-8c72-a5f1d2a9dbf2",
+          "execution_id": "9746b8c9-1fa4-46c1-9b0a-fe4fdcc11875",
+          "receipt_sequence": 1,
+          "task_id": "task_receipt_fault_20260719_135732_command_op_denied",
+          "budget_account": "task_receipt_fault_20260719_135732_command_op_denied",
+          "binding_id": "6d265bc3-44a8-480e-b206-12284f237699",
+          "fence_token": 3,
+          "query_digest": "5c6ad7187319e49dbcc55cef5336f9f7fd1a3681f4e81d11de168c80c0180b4c",
+          "decision": "denied",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": 2000,
+          "reason": "SessionBoundDB denied command: task token operations claim must permit CONTROLLED_COMMAND",
+          "actor": "agent:finance-compliance-analyst",
+          "touched_views": [
+            "expenses",
+            "approval_events"
+          ],
+          "previous_receipt_hash": "",
+          "receipt_hash": "b0e55b971c816dfc04f7e29f1863d8f1dc3588a192fbebba2ba8d80e95a701ae",
+          "created_at_text": "2026-07-19 13:57:35.049504+00"
+        }
+      ],
+      "chain_verification": {
+        "receipt_count": 1,
+        "hash_checks": [
+          {
+            "receipt_id": "f7d77c5d-dc45-4a0d-8c72-a5f1d2a9dbf2",
+            "stored": "b0e55b971c816dfc04f7e29f1863d8f1dc3588a192fbebba2ba8d80e95a701ae",
+            "recomputed": "b0e55b971c816dfc04f7e29f1863d8f1dc3588a192fbebba2ba8d80e95a701ae",
+            "passed": true
+          }
+        ],
+        "chain_checks": [
+          {
+            "receipt_id": "f7d77c5d-dc45-4a0d-8c72-a5f1d2a9dbf2",
+            "expected_previous": "",
+            "actual_previous": "",
+            "passed": true
+          }
+        ],
+        "sequence_checks": [
+          {
+            "receipt_id": "f7d77c5d-dc45-4a0d-8c72-a5f1d2a9dbf2",
+            "expected_sequence": 1,
+            "actual_sequence": 1,
+            "passed": true
+          }
+        ],
+        "field_checks": [
+          {
+            "receipt_id": "f7d77c5d-dc45-4a0d-8c72-a5f1d2a9dbf2",
+            "missing": [],
+            "passed": true
+          }
+        ],
+        "tamper_checks": [
+          {
+            "receipt_id": "f7d77c5d-dc45-4a0d-8c72-a5f1d2a9dbf2",
+            "field": "execution_id",
+            "passed": true
+          },
+          {
+            "receipt_id": "f7d77c5d-dc45-4a0d-8c72-a5f1d2a9dbf2",
+            "field": "receipt_sequence",
+            "passed": true
+          },
+          {
+            "receipt_id": "f7d77c5d-dc45-4a0d-8c72-a5f1d2a9dbf2",
+            "field": "actor",
+            "passed": true
+          },
+          {
+            "receipt_id": "f7d77c5d-dc45-4a0d-8c72-a5f1d2a9dbf2",
+            "field": "touched_views",
+            "passed": true
+          },
+          {
+            "receipt_id": "f7d77c5d-dc45-4a0d-8c72-a5f1d2a9dbf2",
+            "field": "rows_returned",
+            "passed": true
+          }
+        ],
+        "unique_execution_ids": true,
+        "all_hashes_match": true,
+        "chain_ok": true,
+        "sequence_ok": true,
+        "required_fields_present": true,
+        "tamper_changes_hash": true
+      }
+    },
+    {
+      "id": "RF02",
+      "name": "agent_fail_receipt_forgery_blocked",
+      "passed": true,
+      "expected": "agent direct forgery attempt is denied and inserts no forged receipt",
+      "actual": "passed",
+      "sql": "SELECT taskbound.fail_receipt('SELECT 1', 'forged agent receipt')",
+      "error": "SessionBound guard denied query: direct access to taskbound runtime helper functions is not allowed",
+      "agent_visible_receipts": [
+        {
+          "decision": "denied",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": null,
+          "reason": "direct access to taskbound runtime helper functions is not allowed",
+          "touched_views": [],
+          "created_at": "2026-07-19 13:57:35.131502+00:00"
+        }
+      ],
+      "raw_receipts": [
+        {
+          "receipt_id": "81235147-2889-413f-9b73-955703848168",
+          "execution_id": "07012d35-cc38-4805-a4b9-7024661e7f65",
+          "receipt_sequence": 1,
+          "task_id": "task_receipt_fault_20260719_135732_rf02",
+          "budget_account": "task_receipt_fault_20260719_135732_rf02",
+          "binding_id": "34813617-8a57-4a7d-be35-8e82825b90ef",
+          "fence_token": 4,
+          "query_digest": "da8c320bb7322a709dccae2bd597bc03aa797389d92524c8ef740adbcd06b572",
+          "decision": "denied",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": null,
+          "reason": "direct access to taskbound runtime helper functions is not allowed",
+          "actor": "agent:travel-expense-analyst",
+          "touched_views": [],
+          "previous_receipt_hash": "",
+          "receipt_hash": "f051172c784bbc7dac89af2a1cfefb3378abaf942584953283f9855b0fb922fb",
+          "created_at_text": "2026-07-19 13:57:35.131502+00"
+        }
+      ],
+      "forged_receipts": []
+    },
+    {
+      "id": "RF03",
+      "name": "agent_audit_append_receipt_forgery_blocked",
+      "passed": true,
+      "expected": "agent direct forgery attempt is denied and inserts no forged receipt",
+      "actual": "passed",
+      "sql": "SELECT taskbound.audit_append_receipt('forged_task', 'forged_budget', gen_random_uuid(), 1, 'forged_digest', 'allowed', 999, 999, 0, 'forged audit append', true, gen_random_uuid(), 'agent:attacker', ARRAY['expenses'])",
+      "error": "SessionBound guard denied query: direct access to taskbound runtime helper functions is not allowed",
+      "agent_visible_receipts": [
+        {
+          "decision": "denied",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": null,
+          "reason": "direct access to taskbound runtime helper functions is not allowed",
+          "touched_views": [],
+          "created_at": "2026-07-19 13:57:35.210949+00:00"
+        }
+      ],
+      "raw_receipts": [
+        {
+          "receipt_id": "d4fb3831-9348-4f98-aaae-e28f4ab686df",
+          "execution_id": "17343c0c-e1a5-4031-9bbe-40aebe60d616",
+          "receipt_sequence": 1,
+          "task_id": "task_receipt_fault_20260719_135732_rf03",
+          "budget_account": "task_receipt_fault_20260719_135732_rf03",
+          "binding_id": "388fcc2d-8e49-4102-892c-d8cf886fc79a",
+          "fence_token": 5,
+          "query_digest": "65f5526807b1d74172c9e7bca6ec75ce57106b12bc5fcb9c993e370130b93193",
+          "decision": "denied",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": null,
+          "reason": "direct access to taskbound runtime helper functions is not allowed",
+          "actor": "agent:travel-expense-analyst",
+          "touched_views": [],
+          "previous_receipt_hash": "",
+          "receipt_hash": "8d6c240937a3daf7d4c4d9d5b42ff18305e828854685857a5c75cb59acc0aeda",
+          "created_at_text": "2026-07-19 13:57:35.210949+00"
+        }
+      ],
+      "forged_receipts": []
+    },
+    {
+      "id": "RF04",
+      "name": "agent_native_finish_direct_mutation_blocked",
+      "passed": true,
+      "expected": "agent direct forgery attempt is denied and inserts no forged receipt",
+      "actual": "passed",
+      "sql": "SELECT taskbound.native_finish_query('forged_task', 'forged_budget', 'SELECT 1', 1, ARRAY[]::text[], 10, 10, true, true, gen_random_uuid(), 1)",
+      "error": "SessionBound guard denied query: direct access to taskbound runtime helper functions is not allowed",
+      "agent_visible_receipts": [
+        {
+          "decision": "denied",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": null,
+          "reason": "direct access to taskbound runtime helper functions is not allowed",
+          "touched_views": [],
+          "created_at": "2026-07-19 13:57:35.296710+00:00"
+        }
+      ],
+      "raw_receipts": [
+        {
+          "receipt_id": "e5dd506b-6590-4b39-a3a1-910e1f304930",
+          "execution_id": "dfa6bd18-eb80-46be-acd6-540438166130",
+          "receipt_sequence": 1,
+          "task_id": "task_receipt_fault_20260719_135732_rf04",
+          "budget_account": "task_receipt_fault_20260719_135732_rf04",
+          "binding_id": "9b847887-4085-477d-ba97-1a55d9d6d4c4",
+          "fence_token": 6,
+          "query_digest": "af8f9752db714641e181085731b15c800dc41a1c8ae2047f1953c45c6a1b13e5",
+          "decision": "denied",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": null,
+          "reason": "direct access to taskbound runtime helper functions is not allowed",
+          "actor": "agent:travel-expense-analyst",
+          "touched_views": [],
+          "previous_receipt_hash": "",
+          "receipt_hash": "0fd5d6a0e602d4572f0f205c178e47c2e3abc8442d185240fdefad42732e5a43",
+          "created_at_text": "2026-07-19 13:57:35.29671+00"
+        }
+      ],
+      "forged_receipts": []
+    },
+    {
+      "id": "RF05",
+      "name": "agent_direct_receipt_table_insert_blocked",
+      "passed": true,
+      "expected": "agent direct forgery attempt is denied and inserts no forged receipt",
+      "actual": "passed",
+      "sql": "INSERT INTO taskbound.task_query_receipts (task_id, budget_account, query_digest, decision, rows_returned, unique_rows_added, reason) VALUES ('forged_task', 'forged_budget', 'forged_digest', 'allowed', 999, 999, 'forged direct insert')",
+      "error": "SessionBound guard denied query: only SELECT statements are allowed",
+      "agent_visible_receipts": [
+        {
+          "decision": "denied",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": null,
+          "reason": "only SELECT statements are allowed",
+          "touched_views": [],
+          "created_at": "2026-07-19 13:57:35.375958+00:00"
+        }
+      ],
+      "raw_receipts": [
+        {
+          "receipt_id": "895a2901-7782-46cf-9c1f-73c8e70d48e6",
+          "execution_id": "d22d3319-ea54-4e8e-8f53-1d86dc786908",
+          "receipt_sequence": 1,
+          "task_id": "task_receipt_fault_20260719_135732_rf05",
+          "budget_account": "task_receipt_fault_20260719_135732_rf05",
+          "binding_id": "1a17cd44-0ecf-4070-acf6-f4a73224162f",
+          "fence_token": 7,
+          "query_digest": "8fc5af59d4ee2873a37e9ce39414eff059af84731b169dcdfed505648dd6aac8",
+          "decision": "denied",
+          "rows_returned": 0,
+          "unique_rows_added": 0,
+          "remaining_unique_row_budget": null,
+          "reason": "only SELECT statements are allowed",
+          "actor": "agent:travel-expense-analyst",
+          "touched_views": [],
+          "previous_receipt_hash": "",
+          "receipt_hash": "5ea8998af948a660aee478e48237f18efbbc03f662e0f9e2825218c622c7b5a9",
+          "created_at_text": "2026-07-19 13:57:35.375958+00"
+        }
+      ],
+      "forged_receipts": []
+    }
+  ]
+}

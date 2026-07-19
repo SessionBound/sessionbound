@@ -1,0 +1,113 @@
+{
+  "records": [
+    {
+      "actual": "Passed",
+      "evidence": {
+        "observations": [
+          {
+            "error": "SessionBoundDB denied query: result tuple budget exceeded",
+            "receipts": [
+              {
+                "decision": "denied",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "unique_rows_added": 0
+              }
+            ],
+            "sql": "SELECT amount FROM expenses ORDER BY expense_id LIMIT 3",
+            "state": [
+              {
+                "budget_account": "task_native_partial_budget_1784469540",
+                "query_count": 0,
+                "returned_rows": 0,
+                "revoked": false,
+                "task_id": "task_native_partial_budget_1784469540",
+                "unique_expense_rows": 0
+              }
+            ]
+          },
+          {
+            "error": "SessionBoundDB denied query: result tuple budget exceeded",
+            "receipts": [
+              {
+                "decision": "denied",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "unique_rows_added": 0
+              },
+              {
+                "decision": "denied",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "unique_rows_added": 0
+              }
+            ],
+            "sql": "SELECT amount AS renamed_amount FROM expenses ORDER BY expense_id LIMIT 3",
+            "state": [
+              {
+                "budget_account": "task_native_partial_budget_1784469540",
+                "query_count": 0,
+                "returned_rows": 0,
+                "revoked": false,
+                "task_id": "task_native_partial_budget_1784469540",
+                "unique_expense_rows": 0
+              }
+            ]
+          },
+          {
+            "error": "SessionBound guard denied query: GROUP BY aggregate release requires an approved aggregate template",
+            "receipts": [
+              {
+                "decision": "denied",
+                "reason": "GROUP BY aggregate release requires an approved aggregate template",
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "unique_rows_added": 0
+              },
+              {
+                "decision": "denied",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "unique_rows_added": 0
+              },
+              {
+                "decision": "denied",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "unique_rows_added": 0
+              }
+            ],
+            "sql": "SELECT category, count(*) FROM expenses GROUP BY category",
+            "state": [
+              {
+                "budget_account": "task_native_partial_budget_1784469540",
+                "query_count": 0,
+                "returned_rows": 0,
+                "revoked": false,
+                "task_id": "task_native_partial_budget_1784469540",
+                "unique_expense_rows": 0
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "Projection, alias, and aggregate shapes cannot release a prefix or bypass the conservative tuple budget",
+      "id": "NPB01",
+      "name": "native_over_budget_projection_independent_atomic_denial",
+      "passed": true
+    }
+  ],
+  "run": {
+    "case_count": 1,
+    "commit": "d1625b1",
+    "database_url": "postgresql://agent_app:***@localhost:15432/travel",
+    "failed": 0,
+    "passed": 1,
+    "timestamp": "2026-07-19T13:59:02.470734Z"
+  }
+}

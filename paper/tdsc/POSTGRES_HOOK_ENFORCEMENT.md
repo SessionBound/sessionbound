@@ -11,12 +11,12 @@
 - Evaluation script: `paper/tdsc/scripts/sessionbound_guard_hook_eval.py`
 - Hook-only microbenchmark script: `paper/tdsc/scripts/hook_microbenchmark.py`
 - Rollback audit script: `paper/tdsc/scripts/rollback_audit_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/sessionbound_guard_hook_20260719_162553.json`
+- Latest raw result: `paper/tdsc/raw_results/sessionbound_guard_hook_20260719_230317.json`
 - Latest hook-only microbenchmark result:
   `paper/tdsc/raw_results/hook_microbenchmark_20260719_150550.json`
 - Latest rollback audit result:
   `paper/tdsc/raw_results/rollback_audit_20260719_162553.json`
-- Result: 18 / 18 cases passed
+- Result: 19 / 19 cases passed
 - Hook-only microbenchmark result: 7 / 7 checks passed; allowed structural
   checks p50 = 0.101--0.129 ms
 - Rollback audit result: 5 / 5 cases passed

@@ -105,6 +105,10 @@ WHERE e.tenant_id = taskbound.claim(ARRAY['tenant_id'])
 
 COMMENT ON VIEW taskbound.expenses IS
   'SessionBound safe view for travel reimbursement claims scoped by tenant, expense month, and optional department.';
+COMMENT ON COLUMN taskbound.expenses.monthly_employee_total IS
+  'Employee total after the approved task row-scope filter for the current month.';
+COMMENT ON COLUMN taskbound.expenses.yearly_employee_total IS
+  'Employee year-bucket total after the approved task row-scope filter; it intentionally does not expose out-of-scope months.';
 COMMENT ON COLUMN taskbound.expenses.requires_finance_review IS
   'True when the claim is submitted or resubmitted and should enter finance compliance review.';
 COMMENT ON COLUMN taskbound.expenses.can_department_approve IS
@@ -262,4 +266,15 @@ INSERT INTO taskbound.safe_view_registry (
     ARRAY['pay_expense'],
     2,
     'Ledger entries created by controlled payment commands and scoped through in-scope expense rows.'
-  );
+  )
+ON CONFLICT (view_name) DO UPDATE SET
+  database_object = EXCLUDED.database_object,
+  business_object = EXCLUDED.business_object,
+  maintainer = EXCLUDED.maintainer,
+  allowed_tasks = EXCLUDED.allowed_tasks,
+  scope_fields = EXCLUDED.scope_fields,
+  workflow_fields = EXCLUDED.workflow_fields,
+  sensitive_fields_excluded = EXCLUDED.sensitive_fields_excluded,
+  recommended_commands = EXCLUDED.recommended_commands,
+  registry_version = EXCLUDED.registry_version,
+  description = EXCLUDED.description;

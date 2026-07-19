@@ -183,6 +183,7 @@ ADMIN_HTML = r"""
       font-size: 13px;
       line-height: 1.45;
     }
+    .auth-field { margin-bottom: 12px; }
     .pill {
       display: inline-flex;
       align-items: center;
@@ -226,6 +227,10 @@ ADMIN_HTML = r"""
         <div class="section-title">
           <h2>Policy Console Status</h2>
           <span class="eyebrow">current registry</span>
+        </div>
+        <div class="auth-field">
+          <label for="controlPlaneKey">Control-plane key</label>
+          <input id="controlPlaneKey" type="password" autocomplete="off" placeholder="X-TaskBound-Control-Plane-Key" oninput="saveControlPlaneKey()" />
         </div>
         <div class="status">
           <div class="status-row"><span class="dot ok"></span><span id="templateStatus">Templates loading...</span></div>
@@ -438,6 +443,7 @@ ADMIN_HTML = r"""
     let templates = {};
     let grants = [];
     let safeViews = {};
+    const CONTROL_PLANE_KEY_STORAGE = 'taskbound.controlPlaneKey';
 
     function splitList(value) {
       return value.split(',').map(v => v.trim()).filter(Boolean);
@@ -450,6 +456,34 @@ ADMIN_HTML = r"""
         document.getElementById('panel' + item[0].toUpperCase() + item.slice(1)).classList.toggle('hidden', item !== name);
         document.getElementById('tab' + item[0].toUpperCase() + item.slice(1)).classList.toggle('active', item === name);
       }
+    }
+    function initControlPlaneKey() {
+      document.getElementById('controlPlaneKey').value = localStorage.getItem(CONTROL_PLANE_KEY_STORAGE) || '';
+    }
+    function controlPlaneKey() {
+      return document.getElementById('controlPlaneKey')?.value.trim() || '';
+    }
+    function saveControlPlaneKey() {
+      const key = controlPlaneKey();
+      if (key) localStorage.setItem(CONTROL_PLANE_KEY_STORAGE, key);
+      else localStorage.removeItem(CONTROL_PLANE_KEY_STORAGE);
+    }
+    function authHeaders(headers = {}) {
+      const merged = {...headers};
+      const key = controlPlaneKey();
+      if (key) merged['X-TaskBound-Control-Plane-Key'] = key;
+      return merged;
+    }
+    async function apiJson(path, options = {}) {
+      const res = await fetch(path, {
+        ...options,
+        headers: authHeaders(options.headers || {})
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail || `${res.status} ${res.statusText}`);
+      }
+      return data;
     }
     function buildTemplateObject() {
       return {
@@ -558,18 +592,24 @@ ADMIN_HTML = r"""
       document.getElementById('registry').textContent = fmt({templates, grants});
     }
     async function loadAdminData() {
-      templates = (await fetch('/admin/task-templates').then(r => r.json())).templates;
-      grants = (await fetch('/admin/task-grants').then(r => r.json())).grants;
-      safeViews = (await fetch('/admin/safe-views').then(r => r.json())).safe_views;
-      fillTemplateForm(templates.monthly_travel_expense_review || Object.values(templates)[0] || buildTemplateObject());
-      fillGrantForm(grants[0] || buildGrantObject());
-      renderLibrary();
+      try {
+        templates = (await apiJson('/admin/task-templates')).templates;
+        grants = (await apiJson('/admin/task-grants')).grants;
+        safeViews = (await apiJson('/admin/safe-views')).safe_views;
+        fillTemplateForm(templates.monthly_travel_expense_review || Object.values(templates)[0] || buildTemplateObject());
+        fillGrantForm(grants[0] || buildGrantObject());
+        renderLibrary();
+      } catch (err) {
+        document.getElementById('templateStatus').textContent = err.message;
+        document.getElementById('grantStatus').textContent = 'Registry unavailable';
+        document.getElementById('registry').textContent = err.message;
+      }
     }
     async function saveTemplate() {
       const template = JSON.parse(document.getElementById('templateJson').value);
       const res = await fetch('/admin/task-templates', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: authHeaders({'Content-Type': 'application/json'}),
         body: JSON.stringify({template})
       });
       const data = await res.json();
@@ -583,7 +623,7 @@ ADMIN_HTML = r"""
       const grant = JSON.parse(document.getElementById('grantJson').value);
       const res = await fetch('/admin/task-grants', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: authHeaders({'Content-Type': 'application/json'}),
         body: JSON.stringify({grant})
       });
       const data = await res.json();
@@ -601,7 +641,7 @@ ADMIN_HTML = r"""
       };
       const res = await fetch('/tasks', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: authHeaders({'Content-Type': 'application/json'}),
         body: JSON.stringify(body)
       });
       const data = await res.json();
@@ -609,6 +649,7 @@ ADMIN_HTML = r"""
       document.getElementById('tokenStatus').textContent = data.payload ? `Issued ${data.payload.task_id}` : `Denied: ${data.detail || 'request failed'}`;
       document.querySelector('#tokenStatus').previousElementSibling?.classList?.add('ok');
     }
+    initControlPlaneKey();
     loadAdminData();
   </script>
 </body>

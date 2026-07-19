@@ -44,12 +44,14 @@ views, budget state, and query receipts.
 
 ## Invariants and Current Status
 
-I1. No execution without active task binding.
+I1. No arbitrary runtime-credential SQL execution without active task binding.
 
 Native safe-view `SELECT` checks trusted task GUCs installed by
 `taskbound.bind_task(...)`; the compatibility `taskbound.run(sql)` path calls
-`taskbound.require_payload()`. Both paths fail if no task is bound to the
-current backend.
+`taskbound.require_payload()`. For sessions that inherit `agent_runtime`, the
+PostgreSQL hook denies unbound ordinary `SELECT` and utility commands; only
+public SessionBound runtime entrypoints such as `bind_task` are allowed before a
+task is bound to the current backend.
 
 I2. Bound token must match the session credential, actor, audience, expiry,
 nonce/jti-equivalent token digest, and revocation state.
@@ -158,12 +160,13 @@ append inserts no receipt, and denied direct agent attempts to call
 `fail_receipt`, `audit_append_receipt`, `native_finish_query`, or insert into
 the receipt table.
 
-I8. View registry, policy version, or definition-hash drift invalidates the
-token or requires reapproval.
+I8. View registry, policy version, database/view identity, dependency, option,
+or definition-hash drift invalidates the token or requires reapproval.
 
 The prototype task token may carry a safe-view registry snapshot. During
 binding, `taskbound.bind_task` recomputes the registry snapshot and rejects
-stale safe-view registry version, policy version, or view-definition hash.
+stale safe-view registry version, policy version, database/view identity,
+view-dependency hash, view-option hash, or view-definition hash.
 
 I9. Direct aggregate and window release is denied unless an approved aggregate
 template supplies trusted provenance/cardinality logic.
@@ -193,9 +196,11 @@ payload aggregation such as `json_agg`, `jsonb_agg`, `array_agg`,
 `string_agg`, `xmlagg`, `row_to_json`, `json_build_object`, and
 `jsonb_build_object`.
 
-Under a well-formed state `S=<T,C,V,B,R>` with a valid token/session binding,
-matching safe-view registry and policy hashes, nonnegative budget vector, and
-verifiable receipt chain, the prototype contract is:
+Under a well-formed state `S=<A,T,C,G,V,L,B,R>` with approved task `A`,
+signed task token `T`, credential/session binding `C`, global active-binding
+ownership `G`, matching safe-view registry and policy hashes `V`, permitted SQL
+surface `L`, nonnegative budget vector `B`, and verifiable receipt chain `R`,
+the prototype contract is:
 
 **Proposition 1: Safe-surface confinement.** If `q in SELECT-F` and
 `decide(q,S)=allow`, every resolved relation named by `q` is an approved safe

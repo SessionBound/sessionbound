@@ -1,3 +1,230 @@
+CREATE OR REPLACE FUNCTION taskbound.command_touched_views(command_name text)
+RETURNS text[]
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT CASE
+    WHEN command_name = 'pay_expense'
+      THEN ARRAY['expenses', 'approval_events', 'ledger_entries']::text[]
+    WHEN command_name = 'submit_expense'
+      THEN ARRAY['expenses', 'approval_events']::text[]
+    ELSE ARRAY['expenses', 'approval_events']::text[]
+  END
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.command_digest(command_name text, args jsonb)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT encode(
+    public.digest(
+      concat_ws(chr(31), 'CONTROLLED_COMMAND', COALESCE(command_name, ''), COALESCE(args, '{}'::jsonb)::text),
+      'sha256'
+    ),
+    'hex'
+  )
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.command_allowed_receipt(
+  p jsonb,
+  command_name text,
+  args jsonb,
+  result jsonb,
+  v_touched_views text[] DEFAULT ARRAY[]::text[]
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+DECLARE
+  active record;
+  v_task_id text := COALESCE(p->>'task_id', '');
+  v_budget_account text := COALESCE(p->>'budget_account', p->>'task_id', '');
+  v_execution_id uuid := gen_random_uuid();
+  v_receipt_id uuid := gen_random_uuid();
+  v_receipt_sequence bigint;
+  v_query_digest text := taskbound.command_digest(command_name, args);
+  v_created_at timestamptz := clock_timestamp();
+  v_previous_hash text := '';
+  v_receipt_hash text;
+  v_remaining_unique_row_budget bigint;
+  v_actor text := COALESCE(p->>'actor', '');
+  v_reason text := 'controlled command allowed: ' || COALESCE(command_name, '');
+  v_backend_start timestamptz;
+  v_postmaster_start timestamptz;
+BEGIN
+  IF v_task_id = '' THEN
+    RETURN result;
+  END IF;
+
+  SELECT backend_start INTO v_backend_start
+  FROM pg_catalog.pg_stat_activity
+  WHERE pid = pg_backend_pid();
+  SELECT pg_catalog.pg_postmaster_start_time() INTO v_postmaster_start;
+
+  SELECT *
+  INTO active
+  FROM taskbound.active_sessions a
+  WHERE a.owner_backend_pid = pg_backend_pid()
+    AND a.owner_backend_start = v_backend_start
+    AND a.owner_postmaster_start = v_postmaster_start
+    AND a.database_oid = taskbound.current_database_oid()
+    AND a.owner_session_user = session_user;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'SessionBoundDB denied command: active binding is missing';
+  END IF;
+
+  PERFORM taskbound.validate_active_binding(
+    active.task_id,
+    active.binding_id,
+    active.fence_token,
+    active.advisory_lock_key
+  );
+
+  PERFORM pg_advisory_xact_lock(hashtextextended(v_task_id, 0));
+
+  INSERT INTO taskbound.task_receipt_chain_heads (
+    task_id, last_sequence, last_receipt_hash
+  )
+  VALUES (v_task_id, 0, '')
+  ON CONFLICT (task_id) DO UPDATE
+    SET last_sequence = taskbound.task_receipt_chain_heads.last_sequence
+  RETURNING last_sequence + 1, last_receipt_hash
+  INTO v_receipt_sequence, v_previous_hash;
+
+  SELECT GREATEST(
+    COALESCE((p #>> ARRAY['budgets', 'max_unique_expense_rows'])::bigint, 0)
+    - COALESCE(s.unique_expense_rows, 0),
+    0
+  )
+  INTO v_remaining_unique_row_budget
+  FROM taskbound.task_execution_state s
+  WHERE s.task_id = v_task_id;
+
+  v_receipt_hash := encode(public.digest(
+    concat_ws(chr(31),
+      v_execution_id::text,
+      v_receipt_sequence,
+      v_task_id,
+      v_budget_account,
+      active.binding_id::text,
+      active.fence_token::text,
+      v_query_digest,
+      'allowed',
+      '0',
+      '0',
+      COALESCE(v_remaining_unique_row_budget::text, ''),
+      v_reason,
+      v_actor,
+      COALESCE(array_to_string(v_touched_views, ','), ''),
+      v_created_at::text,
+      v_previous_hash
+    ),
+    'sha256'
+  ), 'hex');
+
+  INSERT INTO taskbound.task_query_receipts (
+    receipt_id, execution_id, receipt_sequence, task_id, budget_account,
+    binding_id, fence_token, query_digest, decision, rows_returned, unique_rows_added,
+    remaining_unique_row_budget, reason, actor, touched_views,
+    previous_receipt_hash, receipt_hash, created_at
+  )
+  VALUES (
+    v_receipt_id, v_execution_id, v_receipt_sequence, v_task_id, v_budget_account,
+    active.binding_id, active.fence_token,
+    v_query_digest, 'allowed', 0, 0,
+    v_remaining_unique_row_budget, v_reason, v_actor,
+    COALESCE(v_touched_views, ARRAY[]::text[]),
+    v_previous_hash, v_receipt_hash, v_created_at
+  );
+
+  UPDATE taskbound.task_receipt_chain_heads
+  SET last_sequence = v_receipt_sequence,
+      last_receipt_hash = v_receipt_hash,
+      updated_at = clock_timestamp()
+  WHERE task_id = v_task_id;
+
+  RETURN COALESCE(result, '{}'::jsonb) || jsonb_build_object(
+    'receipt_id', v_receipt_id,
+    'execution_id', v_execution_id,
+    'receipt_sequence', v_receipt_sequence,
+    'receipt_hash', v_receipt_hash
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.command_denied_receipt(
+  p jsonb,
+  command_name text,
+  args jsonb,
+  reason text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+DECLARE
+  active record;
+  v_task_id text := COALESCE(p->>'task_id', '');
+  v_budget_account text := COALESCE(p->>'budget_account', p->>'task_id', '');
+  v_remaining_unique_row_budget bigint;
+  v_backend_start timestamptz;
+  v_postmaster_start timestamptz;
+BEGIN
+  IF v_task_id = '' THEN
+    RETURN;
+  END IF;
+
+  SELECT backend_start INTO v_backend_start
+  FROM pg_catalog.pg_stat_activity
+  WHERE pid = pg_backend_pid();
+  SELECT pg_catalog.pg_postmaster_start_time() INTO v_postmaster_start;
+
+  SELECT *
+  INTO active
+  FROM taskbound.active_sessions a
+  WHERE a.owner_backend_pid = pg_backend_pid()
+    AND a.owner_backend_start = v_backend_start
+    AND a.owner_postmaster_start = v_postmaster_start
+    AND a.database_oid = taskbound.current_database_oid()
+    AND a.owner_session_user = session_user;
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  SELECT GREATEST(
+    COALESCE((p #>> ARRAY['budgets', 'max_unique_expense_rows'])::bigint, 0)
+    - COALESCE(s.unique_expense_rows, 0),
+    0
+  )
+  INTO v_remaining_unique_row_budget
+  FROM taskbound.task_execution_state s
+  WHERE s.task_id = v_task_id;
+
+  PERFORM taskbound.audit_append_receipt(
+    v_task_id,
+    v_budget_account,
+    active.binding_id,
+    active.fence_token,
+    taskbound.command_digest(command_name, args),
+    'denied',
+    0,
+    0,
+    v_remaining_unique_row_budget,
+    COALESCE(reason, 'controlled command denied'),
+    true,
+    NULL,
+    COALESCE(p->>'actor', ''),
+    taskbound.command_touched_views(command_name)
+  );
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION taskbound.command(command_name text, args jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -32,6 +259,14 @@ BEGIN
 
   IF NOT COALESCE(p->'allowed_commands' ? command_name, false) THEN
     RAISE EXCEPTION 'SessionBoundDB denied command: command % is not allowed by task token', command_name;
+  END IF;
+  IF jsonb_typeof(p->'operations') IS DISTINCT FROM 'array'
+     OR NOT EXISTS (
+       SELECT 1
+       FROM jsonb_array_elements_text(p->'operations') AS operation_item(op)
+       WHERE upper(trim(op)) = 'CONTROLLED_COMMAND'
+     ) THEN
+    RAISE EXCEPTION 'SessionBoundDB denied command: task token operations claim must permit CONTROLLED_COMMAND';
   END IF;
 
   IF command_name = 'submit_expense' THEN
@@ -85,7 +320,11 @@ BEGIN
       v_tenant, v_new_expense_id, 'submitted', v_delegator, v_actor, v_supervisor, v_comment
     );
 
-    RETURN jsonb_build_object(
+    RETURN taskbound.command_allowed_receipt(
+      p,
+      command_name,
+      args,
+      jsonb_build_object(
       'ok', true,
       'command', command_name,
       'expense_id', v_new_expense_id,
@@ -93,6 +332,8 @@ BEGIN
       'next_role', 'finance_reviewer',
       'next_task_type', 'finance_compliance_review',
       'receipt', 'expense submitted; finance review todo enabled'
+      ),
+      taskbound.command_touched_views(command_name)
     );
   END IF;
 
@@ -111,16 +352,28 @@ BEGIN
     RAISE EXCEPTION 'SessionBoundDB denied command: expense is outside task scope';
   END IF;
 
+  -- Match taskbound.expenses: totals are computed after task row-scope
+  -- filtering, so command responses do not expose out-of-scope aggregates.
   SELECT COALESCE(sum(amount), 0) INTO v_monthly_total
   FROM app_data.expenses
   WHERE tenant_id = v_tenant
     AND employee_id = exp.employee_id
+    AND expense_month = taskbound.claim(ARRAY['row_scope', 'expense_month'])
+    AND (
+      taskbound.claim(ARRAY['row_scope', 'department_id']) IS NULL
+      OR department_id = taskbound.claim(ARRAY['row_scope', 'department_id'])
+    )
     AND date_trunc('month', submitted_at) = date_trunc('month', exp.submitted_at);
 
   SELECT COALESCE(sum(amount), 0) INTO v_yearly_total
   FROM app_data.expenses
   WHERE tenant_id = v_tenant
     AND employee_id = exp.employee_id
+    AND expense_month = taskbound.claim(ARRAY['row_scope', 'expense_month'])
+    AND (
+      taskbound.claim(ARRAY['row_scope', 'department_id']) IS NULL
+      OR department_id = taskbound.claim(ARRAY['row_scope', 'department_id'])
+    )
     AND date_trunc('year', submitted_at) = date_trunc('year', exp.submitted_at);
 
   v_requires_c_level := exp.amount > 10000 OR v_monthly_total > 15000 OR v_yearly_total > 50000;
@@ -138,7 +391,11 @@ BEGIN
     VALUES (
       v_tenant, exp.expense_id, 'finance_review_requested', v_delegator, v_actor, v_supervisor, v_comment
     );
-    RETURN jsonb_build_object(
+    RETURN taskbound.command_allowed_receipt(
+      p,
+      command_name,
+      args,
+      jsonb_build_object(
       'ok', true,
       'command', command_name,
       'expense_id', exp.expense_id,
@@ -146,6 +403,8 @@ BEGIN
       'next_role', 'finance_reviewer',
       'next_task_type', 'finance_compliance_review',
       'receipt', 'finance review handoff enabled'
+      ),
+      taskbound.command_touched_views(command_name)
     );
   ELSIF command_name = 'finance_approve' THEN
     IF v_delegator <> 'user:fiona' THEN
@@ -166,7 +425,11 @@ BEGIN
       v_tenant, exp.expense_id, 'finance_compliant', v_delegator, v_actor, v_supervisor, v_comment
     );
 
-    RETURN jsonb_build_object(
+    RETURN taskbound.command_allowed_receipt(
+      p,
+      command_name,
+      args,
+      jsonb_build_object(
       'ok', true,
       'command', command_name,
       'expense_id', exp.expense_id,
@@ -174,6 +437,8 @@ BEGIN
       'next_role', 'department_manager',
       'next_task_type', 'department_expense_approval',
       'receipt', 'finance compliance recorded; department approval handoff enabled'
+      ),
+      taskbound.command_touched_views(command_name)
     );
   ELSIF command_name = 'return_expense_for_more_info' THEN
     IF v_delegator <> 'user:fiona' THEN
@@ -194,7 +459,11 @@ BEGIN
       v_tenant, exp.expense_id, 'returned_for_more_info', v_delegator, v_actor, v_supervisor, v_comment
     );
 
-    RETURN jsonb_build_object(
+    RETURN taskbound.command_allowed_receipt(
+      p,
+      command_name,
+      args,
+      jsonb_build_object(
       'ok', true,
       'command', command_name,
       'expense_id', exp.expense_id,
@@ -202,6 +471,8 @@ BEGIN
       'next_role', 'employee',
       'next_task_type', 'expense_resubmission',
       'receipt', 'employee supplement handoff enabled'
+      ),
+      taskbound.command_touched_views(command_name)
     );
   ELSIF command_name = 'resubmit_expense' THEN
     IF exp.status <> 'returned_for_more_info' THEN
@@ -219,7 +490,11 @@ BEGIN
       v_tenant, exp.expense_id, 'resubmitted', v_delegator, v_actor, v_supervisor, v_comment
     );
 
-    RETURN jsonb_build_object(
+    RETURN taskbound.command_allowed_receipt(
+      p,
+      command_name,
+      args,
+      jsonb_build_object(
       'ok', true,
       'command', command_name,
       'expense_id', exp.expense_id,
@@ -227,6 +502,8 @@ BEGIN
       'next_role', 'finance_reviewer',
       'next_task_type', 'finance_compliance_review',
       'receipt', 'resubmission recorded; finance review can restart'
+      ),
+      taskbound.command_touched_views(command_name)
     );
   ELSIF command_name = 'department_approve' THEN
     IF exp.manager_user_id <> v_delegator THEN
@@ -249,7 +526,11 @@ BEGIN
       v_tenant, exp.expense_id, 'department_approved', v_delegator, v_actor, v_supervisor, v_comment
     );
 
-    RETURN jsonb_build_object(
+    RETURN taskbound.command_allowed_receipt(
+      p,
+      command_name,
+      args,
+      jsonb_build_object(
       'ok', true,
       'command', command_name,
       'expense_id', exp.expense_id,
@@ -260,6 +541,8 @@ BEGIN
       'next_role', CASE WHEN v_requires_c_level THEN 'c_level' ELSE 'finance_reviewer' END,
       'next_task_type', CASE WHEN v_requires_c_level THEN 'c_level_expense_approval' ELSE 'expense_payment' END,
       'receipt', 'department approval recorded'
+      ),
+      taskbound.command_touched_views(command_name)
     );
   ELSIF command_name = 'c_level_approve' THEN
     IF v_delegator <> 'user:carol' THEN
@@ -283,7 +566,11 @@ BEGIN
       v_tenant, exp.expense_id, 'c_level_approved', v_delegator, v_actor, v_supervisor, v_comment
     );
 
-    RETURN jsonb_build_object(
+    RETURN taskbound.command_allowed_receipt(
+      p,
+      command_name,
+      args,
+      jsonb_build_object(
       'ok', true,
       'command', command_name,
       'expense_id', exp.expense_id,
@@ -291,6 +578,8 @@ BEGIN
       'next_role', 'finance_reviewer',
       'next_task_type', 'expense_payment',
       'receipt', 'C-level approval recorded; payment can proceed'
+      ),
+      taskbound.command_touched_views(command_name)
     );
   ELSIF command_name = 'pay_expense' THEN
     IF v_delegator <> 'user:fiona' THEN
@@ -327,7 +616,11 @@ BEGIN
       v_tenant, exp.expense_id, 'paid', v_delegator, v_actor, v_supervisor, v_comment
     );
 
-    RETURN jsonb_build_object(
+    RETURN taskbound.command_allowed_receipt(
+      p,
+      command_name,
+      args,
+      jsonb_build_object(
       'ok', true,
       'command', command_name,
       'expense_id', exp.expense_id,
@@ -335,10 +628,21 @@ BEGIN
       'ledger', 'travel_expense -> cash',
       'amount', exp.amount,
       'receipt', 'payment ledger written in the same database transaction'
+      ),
+      taskbound.command_touched_views(command_name)
     );
   ELSE
     RAISE EXCEPTION 'SessionBoundDB denied command: unknown command %', command_name;
   END IF;
+EXCEPTION WHEN OTHERS THEN
+  IF p IS NOT NULL THEN
+    BEGIN
+      PERFORM taskbound.command_denied_receipt(p, command_name, COALESCE(args, '{}'::jsonb), SQLERRM);
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  END IF;
+  RAISE;
 END;
 $$;
 
@@ -346,6 +650,13 @@ REVOKE ALL ON SCHEMA app_data FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA app_data FROM PUBLIC;
 REVOKE ALL ON SCHEMA taskbound FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA taskbound FROM PUBLIC;
+DO $$
+BEGIN
+  EXECUTE format('REVOKE TEMPORARY ON DATABASE %I FROM PUBLIC', current_database());
+  EXECUTE format('REVOKE TEMPORARY ON DATABASE %I FROM agent_runtime', current_database());
+END;
+$$;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA taskbound FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_check(text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_touched_view_oids(text) FROM PUBLIC;
@@ -382,8 +693,10 @@ GRANT EXECUTE ON FUNCTION taskbound.claim(text[]) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.current_payload() TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.require_payload() TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.native_denied_receipt(text, text, text, text, boolean, uuid, bigint) TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.native_reserve_query_status(text, text, text, int, boolean, boolean, uuid, bigint) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.native_reserve_query(text, text, text, int, boolean, boolean, uuid, bigint) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.native_seen_expense_rows(text) TO agent_runtime;
+GRANT EXECUTE ON FUNCTION taskbound.native_finish_query_status(text, text, text, bigint, text[], int, int, boolean, boolean, uuid, bigint) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.native_finish_query(text, text, text, bigint, text[], int, int, boolean, boolean, uuid, bigint) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.native_partial_denied_receipt(text, text, text, text, bigint, text[], int, boolean, boolean, uuid, bigint) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.run(text) TO agent_runtime;

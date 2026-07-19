@@ -29,14 +29,18 @@ Only verified sources should be copied into `paper/tdsc/references.bib`.
 | `owasp2025llm01` | LLM01:2025 Prompt Injection | OWASP GenAI Security Project | 2025 | https://genai.owasp.org/llmrisk/llm01-prompt-injection/ | Practitioner risk taxonomy for prompt injection. | yes |
 | `south2025authenticateddelegation` | Authenticated Delegation and Authorized AI Agents | South et al. | 2025 | https://arxiv.org/abs/2501.09674 | Agent delegation, accountability, and scoped credentials. | yes |
 | `sharma2026pauth` | PAuth - Precise Task-Scoped Authorization For Agents | Sharma et al. | 2026 | https://arxiv.org/abs/2603.17170 | Task-scoped operation authorization for agents. | yes |
+| `zigmond2020shilldb` | Fine-Grained, Language-Based Access Control for Database-Backed Applications | Zigmond, Chong, Dimoulas, Moore | 2020 | https://doi.org/10.22152/programming-journal.org/2020/4/3 | Language-level database capabilities and contracts for component-specific DB access. | yes |
+| `bichhawat2020estrela` | Contextual and Granular Policy Enforcement in Database-backed Applications | Bichhawat, Fredrikson, Yang, Trehan | 2020 | https://doi.org/10.1145/3320269.3384759 | API-contextual pre/post query policy enforcement for database-backed applications. | yes |
+| `chen2025picachv` | PICACHV: Formally Verified Data Use Policy Enforcement for Secure Data Analytics | Chen et al. | 2025 | https://www.usenix.org/conference/usenixsecurity25/presentation/chen-haobin | Formally verified relational-algebra monitor for analytics data-use policy enforcement. | yes |
 | `tonnarelli2026dataproductmcp` | Data Product MCP: Chat with your Enterprise Data | Tonnarelli et al. | 2026 | https://arxiv.org/abs/2601.08687 | Governed enterprise data-product access through MCP. | yes |
 | `mcp2025specification` | Model Context Protocol Specification | Model Context Protocol | 2025 | https://modelcontextprotocol.io/specification/2025-06-18 | Tool/data connectivity protocol used by agents. | yes |
 | `pang2019zanzibar` | Zanzibar: Google's Consistent, Global Authorization System | Pang et al. | 2019 | https://www.usenix.org/conference/atc19/presentation/pang | Large-scale relationship-based authorization baseline. | yes |
 | `dwork2014algorithmic` | The Algorithmic Foundations of Differential Privacy | Dwork and Roth | 2014 | https://doi.org/10.1561/0400000042 | Clarifies what formal DP guarantees require. | yes |
 | `adam1989securitycontrol` | Security-Control Methods for Statistical Databases: A Comparative Study | Adam and Wortmann | 1989 | https://doi.org/10.1145/76894.76895 | Classical inference-control survey for statistical databases. | yes |
 
-Summary: 29 verified references are now available for the manuscript. The
+Summary: 32 verified references are now available for the manuscript. The
 expansion should emphasize that SessionBound is not claiming novelty in OAuth,
-ABAC, capabilities, RLS/VPD, IFC, DLP, or database privacy; its contribution is
-the task-approved, budgeted, receipt-bearing database session for agent-generated
-SQL.
+ABAC, capabilities, RLS/VPD, IFC, DLP, database privacy, language-level database
+contracts, contextual policy frameworks, or verified data-use monitors; its
+contribution is the task-approved, budgeted, receipt-bearing database session for
+agent-generated SQL.

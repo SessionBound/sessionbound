@@ -433,6 +433,7 @@ DECLARE
   active record;
   v_backend_start timestamptz;
   v_postmaster_start timestamptz;
+  v_expected_snapshot jsonb;
 BEGIN
   SELECT backend_start INTO v_backend_start
   FROM pg_catalog.pg_stat_activity
@@ -505,6 +506,32 @@ BEGIN
       AND (c.revoked OR c.expires_at <= now() OR c.db_user <> session_user)
   ) THEN
     RAISE EXCEPTION 'runtime credential is expired, revoked, or no longer matches the session'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF jsonb_typeof(active.payload->'allowed_views') IS DISTINCT FROM 'array'
+     OR NOT (active.payload ? 'safe_view_registry')
+     OR NOT (active.payload ? 'database_oid')
+     OR NOT (active.payload ? 'safe_view_registry_version')
+     OR NOT (active.payload ? 'view_definition_hash')
+     OR NOT (active.payload ? 'exposed_column_hash')
+     OR NOT (active.payload ? 'view_dependency_hash')
+     OR NOT (active.payload ? 'view_option_hash') THEN
+    RAISE EXCEPTION 'task token safe-view registry drift claims are missing from active binding'
+      USING ERRCODE = '42501';
+  END IF;
+
+  v_expected_snapshot := taskbound.safe_view_registry_snapshot(
+    taskbound.jsonb_text_array(active.payload->'allowed_views')
+  );
+  IF active.payload->'safe_view_registry' <> v_expected_snapshot
+     OR active.payload->>'database_oid' <> v_expected_snapshot->>'database_oid'
+     OR active.payload->>'safe_view_registry_version' <> v_expected_snapshot->>'safe_view_registry_version'
+     OR active.payload->>'view_definition_hash' <> v_expected_snapshot->>'view_definition_hash'
+     OR active.payload->>'exposed_column_hash' <> v_expected_snapshot->>'exposed_column_hash'
+     OR active.payload->>'view_dependency_hash' <> v_expected_snapshot->>'view_dependency_hash'
+     OR active.payload->>'view_option_hash' <> v_expected_snapshot->>'view_option_hash' THEN
+    RAISE EXCEPTION 'task token safe-view registry snapshot is stale; re-approval is required'
       USING ERRCODE = '42501';
   END IF;
 
@@ -597,6 +624,7 @@ DECLARE
   v_min_group_size int;
   v_token_nonce text;
   v_allowed_views text[];
+  v_operations text[];
   v_denied_columns text[];
   v_denied_column_names text;
   v_expected_view_count int;
@@ -637,8 +665,14 @@ BEGIN
   v_credential_id := COALESCE(p->>'credential_id', '');
   v_token_digest := encode(public.digest(payload_text, 'sha256'), 'hex');
   v_token_nonce := COALESCE(p->>'nonce', p #>> ARRAY['token', 'nonce'], '');
-  v_receipts_enabled := COALESCE((p #>> ARRAY['runtime_options', 'receipts_enabled'])::boolean, true);
-  v_budget_accounting_enabled := COALESCE((p #>> ARRAY['runtime_options', 'budget_accounting_enabled'])::boolean, true);
+  IF COALESCE((p #>> ARRAY['runtime_options', 'receipts_enabled'])::boolean, true) IS NOT TRUE THEN
+    RAISE EXCEPTION 'task token runtime_options may not disable receipts';
+  END IF;
+  IF COALESCE((p #>> ARRAY['runtime_options', 'budget_accounting_enabled'])::boolean, true) IS NOT TRUE THEN
+    RAISE EXCEPTION 'task token runtime_options may not disable budget accounting';
+  END IF;
+  v_receipts_enabled := true;
+  v_budget_accounting_enabled := true;
   v_max_queries := COALESCE((p #>> ARRAY['budgets', 'max_queries'])::int, 100);
   v_max_rows := COALESCE((p #>> ARRAY['budgets', 'max_unique_expense_rows'])::int, 1000000);
   v_min_group_size := COALESCE((p #>> ARRAY['aggregate_policy', 'min_group_size'])::int, 5);
@@ -648,6 +682,17 @@ BEGIN
   v_allowed_views := taskbound.jsonb_text_array(p->'allowed_views');
   IF cardinality(v_allowed_views) = 0 THEN
     RAISE EXCEPTION 'task token allowed_views claim must be a non-empty array';
+  END IF;
+  IF jsonb_typeof(p->'operations') IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'task token operations claim must be a non-empty array';
+  END IF;
+  v_operations := taskbound.jsonb_text_array(p->'operations');
+  IF NOT EXISTS (
+    SELECT 1
+    FROM unnest(v_operations) AS operation_item(op)
+    WHERE upper(trim(op)) = 'SELECT'
+  ) THEN
+    RAISE EXCEPTION 'task token operations claim must permit SELECT for safe-view binding';
   END IF;
   IF p ? 'denied_columns'
      AND jsonb_typeof(p->'denied_columns') IS DISTINCT FROM 'array' THEN
@@ -764,15 +809,21 @@ BEGIN
   END IF;
 
   IF NOT (p ? 'safe_view_registry')
+     OR NOT (p ? 'database_oid')
      OR NOT (p ? 'safe_view_registry_version')
      OR NOT (p ? 'view_definition_hash')
-     OR NOT (p ? 'exposed_column_hash') THEN
+     OR NOT (p ? 'exposed_column_hash')
+     OR NOT (p ? 'view_dependency_hash')
+     OR NOT (p ? 'view_option_hash') THEN
     RAISE EXCEPTION 'task token must carry safe-view registry drift claims';
   END IF;
 
   v_expected_snapshot := taskbound.safe_view_registry_snapshot(v_allowed_views);
   IF p->'safe_view_registry' <> v_expected_snapshot THEN
     RAISE EXCEPTION 'task token safe-view registry snapshot is stale; re-approval is required';
+  END IF;
+  IF p->>'database_oid' <> v_expected_snapshot->>'database_oid' THEN
+    RAISE EXCEPTION 'task token database identity is stale; re-approval is required';
   END IF;
   IF p->>'safe_view_registry_version' <> v_expected_snapshot->>'safe_view_registry_version' THEN
     RAISE EXCEPTION 'task token safe-view registry version is stale; re-approval is required';
@@ -782,6 +833,12 @@ BEGIN
   END IF;
   IF p->>'exposed_column_hash' <> v_expected_snapshot->>'exposed_column_hash' THEN
     RAISE EXCEPTION 'task token exposed-column hash is stale; re-approval is required';
+  END IF;
+  IF p->>'view_dependency_hash' <> v_expected_snapshot->>'view_dependency_hash' THEN
+    RAISE EXCEPTION 'task token safe-view dependency hash is stale; re-approval is required';
+  END IF;
+  IF p->>'view_option_hash' <> v_expected_snapshot->>'view_option_hash' THEN
+    RAISE EXCEPTION 'task token safe-view option hash is stale; re-approval is required';
   END IF;
 
   SELECT task_id, credential_id
@@ -917,7 +974,7 @@ BEGIN
         USING ERRCODE = '42501';
     END IF;
 
-    PERFORM set_config('search_path', 'taskbound, pg_temp', false);
+    PERFORM set_config('search_path', 'taskbound, pg_catalog', false);
 
     PERFORM public.sessionbound_guard_install_binding(
       v_task_id,
@@ -1053,25 +1110,101 @@ BEGIN
     SELECT
       r.view_name,
       r.database_object,
+      taskbound.current_database_oid()::text AS database_oid,
+      c.oid::text AS view_oid,
+      n.nspname AS view_schema,
+      c.relname AS view_relname,
+      opts.reloptions_json,
+      opts.reloptions_text,
       r.registry_version,
       r.policy_version,
       r.scope_fields,
       r.sensitive_fields_excluded,
-      encode(public.digest(COALESCE(pg_catalog.pg_get_viewdef(r.database_object::regclass, true), ''), 'sha256'), 'hex') AS definition_hash,
-      (
-        SELECT encode(
+      COALESCE(pg_catalog.pg_get_viewdef(c.oid, true), '') AS view_sql,
+      cols.exposed_column_hash,
+      deps.dependency_hash,
+      deps.dependencies,
+      encode(public.digest(
+        concat_ws(chr(31),
+          taskbound.current_database_oid()::text,
+          c.oid::text,
+          n.nspname,
+          c.relname,
+          c.relkind::text,
+          opts.reloptions_text,
+          COALESCE(pg_catalog.pg_get_viewdef(c.oid, true), ''),
+          cols.exposed_column_hash,
+          deps.dependency_hash
+        ),
+        'sha256'
+      ), 'hex') AS definition_hash
+    FROM taskbound.safe_view_registry r
+    JOIN pg_catalog.pg_class c
+      ON c.oid = r.database_object::regclass
+    JOIN pg_catalog.pg_namespace n
+      ON n.oid = c.relnamespace
+    LEFT JOIN LATERAL (
+      SELECT
+        COALESCE(jsonb_agg(relopt.opt ORDER BY relopt.opt), '[]'::jsonb) AS reloptions_json,
+        COALESCE(string_agg(relopt.opt, ',' ORDER BY relopt.opt), '') AS reloptions_text
+      FROM unnest(c.reloptions) AS relopt(opt)
+    ) opts ON true
+    LEFT JOIN LATERAL (
+      SELECT encode(
+        public.digest(
+          COALESCE(string_agg(a.attname || ':' || a.atttypid::regtype::text, '|' ORDER BY a.attnum), ''),
+          'sha256'
+        ),
+        'hex'
+      ) AS exposed_column_hash
+      FROM pg_catalog.pg_attribute a
+      WHERE a.attrelid = c.oid
+        AND a.attnum > 0
+        AND NOT a.attisdropped
+    ) cols ON true
+    LEFT JOIN LATERAL (
+      SELECT
+        encode(
           public.digest(
-            COALESCE(string_agg(a.attname || ':' || a.atttypid::regtype::text, '|' ORDER BY a.attnum), ''),
+            COALESCE(
+              string_agg(
+                dep.refclassid::regclass::text || ':' ||
+                dep.refobjid::text || ':' ||
+                dep.refobjsubid::text || ':' ||
+                dep.deptype::text || ':' ||
+                pg_catalog.pg_describe_object(dep.refclassid, dep.refobjid, dep.refobjsubid),
+                '|' ORDER BY dep.refclassid::regclass::text, dep.refobjid, dep.refobjsubid, dep.deptype
+              ),
+              ''
+            ),
             'sha256'
           ),
           'hex'
+        ) AS dependency_hash,
+        COALESCE(
+          jsonb_agg(
+            jsonb_build_object(
+              'refclass', dep.refclassid::regclass::text,
+              'refobjid', dep.refobjid::text,
+              'refobjsubid', dep.refobjsubid,
+              'deptype', dep.deptype::text,
+              'description', pg_catalog.pg_describe_object(dep.refclassid, dep.refobjid, dep.refobjsubid)
+            )
+            ORDER BY dep.refclassid::regclass::text, dep.refobjid, dep.refobjsubid, dep.deptype
+          ) FILTER (WHERE dep.refobjid IS NOT NULL),
+          '[]'::jsonb
+        ) AS dependencies
+      FROM pg_catalog.pg_rewrite rw
+      JOIN pg_catalog.pg_depend dep
+        ON dep.classid = 'pg_rewrite'::regclass
+       AND dep.objid = rw.oid
+       AND dep.deptype IN ('n', 'a')
+      WHERE rw.ev_class = c.oid
+        AND NOT (
+          dep.refclassid = 'pg_class'::regclass
+          AND dep.refobjid = c.oid
         )
-        FROM pg_catalog.pg_attribute a
-        WHERE a.attrelid = r.database_object::regclass
-          AND a.attnum > 0
-          AND NOT a.attisdropped
-      ) AS exposed_column_hash
-    FROM taskbound.safe_view_registry r
+    ) deps ON true
     WHERE r.view_name = ANY(COALESCE(view_names, ARRAY[]::text[]))
   ),
   ordered_views AS (
@@ -1082,6 +1215,7 @@ BEGIN
   SELECT
     count(*)::int,
     jsonb_build_object(
+      'database_oid', taskbound.current_database_oid()::text,
       'safe_view_registry_version', COALESCE(max(registry_version), 0),
       'view_definition_hash', encode(
         public.digest(COALESCE(string_agg(view_name || ':' || definition_hash, '|' ORDER BY view_name), ''), 'sha256'
@@ -1089,16 +1223,30 @@ BEGIN
       'exposed_column_hash', encode(
         public.digest(COALESCE(string_agg(view_name || ':' || exposed_column_hash, '|' ORDER BY view_name), ''), 'sha256'
       ), 'hex'),
+      'view_dependency_hash', encode(
+        public.digest(COALESCE(string_agg(view_name || ':' || dependency_hash, '|' ORDER BY view_name), ''), 'sha256'
+      ), 'hex'),
+      'view_option_hash', encode(
+        public.digest(COALESCE(string_agg(view_name || ':' || reloptions_text, '|' ORDER BY view_name), ''), 'sha256'
+      ), 'hex'),
       'views', COALESCE(
         jsonb_object_agg(
           view_name,
           jsonb_build_object(
+            'database_object', database_object,
+            'database_oid', database_oid,
+            'view_oid', view_oid,
+            'view_schema', view_schema,
+            'view_relname', view_relname,
             'policy_version', policy_version,
             'registry_version', registry_version,
             'scope_fields', scope_fields,
             'sensitive_fields_excluded', sensitive_fields_excluded,
             'view_definition_hash', definition_hash,
-            'exposed_column_hash', exposed_column_hash
+            'exposed_column_hash', exposed_column_hash,
+            'view_dependency_hash', dependency_hash,
+            'view_options', reloptions_json,
+            'dependencies', dependencies
           )
         ),
         '{}'::jsonb

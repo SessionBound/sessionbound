@@ -15,6 +15,10 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+CONTROL_PLANE_KEY = os.environ.get(
+    "TASKBOUND_CONTROL_PLANE_KEY",
+    "tdsc-demo-control-plane-key",
+)
 
 
 AGENT_CASES: list[dict[str, str]] = [
@@ -101,6 +105,14 @@ AGENT_CASES: list[dict[str, str]] = [
         "sql": "EXPLAIN ANALYZE SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;",
         "expected_reason": "EXPLAIN ANALYZE is not allowed",
     },
+    {
+        "id": "HG12",
+        "name": "native_holdable_cursor_blocked",
+        "mode": "native_script",
+        "expected": "Blocked",
+        "sql": "BEGIN;\nDECLARE c CURSOR WITH HOLD FOR SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;\nCOMMIT;",
+        "expected_reason": "holdable cursors are not allowed",
+    },
 ]
 
 
@@ -170,10 +182,13 @@ def git_commit() -> str:
 
 
 def post_json(base_url: str, path: str, body: dict[str, Any]) -> dict[str, Any]:
+    headers = {"Content-Type": "application/json; charset=utf-8"}
+    if path.startswith(("/credentials", "/tasks", "/todos", "/admin/")):
+        headers["X-TaskBound-Control-Plane-Key"] = CONTROL_PLANE_KEY
     request = urllib.request.Request(
         base_url.rstrip("/") + path,
         data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json; charset=utf-8"},
+        headers=headers,
         method="POST",
     )
     try:

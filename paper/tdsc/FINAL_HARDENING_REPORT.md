@@ -38,15 +38,18 @@
   covering native allowed, direct hook/parser, wrapper/parser, and native
   executor denials. The script contains no manual receipt write.
 - Adversarial SQL suite status: implemented; 140 / 140 expected
-  classifications passed, including minimum-group aggregate checks.
+  classifications passed, with direct aggregate/window release denied until a
+  reviewed template can supply trusted provenance and cardinality.
 - Overhead breakdown status: implemented; latest supported modes ran with zero
   measurement errors.
 - Scale status: 1k/10k/100k native end-to-end diagnostic benchmark rerun and
   discussed, alongside the historical wrapper reference scale sweep.
 - Credential-token binding status: credential-token suite rerun and passed.
-- Schema drift status: registry version, policy version, view-definition hash,
-  and exposed-column hash drift checks rerun and passed.
-- Related work expansion status: 29 verified references in
+- Schema drift status: registry version, policy version, database/view identity,
+  dependency hash, option hash, view-definition hash, and exposed-column hash
+  are now bound into the runtime snapshot; the lifecycle drift check rerun
+  passed, including release-time view-option drift.
+- Related work expansion status: 32 verified references in
   `paper/tdsc/references.bib`, all cited.
 
 ## Key Results
@@ -88,8 +91,9 @@
 - The native hook path is still a research prototype: disclosure accounting is
   a conservative output-tuple budget (not hidden-entity accounting), and the rollback-surviving audit channel uses
   same-DB `dblink` rather than external WORM storage or managed audit retention.
-- Minimum-group policy mitigates direct small-group aggregate release; arbitrary
-  semantic inference remains out of scope.
+- Direct aggregate/window release is denied pending approved aggregate
+  templates; arbitrary semantic inference across multiple allowed answers
+  remains out of scope.
 - The budget vector does not provide formal differential privacy guarantees.
 - The current wrapper and native hook/executor accounting paths remain too slow
   for production-scale claims. The hook-only microbenchmark shows structural
@@ -100,8 +104,9 @@
 
 The candidate is substantially stronger: native SELECT, executor accounting,
 rollback-surviving receipts, prepared/cursor/COPY/EXPLAIN coverage,
-RLS+safe-view+short-credential+audit comparison, minimum-group aggregate policy,
-and fail-closed behavior are implemented and validated. Before final submission,
+RLS+safe-view+short-credential+audit comparison, conservative aggregate/window
+release denial pending reviewed templates, and fail-closed behavior are
+implemented and validated. Before final submission,
 rerun layout/BibTeX checks and either measure the native executor-accounting
 scale path or keep the wrapper scale table explicitly labeled as reference-path
 diagnosis.

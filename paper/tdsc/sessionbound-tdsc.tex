@@ -208,8 +208,8 @@ not depend on the agent correctly interpreting the task. It does not
 trust mutable session variables set by the agent. Instead, it validates
 a signed task token, exposes only registered safe views, rejects raw
 table access and denied fields, tracks query and disclosure budgets, and
-records receipts for evaluated allowed executions and bound-runtime
-denial decisions.
+records receipts for evaluated allowed executions and SessionBound
+admission or release-barrier denials after binding.
 
 The novelty is not any single primitive. It is the binding of task
 approval, credential identity, safe-view versioning, SQL surface,
@@ -226,18 +226,18 @@ This paper makes five contributions.
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
 \item
-  Task-bound database sessions. We identify the approved enterprise
-  task, rather than only identity, role, relation, or query, as the
-  stateful authorization object for agentic SQL.
+  Task-bound PostgreSQL session contracts. We instantiate TBAC/UCON-style
+  task and usage state as a concrete session contract for untrusted,
+  agent-generated SQL over approved database views.
 \item
   Signed control-plane contract. Templates, applications, approvals,
   grants, TTLs, budgets, and task tokens become database-consumable
   structured claims rather than natural language.
 \item
   Composed session object. Credential-token matching, safe-view
-  versioning, exposed-column hashing, disclosure budgets,
-  aggregate/window shape policy, and receipts are bound into one session
-  object.
+  versioning, database/view/dependency/option snapshot hashing,
+  exposed-column hashing, disclosure budgets, aggregate/window shape
+  policy, and receipts are bound into one session object.
 \item
   PostgreSQL prototype with wrapper and native hardening paths.
   We implement an accounting-complete wrapper/API reference path and a
@@ -472,18 +472,22 @@ database runtime enforces the bound task state.}
 
 \noindent\textbf{Task-bound session state machine.}
 SessionBound treats an approved enterprise task as a stateful database
-authorization object. A session state is
-\(S=\langle A,C,T,V,L,B,R\rangle\), where \(A\) is the approved task,
-\(C\) is the brokered credential, \(T\) is the signed token, \(V\) is the
-safe-view registry snapshot, \(L\) is the permitted SQL surface, \(B\) is
-the remaining budget vector, and \(R\) is the receipt chain. Transitions
-include \(\mathsf{issue}\) (approval to token), \(\mathsf{bind}\) (token
-and credential to active database state), \(\mathsf{attempt}\) (SQL
-shape and safe-view resolution), \(\mathsf{release}\) (budgeted allowed
-result), \(\mathsf{deny}\) (receipt-bearing rejection), and
-\(\mathsf{expire/revoke/drift}\) (fail-closed invalidation). The
-contribution is this state machine around a database session, not a new
-identity credential, view mechanism, or audit log in isolation.
+authorization object. We write the session state as
+\(S=\langle A,T,C,G,V,L,B,R\rangle\), where \(A\) is the approved task,
+\(T\) is the signed token, \(C\) is the brokered credential, \(G\) is
+global active-binding ownership, \(V\) is the safe-view registry
+snapshot, \(L\) is the permitted SQL surface, \(B\) is the remaining
+budget vector, and \(R\) is the receipt chain. Transitions include
+\(\mathsf{issue}\) (approval to token), \(\mathsf{bind}\) (token and
+credential to active database state), \(\mathsf{attempt}\) (SQL shape
+and safe-view resolution), \(\mathsf{release}\) (budgeted allowed
+result), \(\mathsf{deny}\) (receipt-bearing rejection for decisions that
+reach the reference monitor), and \(\mathsf{expire/revoke/drift}\)
+(fail-closed invalidation). PostgreSQL parser/analyzer failures that
+occur before a bound task decision are fail-closed observations rather
+than receipt-chain transitions. The contribution is this state machine
+around a database session, not a new identity credential, view mechanism,
+or audit log in isolation.
 
 \hypertarget{template-application-approval-and-token}{%
 \subsection{Template, application, approval, and token}\label{template-application-approval-and-token}}
@@ -502,9 +506,9 @@ runtime. In the prototype, the token binds the task id and type,
 delegator, actor, credential id, tenant and row scope, allowed views,
 denied columns, permitted operations, query and disclosure budgets,
 aggregate/window shape policy, safe-view registry version, policy
-version, view-definition and exposed-column hashes, audience, expiry,
-and nonce. The token is structured authorization data, not a natural
-language prompt.
+version, database and view OIDs, view dependency and option hashes,
+view-definition and exposed-column hashes, audience, expiry, and nonce.
+The token is structured authorization data, not a natural language prompt.
 
 \hypertarget{budgeted-database-session}{%
 \subsection{Budgeted database
@@ -518,9 +522,9 @@ remaining budget.
 In the current prototype, a direct database connection may issue native
 \texttt{SELECT} over approved safe views after binding a signed task
 token. The PostgreSQL extension checks SQL shape and safe-view OIDs,
-then executor accounting charges every released result tuple (the
-legacy \texttt{unique\_expense\_rows} column is a conservative tuple
-counter) before tuples are released. Projection aliases, joins, and
+then executor accounting charges every release-barrier-authorized output
+tuple (the legacy \texttt{unique\_expense\_rows} column is a conservative
+tuple counter) before tuples are forwarded. Projection aliases, joins, and
 non-aggregate detail CTE output cannot avoid the output-row charge;
 hidden source entities are not claimed to be counted. Direct
 aggregate/window release is denied pending approved templates. The same
@@ -528,7 +532,8 @@ path covers SDK
 \texttt{query(sql)}, bound direct \texttt{SELECT}, prepared statements,
 cursor/\texttt{FETCH}, \texttt{COPY (SELECT)}, and non-\texttt{ANALYZE}
 \texttt{EXPLAIN}. Raw table \texttt{SELECT} remains ungranted; schema
-resolution is allowed only so the hook can fail closed and emit receipts.
+resolution is allowed only so the hook can fail closed before release and
+emit receipts for denials that reach the bound reference monitor.
 Pooled connections can rebind only with a fresh valid token and can call
 \texttt{unbind\_task()} at check-in.
 
@@ -552,7 +557,13 @@ tasks, but the database ultimately sees a concrete signed task token:
 actor \(X\) may analyze June 2026 Sales reimbursements through approved
 views under budget \(Y\). Budget assignment remains a control-plane
 decision based on role, data classification, task purpose, and approval
-route; the database runtime enforces the resulting budget.
+route; the database runtime enforces the resulting budget. In the
+artifact, control-plane issuance and administration endpoints require an
+issuer/admin API-key boundary carried in
+\texttt{X-TaskBound-Control-Plane-Key}. This keeps ordinary runtime
+callers from minting short-lived database credentials, issuing arbitrary
+task tokens, changing task templates or grants, or disabling receipt and
+budget-accounting options through request bodies.
 
 
 \hypertarget{sessionbounddb-runtime}{%
@@ -688,7 +699,8 @@ Native PostgreSQL \texttt{SELECT} is the database accounting entrypoint
 for read-only analytical SQL. The agent-facing SDK exposes this as
 \texttt{query(sql)}: the agent supplies ordinary SQL over approved
 safe-view names, and PostgreSQL hook and executor paths enforce the task
-boundary, debit query and disclosure budgets, and emit receipts.
+boundary, debit query and disclosure budgets, and emit receipts for
+covered allowed releases and SessionBound denials.
 \texttt{taskbound.run(sql)} remains as a compatibility wrapper. High-value
 writes should use controlled commands or stored procedures. The runtime
 rejects mutations, DDL, unsafe utility commands, raw schema access,
@@ -698,8 +710,12 @@ denied fields, and blocked schemas.
 \subsection{Query decision
 pipeline}\label{query-decision-pipeline}}
 
-At runtime, every SQL attempt follows the deterministic decision
-procedure in Algorithm~\ref{alg:sql-decision-pipeline}.
+At runtime, every bound SQL attempt that reaches SessionBound admission
+follows the deterministic decision procedure in
+Algorithm~\ref{alg:sql-decision-pipeline}. PostgreSQL syntax and name
+resolution failures that occur before the extension can associate a
+reference-monitor decision with the bound task fail closed outside this
+transition.
 
 \begin{center}
 \refstepcounter{algorithm}\label{alg:sql-decision-pipeline}
@@ -708,7 +724,7 @@ Algorithm \thealgorithm. SQL decision pipeline for SessionBoundDB
 
 Input: SQL attempt and bound database session state.
 
-Output: Allowed result with receipt, or denial receipt.
+Output: Allowed result with receipt, or covered denial receipt.
 
 \begin{enumerate}
 \item Require ownership of the global active binding and validate
@@ -725,7 +741,8 @@ unsafe utility commands.
 before native forwarding; aliases and aggregates use the same conservative
 output-tuple charge.
 \item Emit an allow receipt for a covered release; otherwise reject the
-attempt and emit a denial receipt.
+attempt and emit a denial receipt for denials produced by the
+SessionBound admission or release barrier.
 \end{enumerate}
 \end{minipage}
 \end{center}
@@ -755,7 +772,10 @@ The runtime does not ask an LLM whether a query is safe.
 \end{tikzpicture}
 \caption{Bind/query decision pipeline. Both paths stage and account the
 candidate result before release; the native path uses a private tuplestore
-so an over-budget query releases no prefix.}
+so an over-budget query releases no prefix. Denials issued by the
+SessionBound guard or release barrier emit receipts; native parser/analyzer
+failures before these hooks are fail-closed observations rather than
+receipt-chain decisions.}
 \label{fig:bind-query-pipeline}
 \end{figure}
 
@@ -766,20 +786,21 @@ so an over-budget query releases no prefix.}
 The SessionBoundDB enforcement contract can be described by a state
 
 \begin{equation}
-S=\langle T,C,G,V,B,R\rangle,
+S=\langle A,T,C,G,V,L,B,R\rangle,
 \end{equation}
 
-where \(T\) is the signed task token, \(C\) is the credential/session
-binding, \(G\) is global active-binding ownership over
+where \(A\) is the approved task, \(T\) is the signed task token, \(C\)
+is the credential/session binding, \(G\) is global active-binding ownership over
 \((\texttt{task\_id},\texttt{token\_digest},\texttt{credential\_id})\)
 including \texttt{binding\_id}, \texttt{fence\_token}, advisory lock,
 and backend owner metadata, \(V\) is the safe-view registry and policy
-version, \(B\) is the remaining budget vector, and \(R\) is the receipt chain. Each SQL
-attempt is evaluated by:
+version, \(L\) is the permitted SQL surface, \(B\) is the remaining
+budget vector, and \(R\) is the receipt chain. Each covered SQL attempt
+that reaches SessionBound admission is evaluated by:
 
 \begin{equation}
 \begin{aligned}
-decide(q,S) &\rightarrow allow(result,S')\\
+decide(q,S) &\rightarrow allow(result,receipt,S')\\
             &\quad \mathrm{or}\; deny(reason,receipt,S').
 \end{aligned}
 \end{equation}
@@ -791,7 +812,9 @@ a formal proof that all semantic inference is impossible.
 \begin{itemize}
 \tightlist
 \item
-  I1. No SQL execution occurs without an active task binding.
+  I1. Runtime credentials cannot execute arbitrary agent SQL or release task
+  data without an active task binding; before binding, only public
+  SessionBound runtime entrypoints such as \texttt{bind\_task} may run.
 \item
   I1a. For one exact binding key, at most one PostgreSQL backend may be
   ACTIVE at any time on the same writable primary.
@@ -811,9 +834,10 @@ a formal proof that all semantic inference is impossible.
   the query is denied; all budget and receipt mutations are fenced by
   the current \texttt{binding\_id}/\texttt{fence\_token}.
 \item
-  I7. Every evaluated allowed execution and every bound-runtime denial
-  emits a receipt; connection-level failures before task binding may be
-  logged outside the task receipt chain.
+  I7. Every evaluated allowed execution and every SessionBound admission
+  or release-barrier denial after binding emits a receipt; connection-level
+  failures and native parser/analyzer failures before a task decision may
+  be logged outside the task receipt chain.
 \item
   I8. Safe-view registry, policy version, or definition-hash drift
   invalidates the token or requires reapproval.
@@ -827,7 +851,8 @@ In the prototype, I1--I2 and I8 are checked during
 preflight, the experimental \texttt{sessionbound\_guard} PostgreSQL
 hook path, and database permissions; I5 is enforced by safe-view
 predicates; I6 is implemented through task execution state; I7 is
-implemented through execution and denial receipts after binding; and I9
+implemented through execution receipts and covered denial receipts after
+binding; and I9
 is implemented by conservative API, wrapper, and native shape checks:
 ungrouped aggregates, ad-hoc \texttt{GROUP\ BY}, \texttt{HAVING},
 filtered aggregate release, and window-function release are denied unless a future approved aggregate
@@ -865,10 +890,13 @@ after database name resolution and before safe-view expansion. Let
 \(\mathrm{Views}(T,V)\) be the approved safe views carried by token \(T\)
 and validated against registry \(V\). Let \(\mathrm{Cols}_{out}(q)\) be
 the direct column references that appear in the output expressions of
-\(q\). A state \(S=\langle T,C,V,B,R\rangle\) is well formed when the
-token is valid and bound to credential \(C\), the safe-view registry and
-policy hashes match the token, the budget vector \(B\) is nonnegative,
-and the receipt chain \(R\) verifies. Under these assumptions, the
+\(q\). A state \(S=\langle A,T,C,G,V,L,B,R\rangle\) is well formed when
+the approved task \(A\), token \(T\), credential \(C\), active binding
+ownership \(G\), safe-view registry \(V\), and permitted SQL surface
+\(L\) agree, the token is valid and bound to \(C\), the safe-view registry
+and policy hashes match the token, the budget vector \(B\) is
+nonnegative, and the receipt chain \(R\) verifies. Under these
+assumptions, the
 prototype provides the following direct-reference and accounting
 guarantees. These are not guarantees against arbitrary semantic
 inference from allowed answers, and they are not differential privacy.
@@ -1079,9 +1107,10 @@ disclosure budget & budget model matters \\
 JSON / array payload aggregation & payload aggregation functions &
 conservative AST and hook denial; template allowlist is future work &
 high-risk payload functions are blocked rather than sensitivity-scored \\
-Aggregate inference & small-group \texttt{GROUP\ BY} & configurable
-minimum group size and entity-aware aggregate policy & arbitrary
-semantic inference remains out of scope \\
+Aggregate inference & small-group \texttt{GROUP\ BY} & direct aggregate,
+\texttt{GROUP\ BY}, \texttt{HAVING}, and window release are denied pending
+approved aggregate templates & arbitrary semantic inference remains out of
+scope \\
 Timing side channel & expensive predicates & statement timeout and
 resource budget & partial \\
 \bottomrule
@@ -1111,8 +1140,8 @@ exposure counters tied to task authority. The current runtime also carries a con
 release is denied by default until a task-specific aggregate template can
 provide trusted source-entity provenance and cardinality. This includes
 ungrouped aggregates, ad-hoc grouped aggregates, \texttt{HAVING} probes,
-filtered aggregate release, and window release. Denied aggregate/window
-queries emit denial receipts and do not release disclosure rows.
+filtered aggregate release, and window release. Covered aggregate/window
+policy denials emit denial receipts and do not release disclosure rows.
 
 Table~\ref{tab:budget-charge} gives the exact prototype charge
 semantics used for \(\Delta\). It is intentionally operational: it
@@ -1129,8 +1158,8 @@ theoretic leakage.
 \toprule
 Budget dimension & Prototype charge \\
 \midrule
-\texttt{query\_count} & Wrapper and native paths: one debit inside the fenced release-barrier transition for an allowed execution. Preflight and policy denials emit denial receipts without result/entity debit in the current prototype. \\
-\texttt{result\_rows} & Number of tuples released to the client and recorded in state/receipts. Join multiplicity is visible here, so duplicate output tuples increase this counter. \\
+\texttt{query\_count} & Wrapper and native paths: one debit inside the fenced release-barrier transition for an allowed execution. Covered preflight and policy denials emit denial receipts without result/entity debit in the current prototype. \\
+\texttt{result\_rows} & Number of staged output tuples authorized by the fenced release barrier and recorded in state/receipts. Join multiplicity is visible here, so duplicate output tuples increase this counter. The prototype's legacy \texttt{rows\_returned} receipt field is not a proof that the network/client consumed every tuple after authorization. \\
 \texttt{disclosure\_tuples} & Every candidate result tuple consumes one unit, independent of projected names, aliases, joins, or whether an identifier column is present. This is conservative and does not claim to count hidden source entities in aggregate results. \\
 \texttt{aggregate\_group} & Direct aggregate release is denied unless a future approved aggregate template supplies trusted provenance/cardinality logic. This includes ungrouped aggregates, ad-hoc \texttt{GROUP\ BY}, \texttt{HAVING}, filtered aggregate release, and window-function release. \\
 payload aggregation & High-risk payload aggregation functions such as \texttt{json\_agg}, \texttt{array\_agg}, and \texttt{string\_agg} are denied unless a future template explicitly allows them. \\
@@ -1154,14 +1183,15 @@ they approve. If a safe view changes after approval, the token may no
 longer represent the approved task.
 
 A task token should therefore bind safe views by more than name:
-registry version, policy version, database object identifier, view
-definition hash, and exposed-column hash. PostgreSQL views make this
-important: \texttt{CREATE\ OR\ REPLACE\ VIEW} may preserve
-\texttt{pg\_class.oid} while changing the definition, and
-\texttt{relfilenode} is not an appropriate view identity. The prototype
-binds registry, policy, view-definition, and exposed-column hashes into
-the signed token and fails closed if the runtime snapshot no longer
-matches the approved boundary.
+registry version, policy version, database object identifier, view OID,
+view dependency hash, view option hash, view definition hash, and
+exposed-column hash. PostgreSQL views make this important:
+\texttt{CREATE\ OR\ REPLACE\ VIEW} may preserve \texttt{pg\_class.oid}
+while changing the definition, and \texttt{relfilenode} is not an
+appropriate view identity. The prototype binds registry, policy,
+database/view identity, dependency, option, definition, and exposed-column
+hashes into the signed token and fails closed if the runtime snapshot no
+longer matches the approved boundary.
 
 
 \hypertarget{receipts}{%
@@ -1176,10 +1206,13 @@ timestamp, previous receipt hash, and current receipt hash. The schema
 also includes a touched-safe-view list. Query receipts populate this list
 from PostgreSQL parse/analyze safe-view OIDs for safely parseable bound
 database SQL and then map those OIDs back to approved registry names. API
-preflight receipt writes and unsupported syntax rejected before
-parse/analyze use an approved-name fallback. This field is hashed audit
-context rather than the enforcement predicate; relation enforcement still
-comes from AST and safe-view OID checks.
+preflight receipt writes and wrapper-side unsupported syntax rejected
+before database execution use an approved-name fallback. Native
+PostgreSQL parser/analyzer failures that occur before hook admission are
+fail-closed scoped observations rather than task-chain receipts. The
+touched-safe-view field is hashed audit context rather than the
+enforcement predicate; relation enforcement still comes from AST and
+safe-view OID checks.
 
 The prototype implements a lightweight hash chain: each receipt stores
 \texttt{previous\_receipt\_hash} and
@@ -1255,8 +1288,8 @@ The current prototype includes:
 \item
   query and disclosure budget state;
 \item
-  receipts for evaluated allowed executions and bound-runtime denial
-  decisions;
+  receipts for evaluated allowed executions and SessionBound admission or
+  release-barrier denial decisions;
 \item
   controlled commands for high-value workflow actions;
 \item
@@ -1274,7 +1307,8 @@ protocol. Agents do not receive raw table
 \texttt{SELECT} grants. The SDK's \texttt{query(sql)} executes native SQL
 over the bound safe-view schema; a direct
 \texttt{SELECT ... FROM taskbound.expenses} is allowed only after binding
-and is observed by executor accounting before each tuple is forwarded.
+and is observed by executor accounting before the staged result is
+authorized for forwarding.
 The hook is not the sole DDL/DML protection: runtime credentials are
 deny-by-default and lack raw-table and DDL privileges, while
 \texttt{ProcessUtility\_hook} fail-closes and logs utility statements
@@ -1305,12 +1339,17 @@ executor hooks. Trusted SUSET GUCs populated by
 \texttt{taskbound.bind\_task} carry the task, budgets, receipt flags, and
 approved safe-view OIDs. The executor path wraps the destination
 receiver and stages the complete result in a private tuplestore. It
-charges output tuples before a single tuple is forwarded; no
-\texttt{expense\_id}-only projection heuristic is used. For allowed
+charges output tuples before authorizing the staged result for forwarding;
+no \texttt{expense\_id}-only projection heuristic is used. For allowed
 releases, receipt and budget updates occur in one fenced release-barrier
-transition on the autonomous same-database audit channel. Parser, wrapper,
-hook, and API denials use the same audit channel for rollback-surviving
-denial receipts.
+transition on the autonomous same-database audit channel; the receipt
+cardinality is the authorized staged-row count, not a client-delivery
+acknowledgment. API preflight,
+wrapper, hook, controlled-command, and release-barrier denials use the
+same audit channel for rollback-surviving denial receipts when the
+SessionBound runtime can associate the denial with a bound task. Native
+PostgreSQL parser/analyzer failures before that point fail closed but are
+not represented as task-chain receipts in the prototype.
 
 The hook rejects non-\texttt{SELECT} statements, raw
 \texttt{app\_data} relations, catalog access, recursive CTEs,
@@ -1368,7 +1407,7 @@ catalog access, mutations, DDL, \texttt{COPY}, \texttt{SET},
 CTEs, \texttt{UNION}/\texttt{INTERSECT}/\texttt{EXCEPT} stacking,
 unknown functions, denied-field aliases, and high-risk payload
 aggregation functions. The API AST validation evaluation passed 20 of 20
-query-shape cases, and the PostgreSQL hook evaluation passed 18 of 18
+query-shape cases, and the PostgreSQL hook evaluation passed 19 of 19
 direct database enforcement cases.
 
 \hypertarget{query-example}{%
@@ -1595,8 +1634,17 @@ properties. In the updated credential-token test suite, SessionBound
 denies credential-id mismatch, cross-credential token replay, wrong
 audience, wrong actor, expired tokens, revoked tasks, and same-session
 rebind to a second active task. It also rejects tokens whose safe-view
-registry version, policy version, view-definition hash, or
-exposed-column hash no longer matches the runtime registry.
+registry version, policy version, database/view identity, view dependency
+hash, view option hash, view-definition hash, or exposed-column hash no
+longer matches the runtime registry. The comparison separates systems with
+different policy substrates and guarantees: Qapla rewrites queries with
+SQL-stored row/column policies, Blockaid checks web-application queries
+against data-access policies with SMT-backed verification, Sieve scales
+large fine-grained policy sets through middleware query planning, and
+PICACHV verifies data-use policy enforcement over relational-algebra
+plans. SessionBound's narrower claim is the composition of task-token,
+credential, safe-view snapshot, budget, and receipt state inside one
+PostgreSQL session.
 
 \hypertarget{adversarial-sql-evaluation}{%
 \subsection{Adversarial SQL evaluation}\label{adversarial-sql-evaluation}}
@@ -1661,25 +1709,48 @@ aggregate, direct-entity grouping, filtered aggregate, window,
 failed closed.
 
 The 2026-07-19 database-hook suite evaluated the
-\texttt{sessionbound\_guard} path directly and passed 18 of 18
-cases in \texttt{sessionbound\_guard\_hook\_20260719\_162553.json}. It
+\texttt{sessionbound\_guard} path directly and passed 19 of 19
+cases in \texttt{sessionbound\_guard\_hook\_20260719\_230317.json}. It
 confirmed GUC tamper resistance, allowed bound native
 \texttt{SELECT}, support for prepared statements, cursor/\texttt{FETCH},
 \texttt{COPY (SELECT)}, and non-\texttt{ANALYZE} \texttt{EXPLAIN}, and
 blocked set operations, catalog/raw access, runtime-helper abuse, payload
 aggregation, unapproved OIDs, \texttt{HAVING}/direct-entity aggregate
-shapes, direct aggregate/window release, and \texttt{EXPLAIN ANALYZE}.
+shapes, direct aggregate/window release, holdable cursors, and
+\texttt{EXPLAIN ANALYZE}. The companion
+\texttt{prebind\_runtime\_20260719\_150119.json} probe passed 7 of 7
+cases, confirming that runtime credentials cannot run ordinary SQL,
+utility/TEMP SQL, side-effect functions, prepared statements, or private
+runtime helpers before binding, while \texttt{bind\_task} remains callable.
 
 A separate path-consistency run,
-\texttt{path\_consistency\_20260719\_184242.json}, passed 12 of 12
+\texttt{path\_consistency\_20260719\_215758.json}, passed 13 of 13
 cases across API, direct-wrapper, and direct-native paths. It compares
-36 path observations for allowed detail projection, join, non-aggregate
+39 path observations for allowed detail projection, join, non-aggregate
 CTE, denied-column, raw-schema, catalog, set-operation,
-aggregate/window, side-effect-function, and \texttt{TABLESAMPLE}
+aggregate/window, side-effect-function, \texttt{TABLESAMPLE}, and
+release-time lifecycle
 queries. Two direct-native PostgreSQL parser/analyzer rejections
 (\texttt{salary} absent from the hardened safe view, and
 \texttt{TABLESAMPLE} on a view) are recorded as scoped observations
 rather than receipt-equivalent task decisions.
+
+The receipt-fault run
+\path{receipt_fault_20260719_135735.json} passed 7 of 7 cases. It
+recomputed receipt hashes, checked contiguous per-task receipt sequences
+and previous-hash links, verified tamper sensitivity, blocked direct
+agent receipt forgery and helper calls, and covered controlled-command
+allow/deny receipt insertion. The current receipt claim is therefore
+limited to these evaluated allowed executions and SessionBound admission
+or release-barrier denials, not to native parser/analyzer failures before
+the hook can associate a decision with the task chain.
+
+The control-plane authentication run
+\path{control_plane_auth_20260719_140226.json} passed 8 of 8
+cases. Missing or wrong keys were rejected for credential issuance, task
+issuance, and administrative registry reads; the configured key permitted
+the expected calls; and request-body attempts to disable receipts or
+budget accounting were rejected before token issuance.
 
 \begin{table*}[!t]
 \centering
@@ -1884,8 +1955,10 @@ updated prototype denied all tested cases: credential A with token B,
 replaying a token with a second credential, same-session second active
 binding, wrong token audience or actor, expired token, revoked task
 state, registry and safe-view policy-version drift, view-definition hash
-mismatch, and exposed-column hash mismatch. Drift denials require
-re-approval before execution.
+mismatch, and exposed-column hash mismatch. The binding-lifecycle run also
+checks that the runtime snapshot carries database/view/dependency/option
+metadata and denies release after a view-option drift. Drift denials
+require re-approval before execution.
 
 On the default seed (430 expenses, 240 employees, and 124 departments),
 an API concurrency smoke test completed 1, 5, and 20 concurrent sessions
@@ -2032,15 +2105,55 @@ no SQL mediation &
 context caveats &
 no DB drift &
 crypto delegation \\
-Qapla/Blockaid/Sieve~\cite{qapla2017,zhang2022blockaid,pappachan2020sieve} &
-user/context/policy &
-adapter/proxy/MW &
+Qapla~\cite{qapla2017} &
+user/time/row/column &
+DB adapter &
 app/user identity &
-rewrite/guard &
-request/query &
+SQL rewrite &
+query policy &
 no task snapshot &
 policy compliance \\
-Agent policies~\cite{shi2025progent,wang2025agentspec,jia2025taskshield,sharma2026pauth} &
+Blockaid~\cite{zhang2022blockaid} &
+web request/query &
+DB proxy + SMT &
+app/user identity &
+query verification &
+request/query &
+no task snapshot &
+query allow/block \\
+Sieve~\cite{pappachan2020sieve} &
+querier/purpose/policy &
+middleware &
+app context &
+FGAC rewrite/UDF &
+query + policy set &
+no task snapshot &
+scalable FGAC \\
+ShillDB~\cite{zigmond2020shilldb} &
+component contract &
+language runtime &
+program capability &
+language DB ops &
+function contract &
+no DB drift &
+contract guarantee \\
+Estrela~\cite{bichhawat2020estrela} &
+API context/use &
+app framework &
+endpoint context &
+pre/post checks &
+request context &
+no DB snapshot &
+policy compliance \\
+PICACHV~\cite{chen2025picachv} &
+data-use policy &
+RA monitor + TEE &
+analytics runtime &
+plan semantics &
+query plan &
+no task token &
+verified monitor \\
+Agent policies~\cite{shi2025progent,wang2025agentspec,jia2025taskshield} &
 task/tool/op &
 runtime/gateway &
 no DB login &
@@ -2048,6 +2161,14 @@ tools/services &
 exec-state checks &
 no view drift &
 tool/operation auth \\
+PAuth~\cite{sharma2026pauth} &
+NL task operation &
+service verifier &
+envelopes/provenance &
+service calls &
+NL slices &
+no DB view drift &
+precise op auth \\
 CaMeL/IFC~\cite{debenedetti2025camel,costa2025ifcagents} &
 label / capability &
 interp./tool policy &
@@ -2075,17 +2196,22 @@ delegation, or relationship checks~\cite{nist2019abac,oasis2013xacml,dennis1966p
 SessionBound addresses how the resulting SQL session is scoped,
 budgeted, drift-checked, and audited.
 
-PAuth authorizes service/tool operations implied by a
-task~\cite{sharma2026pauth}; Data Product MCP governs data-product
-discovery, access, and contract-aware querying~\cite{tonnarelli2026dataproductmcp,mcp2025specification}.
+PAuth authorizes service/tool operations implied by a natural-language
+task using NL slices and provenance envelopes~\cite{sharma2026pauth};
+Data Product MCP governs data-product discovery, access, and
+contract-aware querying~\cite{tonnarelli2026dataproductmcp,mcp2025specification}.
 SessionBound is complementary: after approval or data-product selection,
-it enforces the PostgreSQL execution contract. Prompt-injection work,
-information-flow controls, RLS/VPD/DDS,
+it enforces the PostgreSQL execution contract for open-ended SQL.
+Prompt-injection work, information-flow controls, RLS/VPD/DDS, DLP,
 parser-mediated validation, auditing, inference control, and
 differential privacy address adjacent
-pieces~\cite{greshake2023indirect,liu2023promptinjection,owasp2025llm01,myers1997difc,costa2025ifcagents,postgresql2026rowsecurity,oracle2026vpd,oracle2026deepdatasecuritydocs,oracle2026deepdatasecuritybrief,boyd2004sqlrand,su2006essence,kleinberg2000auditing,adam1989securitycontrol,dwork2014algorithmic};
-SessionBound composes them around a task-bound database session with
-operational accounting, not formal DP.
+pieces~\cite{greshake2023indirect,liu2023promptinjection,owasp2025llm01,myers1997difc,costa2025ifcagents,postgresql2026rowsecurity,oracle2026vpd,oracle2026deepdatasecuritydocs,oracle2026deepdatasecuritybrief,alneyadi2016dlps,nist2026dlpglossary,boyd2004sqlrand,su2006essence,kleinberg2000auditing,adam1989securitycontrol,dwork2014algorithmic};
+database contract and data-use systems such as ShillDB, Estrela, and
+PICACHV enforce component-level database contracts, contextual
+pre/post-query policies, and verified data-use monitors, respectively.
+SessionBound composes task approval, credential binding, view-snapshot
+drift checks, cumulative disclosure accounting, and rollback-surviving
+receipts around one task-bound database session, not formal DP.
 
 
 \hypertarget{limitations}{%

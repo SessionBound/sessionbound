@@ -38,9 +38,12 @@ def fetch_safe_view_registry_claims(allowed_views: list[str]) -> dict:
             snapshot = cur.fetchone()[0]
     return {
         "safe_view_registry": snapshot,
+        "database_oid": snapshot["database_oid"],
         "safe_view_registry_version": snapshot["safe_view_registry_version"],
         "view_definition_hash": snapshot["view_definition_hash"],
         "exposed_column_hash": snapshot["exposed_column_hash"],
+        "view_dependency_hash": snapshot["view_dependency_hash"],
+        "view_option_hash": snapshot["view_option_hash"],
     }
 
 

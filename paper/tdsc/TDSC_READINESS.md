@@ -40,14 +40,14 @@ unoptimized.
   remain guarded by native hook/executor accounting outside `taskbound.run(...)`.
 - Added rollback audit script and raw result for allowed and denied receipts.
 - Expanded the adversarial SQL suite to 140 cases and added raw results,
-  including minimum-group aggregate checks.
+  including conservative aggregate/window denial checks.
 - Added a strongest-practical RLS + Safe View + Short Credential + Audit
   baseline and remeasured overhead/security comparisons.
 - Added overhead breakdown script with raw JSON/CSV outputs.
 - Added native end-to-end benchmark across Raw, Safe-view-only,
   RLS+SafeView+ShortCredential+Audit, SessionBound wrapper, and SessionBound
   native hook/executor modes.
-- Expanded related work to 29 verified references.
+- Expanded related work to 32 verified references.
 - Updated the active TDSC manuscript in `paper/tdsc/sessionbound-tdsc.tex`
   with security invariants, AST validation positioning, adversarial SQL summary,
   overhead breakdown, limitations, and expanded related work.
@@ -66,14 +66,15 @@ unoptimized.
   tested direct small-group aggregate-release attempts blocked.
 - Canonical validation: 24 / 24 scenarios passed.
 - Overhead: supported modes completed with zero errors.
-- Related work: 29 verified bibliography entries, all cited.
+- Related work: 32 verified bibliography entries, all cited.
 
 ## Remaining Blockers
 
 - The PostgreSQL hook path includes experimental parse/analyze enforcement and
   executor accounting, but not a formal SQL safety proof.
-- Minimum-group policy mitigates direct small-group aggregate release; arbitrary
-  semantic inference across multiple allowed answers remains out of scope.
+- Direct aggregate/window release is denied pending approved aggregate
+  templates; arbitrary semantic inference across multiple allowed answers
+  remains out of scope.
 - Disclosure budgets are conservative output-tuple operational controls, not
   formal differential privacy or hidden-entity accounting.
 - The current wrapper and native executor-accounting paths both have high

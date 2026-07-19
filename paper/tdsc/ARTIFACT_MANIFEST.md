@@ -9,8 +9,9 @@ SessionBound submission candidate on branch
 - Working branch: `high-standard-tdsc-pdsc-revision`
 - Manuscript source: `paper/tdsc/sessionbound-tdsc.tex`
 - Manuscript PDF: `paper/tdsc/sessionbound-tdsc.pdf`
+- Static-review closure audit: `paper/tdsc/STATIC_REVIEW_CLOSURE_AUDIT.md`
 - Build command: `cd paper/tdsc && make`
-- Current page count: 16 pages
+- Current page count: 17 pages
 - Current abstract length: 199 words
 - Current status: repository-side static-review submission candidate for the
   narrowed claim; human submission steps and future-work boundaries are listed
@@ -45,7 +46,7 @@ Current limitations remain explicit:
   throughput.
 
 Submission-format checks were refreshed against IEEE Computer Society/TDSC
-pages on 2026-07-19. The current PDF is a 16-page regular-paper candidate with
+pages on 2026-07-19. The current PDF is a 17-page regular-paper candidate with
 a 199-word abstract, embedded Type 1 fonts, no LaTeX blocking warnings, and no
 supplemental material embedded in the main PDF. The length should be treated as
 MOPC-subject if accepted because it exceeds the 12-page regular-paper threshold;
@@ -59,8 +60,8 @@ ORCID/account metadata remain human submission steps.
   `paper/tdsc/raw_results/adversarial_sql_20260719_162614.json` — 140 / 140;
   130 blocked and 10 allowed/accounted.
 - Native hook/executor:
-  `paper/tdsc/raw_results/sessionbound_guard_hook_20260719_162553.json` —
-  18 / 18.
+  `paper/tdsc/raw_results/sessionbound_guard_hook_20260719_230317.json` —
+  19 / 19.
 - Rollback audit:
   `paper/tdsc/raw_results/rollback_audit_20260719_162553.json` — 5 / 5,
   including API preflight touched-view provenance.
@@ -86,18 +87,26 @@ ORCID/account metadata remain human submission steps.
   release, and window partition release; each blocked decision emitted one
   denial receipt.
 - Function side-effect/default-deny policy:
-  `paper/tdsc/raw_results/function_side_effect_20260719_113937.json` —
-  12 / 12 cases and 36 / 36 API, direct-wrapper, and direct-native path
-  decisions. The side-effect oracles cover `pg_sleep`, session advisory locks,
-  and `pg_notify`; the broader blocked set covers session/config functions,
-  privilege/file introspection, SRFs, payload serialization, and an unlisted
-  aggregate.
+  `paper/tdsc/raw_results/function_side_effect_20260719_150354.json` —
+  13 / 13 cases and 38 / 38 evaluated API, direct-wrapper, and direct-native
+  path decisions. The side-effect oracles cover `pg_sleep`, session advisory
+  locks, `pg_notify`, and temporary-operator/function mediation; the broader
+  blocked set covers session/config functions, privilege/file introspection,
+  SRFs, payload serialization, and an unlisted aggregate.
+- Pre-bind runtime credential mediation:
+  `paper/tdsc/raw_results/prebind_runtime_20260719_150119.json` — 7 / 7.
+  The evaluator confirms runtime credentials cannot run ordinary `SELECT`,
+  schema-qualified safe-view reads, side-effect functions, TEMP/utility SQL,
+  prepared statements, or private runtime helpers before binding, while the
+  public `taskbound.bind_task(...)` entrypoint still permits a legitimate
+  bound safe-view query.
 - Receipt fault/forgeability:
-  `paper/tdsc/raw_results/receipt_fault_20260719_114420.json` — 5 / 5.
+  `paper/tdsc/raw_results/receipt_fault_20260719_135735.json` — 7 / 7.
   The evaluator recomputes receipt hashes from hardened fields, verifies
-  previous-hash chaining and tamper sensitivity, confirms wrong-fence append
-  rejection, and checks direct agent forgery attempts against receipt/runtime
-  helper surfaces.
+  contiguous receipt sequences, previous-hash chaining, and tamper sensitivity,
+  confirms wrong-fence append rejection, checks direct agent forgery attempts
+  against receipt/runtime helper surfaces, and covers controlled-command
+  allow/deny receipts.
 - Concurrent isolation:
   `paper/tdsc/raw_results/concurrent_isolation_20260719_065546.json` — 6 / 6.
 - Global single-active binding:
@@ -105,7 +114,7 @@ ORCID/account metadata remain human submission steps.
   passed; 20 repeated races, 10 contenders, zero dual-success rounds, zero
   zero-winner rounds, zero unexpected errors.
 - Native partial budget:
-  `paper/tdsc/raw_results/native_partial_budget_20260719_162615.json` —
+  `paper/tdsc/raw_results/native_partial_budget_20260719_215902.json` —
   1 / 1.
 - SDK query surface:
   `paper/tdsc/raw_results/sdk_query_20260719_082553.json` — 3 / 3.
@@ -115,10 +124,15 @@ ORCID/account metadata remain human submission steps.
   execution-id idempotence, chained receipts, credential replay denial, and the
   direct-role bypass TCB distinction.
 - Path consistency:
-  `paper/tdsc/raw_results/path_consistency_20260719_184242.json` — 12 / 12
-  across 36 API, direct-wrapper, and direct-native observations. Two
+  `paper/tdsc/raw_results/path_consistency_20260719_215758.json` — 13 / 13
+  across 39 API, direct-wrapper, and direct-native observations. Two
   direct-native PostgreSQL pre-analysis errors are recorded as scoped
   observations rather than receipt-equivalent task decisions.
+- Binding lifecycle:
+  `paper/tdsc/raw_results/binding_lifecycle_20260719_142819.json` — 4 / 4,
+  including snapshot metadata coverage and release-time view-option drift.
+- Control-plane authentication:
+  `paper/tdsc/raw_results/control_plane_auth_20260719_140226.json` — 8 / 8.
 - Overhead breakdown:
   `paper/tdsc/raw_results/overhead_breakdown_20260719_150951.json` and
   `paper/tdsc/raw_results/overhead_breakdown_20260719_150951.csv`.
@@ -154,6 +168,7 @@ python paper/tdsc/scripts/scope_completeness_eval.py --base-url http://localhost
 python paper/tdsc/scripts/dynamic_denied_field_eval.py --base-url http://localhost:8000
 python paper/tdsc/scripts/aggregate_template_gating_eval.py --base-url http://localhost:8000
 python paper/tdsc/scripts/function_side_effect_eval.py --base-url http://localhost:8000
+python paper/tdsc/scripts/prebind_runtime_eval.py --base-url http://localhost:8000
 python paper/tdsc/scripts/receipt_fault_eval.py --base-url http://localhost:8000
 python paper/tdsc/scripts/concurrent_isolation_eval.py --db-host localhost --db-port 15432 --db-name travel
 python paper/tdsc/scripts/single_active_binding_eval.py --db-host localhost --db-port 15432 --db-name travel --rounds 20 --contenders 10

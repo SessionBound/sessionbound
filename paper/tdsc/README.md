@@ -11,6 +11,7 @@ measured experiment artifacts, and hardening reports.
   the current machine does not provide it globally.
 - `IEEEtran.bst`: local IEEEtran BibTeX style from CTAN.
 - `SUBMISSION_STATUS.md`: remaining checks before any formal submission.
+- `STATIC_REVIEW_CLOSURE_AUDIT.md`: reviewer issue-by-issue closure matrix.
 - `experiments/`: baseline experiment scripts, raw results, and reports.
 - `raw_results/`: latest hardening raw JSON/CSV outputs.
 - `scripts/`: latest hardening evaluation scripts.
@@ -50,7 +51,10 @@ python paper/tdsc/scripts/scope_completeness_eval.py --base-url http://localhost
 python paper/tdsc/scripts/dynamic_denied_field_eval.py --base-url http://localhost:8000
 python paper/tdsc/scripts/aggregate_template_gating_eval.py --base-url http://localhost:8000
 python paper/tdsc/scripts/function_side_effect_eval.py --base-url http://localhost:8000
+python paper/tdsc/scripts/prebind_runtime_eval.py --base-url http://localhost:8000
 python paper/tdsc/scripts/receipt_fault_eval.py --base-url http://localhost:8000
+python paper/tdsc/scripts/binding_lifecycle_eval.py --base-url http://localhost:8000
+python paper/tdsc/scripts/control_plane_auth_eval.py --base-url http://localhost:8000
 python paper/tdsc/scripts/concurrent_isolation_eval.py --db-host localhost --db-port 15432 --db-name travel
 python paper/tdsc/scripts/single_active_binding_eval.py --db-host localhost --db-port 15432 --db-name travel --rounds 20 --contenders 10
 python paper/tdsc/scripts/sdk_query_eval.py --database-url postgresql://agent_app:agentpass@localhost:15432/travel
@@ -64,7 +68,7 @@ TDSC_DB_HOST=localhost TDSC_DB_PORT=15432 TDSC_DB_NAME=travel TDSC_BASE_URL=http
 The current global single-active binding result is
 `raw_results/single_active_binding_20260719_065728.json`.
 The current path-consistency result is
-`raw_results/path_consistency_20260719_184242.json`.
+`raw_results/path_consistency_20260719_215758.json`.
 The current scope-completeness result is
 `raw_results/scope_completeness_20260719_112307.json`.
 The current dynamic denied-field result is
@@ -72,6 +76,12 @@ The current dynamic denied-field result is
 The current aggregate-template gating result is
 `raw_results/aggregate_template_gating_20260719_113133.json`.
 The current function side-effect/default-deny result is
-`raw_results/function_side_effect_20260719_113937.json`.
+`raw_results/function_side_effect_20260719_150354.json`.
+The current pre-bind runtime mediation result is
+`raw_results/prebind_runtime_20260719_150119.json`.
 The current receipt fault/forgeability result is
-`raw_results/receipt_fault_20260719_114420.json`.
+`raw_results/receipt_fault_20260719_135735.json`.
+The current binding-lifecycle result is
+`raw_results/binding_lifecycle_20260719_142819.json`.
+The current control-plane-authentication result is
+`raw_results/control_plane_auth_20260719_140226.json`.

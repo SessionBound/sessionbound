@@ -2,13 +2,93 @@
  * fields were added.  Fresh databases get these columns from 001_schema.sql. */
 ALTER TABLE taskbound.task_query_receipts
   ADD COLUMN IF NOT EXISTS execution_id uuid NOT NULL DEFAULT gen_random_uuid(),
+  ADD COLUMN IF NOT EXISTS receipt_sequence bigint,
   ADD COLUMN IF NOT EXISTS actor text,
   ADD COLUMN IF NOT EXISTS touched_views text[] NOT NULL DEFAULT ARRAY[]::text[],
   ADD COLUMN IF NOT EXISTS previous_receipt_hash text,
   ADD COLUMN IF NOT EXISTS receipt_hash text;
 
+COMMENT ON COLUMN taskbound.task_execution_state.returned_rows IS
+  'Cumulative count of rows authorized by the release barrier for this task. This is counted before client forwarding and is not proof of network delivery.';
+
+COMMENT ON COLUMN taskbound.task_query_receipts.rows_returned IS
+  'Legacy receipt field for release-barrier-authorized rows. For wrapper/native reads, rows are staged and counted before client forwarding, so this is an authorization count, not proof of network delivery.';
+
+WITH ordered AS (
+  SELECT receipt_id,
+         row_number() OVER (
+           PARTITION BY task_id
+           ORDER BY created_at, receipt_id
+         ) AS sequence_value
+  FROM taskbound.task_query_receipts
+  WHERE receipt_sequence IS NULL
+)
+UPDATE taskbound.task_query_receipts r
+SET receipt_sequence = ordered.sequence_value
+FROM ordered
+WHERE r.receipt_id = ordered.receipt_id;
+
+ALTER TABLE taskbound.task_query_receipts
+  ALTER COLUMN receipt_sequence SET DEFAULT 0,
+  ALTER COLUMN receipt_sequence SET NOT NULL;
+
 CREATE UNIQUE INDEX IF NOT EXISTS task_query_receipts_task_execution_id_key
   ON taskbound.task_query_receipts (task_id, execution_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS task_query_receipts_task_sequence_key
+  ON taskbound.task_query_receipts (task_id, receipt_sequence);
+
+CREATE TABLE IF NOT EXISTS taskbound.task_receipt_chain_heads (
+  task_id text PRIMARY KEY,
+  last_sequence bigint NOT NULL DEFAULT 0,
+  last_receipt_hash text NOT NULL DEFAULT '',
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION taskbound.advance_receipt_chain_head()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, pg_temp
+AS $$
+BEGIN
+  INSERT INTO taskbound.task_receipt_chain_heads (
+    task_id, last_sequence, last_receipt_hash, updated_at
+  )
+  VALUES (
+    NEW.task_id, NEW.receipt_sequence, COALESCE(NEW.receipt_hash, ''), clock_timestamp()
+  )
+  ON CONFLICT (task_id) DO UPDATE
+    SET last_sequence = EXCLUDED.last_sequence,
+        last_receipt_hash = EXCLUDED.last_receipt_hash,
+        updated_at = EXCLUDED.updated_at
+    WHERE taskbound.task_receipt_chain_heads.last_sequence < EXCLUDED.last_sequence;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS task_query_receipts_chain_head_ai
+  ON taskbound.task_query_receipts;
+CREATE TRIGGER task_query_receipts_chain_head_ai
+AFTER INSERT ON taskbound.task_query_receipts
+FOR EACH ROW
+EXECUTE FUNCTION taskbound.advance_receipt_chain_head();
+
+WITH latest AS (
+  SELECT DISTINCT ON (task_id)
+         task_id,
+         receipt_sequence,
+         COALESCE(receipt_hash, '') AS receipt_hash
+  FROM taskbound.task_query_receipts
+  ORDER BY task_id, receipt_sequence DESC
+)
+INSERT INTO taskbound.task_receipt_chain_heads (
+  task_id, last_sequence, last_receipt_hash
+)
+SELECT task_id, receipt_sequence, receipt_hash
+FROM latest
+ON CONFLICT (task_id) DO NOTHING;
 
 DROP FUNCTION IF EXISTS taskbound.audit_append_receipt(
   text, text, uuid, bigint, text, text, bigint, bigint, bigint, text, boolean
@@ -178,10 +258,20 @@ BEGIN
   END IF;
 
   v_sql := format($sql$
-    BEGIN;
-    SELECT pg_advisory_xact_lock(hashtextextended(%L, 0));
-    WITH owner AS (
+    WITH receipt_lock AS (
+      SELECT pg_advisory_xact_lock(hashtextextended(%L, 0))
+    ), owner AS (
       SELECT taskbound.mutation_fence_ok(%L, %L::uuid, %s) AS ok
+      FROM receipt_lock
+    ), chain AS (
+      INSERT INTO taskbound.task_receipt_chain_heads (
+        task_id, last_sequence, last_receipt_hash
+      )
+      SELECT %L, 0, ''
+      WHERE (SELECT ok FROM owner)
+      ON CONFLICT (task_id) DO UPDATE
+        SET last_sequence = taskbound.task_receipt_chain_heads.last_sequence
+      RETURNING last_sequence, last_receipt_hash
     ), receipt_input AS (
       SELECT
         %L::uuid AS execution_id,
@@ -193,55 +283,69 @@ BEGIN
         COALESCE(%L::text[], ARRAY[]::text[]) AS touched_views,
         clock_timestamp() AS receipt_created_at
     ), previous AS (
-      SELECT COALESCE((
-        SELECT r.receipt_hash
-        FROM taskbound.task_query_receipts r
-        WHERE r.task_id = %L
-        ORDER BY r.created_at DESC, r.receipt_id DESC
-        LIMIT 1
-      ), '') AS previous_hash
+      SELECT
+        CASE WHEN (SELECT ok FROM owner)
+          THEN COALESCE((SELECT last_receipt_hash FROM chain), '')
+          ELSE ''
+        END AS previous_hash,
+        CASE WHEN (SELECT ok FROM owner)
+          THEN COALESCE((SELECT last_sequence FROM chain), 0) + 1
+          ELSE 0
+        END AS receipt_sequence
     ), material AS (
       SELECT
              receipt_input.execution_id,
+             previous.receipt_sequence,
              receipt_input.actor,
              receipt_input.touched_views,
              receipt_input.receipt_created_at,
-             previous_hash,
+             previous.previous_hash,
              encode(public.digest(
                concat_ws(chr(31),
                  receipt_input.execution_id::text,
+                 previous.receipt_sequence,
                  %L, %L, %L, %s, %L, %L, %s, %s,
                  COALESCE(%s::text, ''),
                  COALESCE(%L, ''),
                  COALESCE(receipt_input.actor, ''),
                  COALESCE(array_to_string(receipt_input.touched_views, ','), ''),
                  receipt_input.receipt_created_at::text,
-                 previous_hash
+                 previous.previous_hash
                ), 'sha256'), 'hex') AS current_hash
       FROM previous, receipt_input
+    ), inserted AS (
+      INSERT INTO taskbound.task_query_receipts (
+        execution_id, receipt_sequence, task_id, budget_account, binding_id,
+        fence_token, query_digest, decision, rows_returned, unique_rows_added,
+        remaining_unique_row_budget, reason, actor, touched_views,
+        previous_receipt_hash, receipt_hash, created_at
+      )
+      SELECT execution_id, receipt_sequence, %L, %L, %L::uuid, %s, %L, %L, %s, %s,
+             %s, %L, actor, touched_views, previous_hash, current_hash,
+             receipt_created_at
+      FROM material, owner
+      WHERE owner.ok
+      RETURNING receipt_sequence, receipt_hash
+    ), chain_update AS (
+      UPDATE taskbound.task_receipt_chain_heads h
+      SET last_sequence = inserted.receipt_sequence,
+          last_receipt_hash = inserted.receipt_hash,
+          updated_at = clock_timestamp()
+      FROM inserted
+      WHERE h.task_id = %L
+      RETURNING 1
     )
-    INSERT INTO taskbound.task_query_receipts (
-      execution_id, task_id, budget_account, binding_id, fence_token, query_digest,
-      decision, rows_returned, unique_rows_added,
-      remaining_unique_row_budget, reason, actor, touched_views,
-      previous_receipt_hash, receipt_hash, created_at
-    )
-    SELECT execution_id, %L, %L, %L::uuid, %s, %L, %L, %s, %s,
-           %s, %L, actor, touched_views, previous_hash, current_hash,
-           receipt_created_at
-    FROM material, owner
-    WHERE owner.ok;
-    COMMIT;
+    SELECT 1 FROM chain_update;
   $sql$,
     COALESCE(v_task_id, ''),
     COALESCE(v_task_id, ''),
     COALESCE(v_binding_id::text, ''),
     COALESCE(v_fence_token, 0),
+    COALESCE(v_task_id, ''),
     v_effective_execution_id::text,
     COALESCE(v_actor, ''),
     COALESCE(v_task_id, ''),
     COALESCE(v_touched_views, ARRAY[]::text[])::text,
-    COALESCE(v_task_id, ''),
     COALESCE(v_task_id, ''),
     COALESCE(v_budget_account, v_task_id),
     COALESCE(v_binding_id::text, ''),
@@ -261,10 +365,21 @@ BEGIN
     GREATEST(COALESCE(v_rows_returned, 0), 0),
     GREATEST(COALESCE(v_unique_rows_added, 0), 0),
     COALESCE(v_remaining_unique_row_budget::text, 'NULL'),
-    COALESCE(v_reason, '')
+    COALESCE(v_reason, ''),
+    COALESCE(v_task_id, '')
   );
 
-  PERFORM public.dblink_exec(v_conn, v_sql);
+  BEGIN
+    PERFORM 1
+    FROM public.dblink(v_conn, v_sql) AS t(ok int);
+  EXCEPTION WHEN OTHERS THEN
+    BEGIN
+      PERFORM public.dblink_disconnect(v_conn);
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+    RAISE;
+  END;
 END;
 $$;
 
@@ -402,7 +517,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION taskbound.native_reserve_query(
+CREATE OR REPLACE FUNCTION taskbound.native_reserve_query_status(
   v_task_id text,
   v_budget_account text,
   sql_text text,
@@ -412,7 +527,7 @@ CREATE OR REPLACE FUNCTION taskbound.native_reserve_query(
   v_binding_id uuid,
   v_fence_token bigint
 )
-RETURNS void
+RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = taskbound, public, pg_temp
@@ -423,7 +538,7 @@ DECLARE
   v_status text;
 BEGIN
   IF NOT COALESCE(v_budget_accounting_enabled, true) THEN
-    RETURN;
+    RETURN 'ok';
   END IF;
 
   SELECT public.dblink_get_connections() INTO v_connections;
@@ -470,7 +585,41 @@ BEGIN
       v_binding_id,
       v_fence_token
     );
-    RAISE EXCEPTION 'SessionBoundDB denied query: %', v_status;
+  END IF;
+  RETURN COALESCE(v_status, 'query denied');
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.native_reserve_query(
+  v_task_id text,
+  v_budget_account text,
+  sql_text text,
+  v_max_queries int,
+  v_budget_accounting_enabled boolean,
+  v_receipts_enabled boolean,
+  v_binding_id uuid,
+  v_fence_token bigint
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+DECLARE
+  v_status text;
+BEGIN
+  v_status := taskbound.native_reserve_query_status(
+    v_task_id,
+    v_budget_account,
+    sql_text,
+    v_max_queries,
+    v_budget_accounting_enabled,
+    v_receipts_enabled,
+    v_binding_id,
+    v_fence_token
+  );
+  IF v_status <> 'ok' THEN
+    RAISE EXCEPTION 'SessionBoundDB denied query: %', COALESCE(v_status, 'query denied');
   END IF;
 END;
 $$;
@@ -502,7 +651,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION taskbound.native_finish_query(
+CREATE OR REPLACE FUNCTION taskbound.native_finish_query_status(
   v_task_id text,
   v_budget_account text,
   sql_text text,
@@ -515,7 +664,7 @@ CREATE OR REPLACE FUNCTION taskbound.native_finish_query(
   v_binding_id uuid,
   v_fence_token bigint
 )
-RETURNS void
+RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = taskbound, public, pg_temp
@@ -538,16 +687,20 @@ BEGIN
   END IF;
 
   /*
-   * The disclosure unit is an emitted result tuple, not an optionally
-   * projected business key. v_new_expense_ids remains only for wire
-   * compatibility with pre-revision extension binaries and is ignored.
+   * The legacy parameter name v_rows_returned is kept for CREATE OR REPLACE
+   * compatibility with existing databases. Semantically, the disclosure unit
+   * is a release-barrier-authorized result tuple, not an optionally projected
+   * business key. v_new_expense_ids remains only for wire compatibility with
+   * pre-revision extension binaries and is ignored.
    *
    * This single remote statement is the release-barrier transition: it takes
    * the per-task receipt-chain lock, validates the binding fence, checks
    * revocation and budgets, applies the counter update for allowed releases,
    * appends exactly one receipt for the release decision, and returns the
-   * resulting status to the caller.  No result tuple is released by wrapper or
-   * native code until this statement reports ok.
+   * resulting status to the caller. No result tuple is forwarded by wrapper or
+   * native code until this statement reports ok. The persisted rows_returned
+   * field is therefore a release-barrier authorization count, not proof of
+   * network delivery to the client.
    */
   SELECT status, disclosure_added, unique_after, remaining_unique_row_budget
   INTO v_status, v_disclosure_added, v_unique_after, v_remaining_unique_row_budget
@@ -562,6 +715,21 @@ BEGIN
         SELECT taskbound.mutation_fence_ok(%L, %L::uuid, %s) AS ok
         FROM receipt_lock
       ),
+      active_binding AS (
+        SELECT a.task_id, a.payload, a.credential_id, a.owner_session_user,
+               a.token_expires_at
+        FROM taskbound.active_sessions a
+        WHERE a.task_id = %L
+          AND a.binding_id = %L::uuid
+          AND a.fence_token = %s
+      ),
+      current_snapshot AS (
+        SELECT taskbound.safe_view_registry_snapshot(
+                 taskbound.jsonb_text_array(active_binding.payload->'allowed_views')
+               ) AS snapshot
+        FROM active_binding
+        WHERE jsonb_typeof(active_binding.payload->'allowed_views') = 'array'
+      ),
       existing AS (
         SELECT task_id, query_count, returned_rows, unique_expense_rows,
                revoked, actor
@@ -574,7 +742,48 @@ BEGIN
           CASE
             WHEN NOT (SELECT ok FROM owner) THEN 'BINDING_FENCED'
             WHEN NOT EXISTS (SELECT 1 FROM existing) THEN 'task execution state is missing'
+            WHEN NOT EXISTS (SELECT 1 FROM active_binding) THEN 'BINDING_FENCED'
             WHEN EXISTS (SELECT 1 FROM existing WHERE revoked) THEN 'task is revoked'
+            WHEN EXISTS (
+              SELECT 1 FROM active_binding WHERE token_expires_at <= clock_timestamp()
+            ) THEN 'task token is expired'
+            WHEN EXISTS (
+              SELECT 1
+              FROM active_binding ab
+              WHERE ab.credential_id <> ''
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM taskbound.credential_ledger c
+                  WHERE c.credential_id = ab.credential_id
+                    AND NOT c.revoked
+                    AND c.expires_at > clock_timestamp()
+                    AND c.db_user = ab.owner_session_user
+                )
+            ) THEN 'runtime credential is expired, revoked, or no longer matches the session'
+            WHEN EXISTS (
+              SELECT 1
+              FROM active_binding ab
+              WHERE jsonb_typeof(ab.payload->'allowed_views') IS DISTINCT FROM 'array'
+                 OR NOT (ab.payload ? 'safe_view_registry')
+                 OR NOT (ab.payload ? 'database_oid')
+                 OR NOT (ab.payload ? 'safe_view_registry_version')
+                 OR NOT (ab.payload ? 'view_definition_hash')
+                 OR NOT (ab.payload ? 'exposed_column_hash')
+                 OR NOT (ab.payload ? 'view_dependency_hash')
+                 OR NOT (ab.payload ? 'view_option_hash')
+                 OR NOT EXISTS (SELECT 1 FROM current_snapshot)
+            ) THEN 'task token safe-view registry drift claims are missing from active binding'
+            WHEN EXISTS (
+              SELECT 1
+              FROM active_binding ab, current_snapshot s
+              WHERE ab.payload->'safe_view_registry' <> s.snapshot
+                 OR ab.payload->>'database_oid' <> s.snapshot->>'database_oid'
+                 OR ab.payload->>'safe_view_registry_version' <> s.snapshot->>'safe_view_registry_version'
+                 OR ab.payload->>'view_definition_hash' <> s.snapshot->>'view_definition_hash'
+                 OR ab.payload->>'exposed_column_hash' <> s.snapshot->>'exposed_column_hash'
+                 OR ab.payload->>'view_dependency_hash' <> s.snapshot->>'view_dependency_hash'
+                 OR ab.payload->>'view_option_hash' <> s.snapshot->>'view_option_hash'
+            ) THEN 'task token safe-view registry snapshot is stale; re-approval is required'
             WHEN %L::boolean
               AND EXISTS (SELECT 1 FROM existing WHERE query_count >= %s)
               THEN 'query budget exhausted'
@@ -606,18 +815,27 @@ BEGIN
           COALESCE(%L::text[], ARRAY[]::text[]) AS touched_views,
           clock_timestamp() AS receipt_created_at
       ),
+      chain AS (
+        INSERT INTO taskbound.task_receipt_chain_heads (
+          task_id, last_sequence, last_receipt_hash
+        )
+        SELECT %L, 0, ''
+        WHERE %L::boolean
+          AND (SELECT ok FROM owner)
+          AND EXISTS (SELECT 1 FROM existing)
+        ON CONFLICT (task_id) DO UPDATE
+          SET last_sequence = taskbound.task_receipt_chain_heads.last_sequence
+        RETURNING last_sequence, last_receipt_hash
+      ),
       previous AS (
-        SELECT COALESCE((
-          SELECT r.receipt_hash
-          FROM taskbound.task_query_receipts r
-          WHERE r.task_id = %L
-          ORDER BY r.created_at DESC, r.receipt_id DESC
-          LIMIT 1
-        ), '') AS previous_hash
+        SELECT
+          COALESCE((SELECT last_receipt_hash FROM chain), '') AS previous_hash,
+          COALESCE((SELECT last_sequence FROM chain), 0) + 1 AS receipt_sequence
       ),
       material AS (
         SELECT
           receipt_input.execution_id,
+          previous.receipt_sequence,
           receipt_input.actor,
           receipt_input.touched_views,
           receipt_input.receipt_created_at,
@@ -641,6 +859,7 @@ BEGIN
           encode(public.digest(
             concat_ws(chr(31),
               material.execution_id::text,
+              material.receipt_sequence,
               %L, %L, %L, %s, %L,
               material.receipt_decision,
               material.rows_for_receipt,
@@ -658,13 +877,13 @@ BEGIN
       ),
       inserted AS (
         INSERT INTO taskbound.task_query_receipts (
-          execution_id, task_id, budget_account, binding_id, fence_token,
-          query_digest, decision, rows_returned, unique_rows_added,
+          execution_id, receipt_sequence, task_id, budget_account, binding_id,
+          fence_token, query_digest, decision, rows_returned, unique_rows_added,
           remaining_unique_row_budget, reason, actor, touched_views,
           previous_receipt_hash, receipt_hash, created_at
         )
         SELECT
-          execution_id, %L, %L, %L::uuid, %s,
+          execution_id, receipt_sequence, %L, %L, %L::uuid, %s,
           %L, receipt_decision, rows_for_receipt, unique_added_for_receipt,
           remaining_budget_for_receipt, reason_for_receipt, actor, touched_views,
           previous_hash, current_hash, receipt_created_at
@@ -672,6 +891,15 @@ BEGIN
         WHERE %L::boolean
           AND (SELECT ok FROM owner)
           AND EXISTS (SELECT 1 FROM existing)
+        RETURNING receipt_sequence, receipt_hash
+      ),
+      chain_update AS (
+        UPDATE taskbound.task_receipt_chain_heads h
+        SET last_sequence = inserted.receipt_sequence,
+            last_receipt_hash = inserted.receipt_hash,
+            updated_at = clock_timestamp()
+        FROM inserted
+        WHERE h.task_id = %L
         RETURNING 1
       )
       SELECT
@@ -683,9 +911,12 @@ BEGIN
           ELSE COALESCE((SELECT unique_expense_rows FROM existing), 0)
         END AS unique_after,
         remaining_budget_for_receipt AS remaining_unique_row_budget
-      FROM hashed
+      FROM hashed, (SELECT count(*) FROM chain_update) AS chain_applied(n)
       $sql$,
       COALESCE(v_task_id, ''),
+      COALESCE(v_task_id, ''),
+      COALESCE(v_binding_id::text, ''),
+      COALESCE(v_fence_token, 0),
       COALESCE(v_task_id, ''),
       COALESCE(v_binding_id::text, ''),
       COALESCE(v_fence_token, 0),
@@ -701,6 +932,7 @@ BEGIN
       COALESCE(v_budget_accounting_enabled, true),
       COALESCE(v_touched_views, ARRAY[]::text[])::text,
       COALESCE(v_task_id, ''),
+      COALESCE(v_receipts_enabled, true),
       GREATEST(COALESCE(v_rows_returned, 0), 0),
       COALESCE(v_budget_accounting_enabled, true),
       GREATEST(COALESCE(v_rows_returned, 0), 0),
@@ -718,10 +950,49 @@ BEGIN
       COALESCE(v_fence_token, 0),
       v_query_digest,
       COALESCE(v_receipts_enabled, true),
+      COALESCE(v_task_id, ''),
       COALESCE(v_budget_accounting_enabled, true)
     )
   ) AS t(status text, disclosure_added bigint, unique_after bigint, remaining_unique_row_budget bigint);
 
+  RETURN COALESCE(v_status, 'query denied');
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.native_finish_query(
+  v_task_id text,
+  v_budget_account text,
+  sql_text text,
+  v_rows_returned bigint,
+  v_new_expense_ids text[],
+  v_max_queries int,
+  v_max_rows int,
+  v_budget_accounting_enabled boolean,
+  v_receipts_enabled boolean,
+  v_binding_id uuid,
+  v_fence_token bigint
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+DECLARE
+  v_status text;
+BEGIN
+  v_status := taskbound.native_finish_query_status(
+    v_task_id,
+    v_budget_account,
+    sql_text,
+    v_rows_returned,
+    v_new_expense_ids,
+    v_max_queries,
+    v_max_rows,
+    v_budget_accounting_enabled,
+    v_receipts_enabled,
+    v_binding_id,
+    v_fence_token
+  );
   IF v_status <> 'ok' THEN
     RAISE EXCEPTION 'SessionBoundDB denied query: %', COALESCE(v_status, 'query denied');
   END IF;
@@ -828,7 +1099,7 @@ DECLARE
   row_item record;
   row_json jsonb;
   rows jsonb[] := ARRAY[]::jsonb[];
-  rows_returned bigint := 0;
+  rows_authorized bigint := 0;
   max_queries int;
   max_rows int;
   v_task_id text;
@@ -892,11 +1163,6 @@ BEGIN
   IF lowered ~ '\m(app_data|signing_keys|active_sessions|binding_events|task_execution_state|task_rows_seen|safe_view_registry)\M' THEN
     PERFORM taskbound.fail_receipt(sql_text, 'direct access to internal schemas or state tables is not allowed');
     RAISE EXCEPTION 'SessionBoundDB denied query: direct access to internal schemas or state tables is not allowed';
-  END IF;
-
-  IF lowered ~ '\mtaskbound\s*\.' THEN
-    PERFORM taskbound.fail_receipt(sql_text, 'direct access to taskbound runtime functions or objects is not allowed');
-    RAISE EXCEPTION 'SessionBoundDB denied query: direct access to taskbound runtime functions or objects is not allowed';
   END IF;
 
   IF lowered ~ '\m(claim|current_payload|require_payload)\s*\(' THEN
@@ -980,7 +1246,7 @@ BEGIN
       row_json := to_jsonb(row_item);
       /* Materialize before release so wrapper and native paths are atomic. */
       rows := array_append(rows, row_json);
-      rows_returned := rows_returned + 1;
+      rows_authorized := rows_authorized + 1;
     END LOOP;
   EXCEPTION WHEN OTHERS THEN
     PERFORM taskbound.fail_receipt(sql_text, SQLERRM);
@@ -1001,7 +1267,7 @@ BEGIN
     v_task_id,
     v_budget_account,
     sql_text,
-    rows_returned,
+    rows_authorized,
     ARRAY[]::text[],
     max_queries,
     max_rows,
@@ -1012,7 +1278,8 @@ BEGIN
   );
 
   /* This is intentionally last: neither a rejected query nor a failed
-   * accounting/receipt write exposes a result prefix to the caller. */
+   * accounting/receipt write exposes a result prefix to the caller. The
+   * receipt row count above is the authorized staged cardinality. */
   FOREACH row_json IN ARRAY rows LOOP
     RETURN NEXT row_json;
   END LOOP;
@@ -1109,6 +1376,6 @@ BEGIN
   SELECT r.*
   FROM taskbound.task_query_receipts r
   WHERE r.task_id = active.task_id
-  ORDER BY r.created_at DESC;
+  ORDER BY r.receipt_sequence DESC;
 END;
 $$;

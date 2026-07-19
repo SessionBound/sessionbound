@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import os
 import time
@@ -47,6 +48,8 @@ ADMIN_DSN = os.environ.get(
 )
 SCOPE = {"expense_month": "2026-06", "department_id": "dep_sales"}
 HASH_SEP = chr(31)
+SECRET = os.environ.get("TASKBOUND_SECRET", "dev-secret-change-me").encode("utf-8")
+COMMAND_EXPENSE_ID = os.environ.get("TDSC_COMMAND_EXPENSE_ID", "exp_141")
 
 
 FORGERY_CASES: list[dict[str, Any]] = [
@@ -94,6 +97,14 @@ FORGERY_CASES: list[dict[str, Any]] = [
 ]
 
 
+def canonical(payload: dict[str, Any]) -> str:
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def sign(payload_text: str) -> str:
+    return hmac.new(SECRET, payload_text.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
 def issue_task(
     base_url: str,
     run_id: str,
@@ -101,8 +112,10 @@ def issue_task(
     *,
     max_rows: int = 5000,
     max_queries: int = 20,
+    task_type: str = "monthly_travel_expense_review",
+    delegator: str = "user:alice",
+    actor: str = "agent:travel-expense-analyst",
 ) -> IssuedTask:
-    actor = "agent:travel-expense-analyst"
     credential = post_json_retry(
         base_url,
         "/credentials",
@@ -118,8 +131,8 @@ def issue_task(
         "/tasks",
         {
             "task_id": task_id,
-            "task_type": "monthly_travel_expense_review",
-            "delegator": "user:alice",
+            "task_type": task_type,
+            "delegator": delegator,
             "actor": actor,
             "credential_id": credential.get("credential_id"),
             "scope": SCOPE,
@@ -144,6 +157,7 @@ def admin_receipts(task_id: str) -> list[dict[str, Any]]:
                 """
                 SELECT receipt_id::text,
                        execution_id::text,
+                       receipt_sequence,
                        task_id,
                        budget_account,
                        binding_id::text,
@@ -161,7 +175,7 @@ def admin_receipts(task_id: str) -> list[dict[str, Any]]:
                        created_at::text AS created_at_text
                 FROM taskbound.task_query_receipts
                 WHERE task_id = %s
-                ORDER BY created_at, receipt_id
+                ORDER BY receipt_sequence
                 """,
                 (task_id,),
             )
@@ -182,6 +196,7 @@ def receipt_hash_material(row: dict[str, Any]) -> list[str]:
     touched_views = row.get("touched_views") or []
     return [
         str(row.get("execution_id") or ""),
+        str(int(row.get("receipt_sequence") or 0)),
         str(row.get("task_id") or ""),
         str(row.get("budget_account") or ""),
         str(row.get("binding_id") or ""),
@@ -215,7 +230,8 @@ def verify_receipt_chain(rows: list[dict[str, Any]]) -> dict[str, Any]:
     ]
     chain_checks = []
     previous = ""
-    for row in rows:
+    sequence_checks = []
+    for index, row in enumerate(rows, start=1):
         chain_checks.append(
             {
                 "receipt_id": row["receipt_id"],
@@ -224,11 +240,20 @@ def verify_receipt_chain(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 "passed": row["previous_receipt_hash"] == previous,
             }
         )
+        sequence_checks.append(
+            {
+                "receipt_id": row["receipt_id"],
+                "expected_sequence": index,
+                "actual_sequence": int(row.get("receipt_sequence") or 0),
+                "passed": int(row.get("receipt_sequence") or 0) == index,
+            }
+        )
         previous = row["receipt_hash"]
 
     execution_ids = [row["execution_id"] for row in rows]
     required_fields = [
         "execution_id",
+        "receipt_sequence",
         "task_id",
         "budget_account",
         "binding_id",
@@ -251,6 +276,7 @@ def verify_receipt_chain(rows: list[dict[str, Any]]) -> dict[str, Any]:
     for row in rows:
         for field, replacement in (
             ("execution_id", "00000000-0000-0000-0000-000000000000"),
+            ("receipt_sequence", int(row.get("receipt_sequence") or 0) + 1000),
             ("actor", f"{row.get('actor')}-tampered"),
             ("touched_views", list(row.get("touched_views") or []) + ["tampered_view"]),
             ("rows_returned", int(row.get("rows_returned") or 0) + 1),
@@ -269,11 +295,13 @@ def verify_receipt_chain(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "receipt_count": len(rows),
         "hash_checks": hash_checks,
         "chain_checks": chain_checks,
+        "sequence_checks": sequence_checks,
         "field_checks": field_checks,
         "tamper_checks": tamper_checks,
         "unique_execution_ids": len(execution_ids) == len(set(execution_ids)),
         "all_hashes_match": all(item["passed"] for item in hash_checks),
         "chain_ok": all(item["passed"] for item in chain_checks),
+        "sequence_ok": all(item["passed"] for item in sequence_checks),
         "required_fields_present": all(item["passed"] for item in field_checks),
         "tamper_changes_hash": all(item["passed"] for item in tamper_checks),
     }
@@ -375,6 +403,7 @@ def run_chain_and_fault_case(base_url: str, run_id: str) -> dict[str, Any]:
         and state_row.get("returned_rows") == 3
         and chain["all_hashes_match"]
         and chain["chain_ok"]
+        and chain["sequence_ok"]
         and chain["required_fields_present"]
         and chain["unique_execution_ids"]
         and chain["tamper_changes_hash"]
@@ -464,10 +493,234 @@ def run_agent_forgery_case(base_url: str, run_id: str, case: dict[str, Any]) -> 
     }
 
 
+def reset_command_fixture(marker: str) -> None:
+    with psycopg.connect(ADMIN_DSN, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE app_data.expenses SET status = 'submitted' WHERE expense_id = %s",
+                (COMMAND_EXPENSE_ID,),
+            )
+            cur.execute(
+                """
+                DELETE FROM app_data.approval_events
+                WHERE expense_id = %s
+                  AND comment = %s
+                """,
+                (COMMAND_EXPENSE_ID, marker),
+            )
+
+
+def command_fixture_state(marker: str) -> dict[str, Any]:
+    with psycopg.connect(ADMIN_DSN, row_factory=dict_row) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT status FROM app_data.expenses WHERE expense_id = %s",
+                (COMMAND_EXPENSE_ID,),
+            )
+            status_row = cur.fetchone()
+            cur.execute(
+                """
+                SELECT count(*)::int AS n
+                FROM app_data.approval_events
+                WHERE expense_id = %s
+                  AND event_type = 'finance_compliant'
+                  AND comment = %s
+                """,
+                (COMMAND_EXPENSE_ID, marker),
+            )
+            event_count = int(cur.fetchone()["n"])
+            return {
+                "expense_id": COMMAND_EXPENSE_ID,
+                "status": status_row["status"] if status_row else None,
+                "marker_event_count": event_count,
+            }
+
+
+def issue_finance_command_task(base_url: str, run_id: str, suffix: str) -> IssuedTask:
+    return issue_task(
+        base_url,
+        run_id,
+        suffix,
+        max_rows=5000,
+        max_queries=20,
+        task_type="finance_compliance_review",
+        delegator="user:fiona",
+        actor="agent:finance-compliance-analyst",
+    )
+
+
+def run_allowed_command_receipt_case(base_url: str, run_id: str) -> dict[str, Any]:
+    marker = f"receipt-fault-{run_id}-command-allowed"
+    reset_command_fixture(marker)
+    issued = issue_finance_command_task(base_url, run_id, "command_allowed")
+    task_id = issued.task["task_id"]
+    binding: dict[str, Any] = {}
+    command_result: dict[str, Any] = {}
+    visible_receipts: list[dict[str, Any]] = []
+    state: list[dict[str, Any]] = []
+    fixture_after: dict[str, Any] = {}
+    error = ""
+
+    try:
+        with psycopg.connect(credential_dsn(issued.credential), autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT taskbound.bind_task(%s, %s)",
+                    (issued.task["payload_text"], issued.task["signature"]),
+                )
+                binding = dict(cur.fetchone()[0])
+                try:
+                    cur.execute(
+                        "SELECT taskbound.command(%s, %s::jsonb)",
+                        (
+                            "finance_approve",
+                            json.dumps({"expense_id": COMMAND_EXPENSE_ID, "comment": marker}),
+                        ),
+                    )
+                    command_result = dict(cur.fetchone()[0])
+                    state = fetch_state(cur)
+                    visible_receipts = fetch_receipts(cur)
+                    fixture_after = command_fixture_state(marker)
+                except Exception as exc:
+                    error = str(exc).splitlines()[0]
+                finally:
+                    try:
+                        cur.execute("SELECT taskbound.unbind_task()")
+                    except Exception:
+                        pass
+    finally:
+        reset_command_fixture(marker)
+
+    raw_receipts = admin_receipts(task_id)
+    chain = verify_receipt_chain(raw_receipts)
+    latest = raw_receipts[0] if raw_receipts else {}
+    state_row = state[0] if state else {}
+    passed = (
+        not error
+        and command_result.get("ok") is True
+        and command_result.get("command") == "finance_approve"
+        and fixture_after.get("status") == "department_approval_requested"
+        and fixture_after.get("marker_event_count") == 1
+        and len(raw_receipts) == 1
+        and latest.get("decision") == "allowed"
+        and latest.get("rows_returned") == 0
+        and latest.get("unique_rows_added") == 0
+        and latest.get("receipt_hash") == command_result.get("receipt_hash")
+        and latest.get("receipt_sequence") == command_result.get("receipt_sequence")
+        and "controlled command allowed: finance_approve" in str(latest.get("reason") or "")
+        and set(latest.get("touched_views") or []) == {"expenses", "approval_events"}
+        and state_row.get("query_count") == 0
+        and state_row.get("returned_rows") == 0
+        and chain["all_hashes_match"]
+        and chain["chain_ok"]
+        and chain["sequence_ok"]
+        and chain["required_fields_present"]
+        and chain["unique_execution_ids"]
+    )
+    return {
+        "id": "RF06",
+        "name": "controlled_command_allowed_appends_hash_chained_receipt",
+        "passed": passed,
+        "expected": "allowed controlled command mutates business state and appends one recomputable allowed receipt",
+        "actual": "passed" if passed else "failed",
+        "task_id": task_id,
+        "binding": {
+            "binding_id": binding.get("binding_id"),
+            "fence_token": binding.get("fence_token"),
+            "credential_id": binding.get("credential_id"),
+        },
+        "command_result": command_result,
+        "fixture_after_command": fixture_after,
+        "state": state_row,
+        "receipt_summary_visible_to_agent": visible_receipts,
+        "raw_receipts": raw_receipts,
+        "chain_verification": chain,
+        "error": error,
+    }
+
+
+def run_command_operation_denial_case(base_url: str, run_id: str) -> dict[str, Any]:
+    marker = f"receipt-fault-{run_id}-command-op-denied"
+    reset_command_fixture(marker)
+    issued = issue_finance_command_task(base_url, run_id, "command_op_denied")
+    task_id = issued.task["task_id"]
+    payload = dict(issued.task["payload"])
+    payload["operations"] = ["SELECT"]
+    payload_text = canonical(payload)
+    signature = sign(payload_text)
+    binding: dict[str, Any] = {}
+    error = ""
+    ok = False
+    fixture_after: dict[str, Any] = {}
+
+    try:
+        with psycopg.connect(credential_dsn(issued.credential), autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT taskbound.bind_task(%s, %s)", (payload_text, signature))
+                binding = dict(cur.fetchone()[0])
+                try:
+                    cur.execute(
+                        "SELECT taskbound.command(%s, %s::jsonb)",
+                        (
+                            "finance_approve",
+                            json.dumps({"expense_id": COMMAND_EXPENSE_ID, "comment": marker}),
+                        ),
+                    )
+                    ok = True
+                except Exception as exc:
+                    error = str(exc).splitlines()[0]
+                finally:
+                    fixture_after = command_fixture_state(marker)
+                    try:
+                        cur.execute("SELECT taskbound.unbind_task()")
+                    except Exception:
+                        pass
+    finally:
+        reset_command_fixture(marker)
+
+    raw_receipts = admin_receipts(task_id)
+    chain = verify_receipt_chain(raw_receipts)
+    latest = raw_receipts[0] if raw_receipts else {}
+    passed = (
+        not ok
+        and "CONTROLLED_COMMAND" in error
+        and fixture_after.get("status") == "submitted"
+        and fixture_after.get("marker_event_count") == 0
+        and len(raw_receipts) == 1
+        and latest.get("decision") == "denied"
+        and "CONTROLLED_COMMAND" in str(latest.get("reason") or "")
+        and set(latest.get("touched_views") or []) == {"expenses", "approval_events"}
+        and chain["all_hashes_match"]
+        and chain["chain_ok"]
+        and chain["sequence_ok"]
+        and chain["required_fields_present"]
+        and chain["unique_execution_ids"]
+    )
+    return {
+        "id": "RF07",
+        "name": "controlled_command_requires_operation_claim_and_receipts_denial",
+        "passed": passed,
+        "expected": "token without CONTROLLED_COMMAND binds for SELECT but command is denied with one receipt",
+        "actual": "passed" if passed else "failed",
+        "task_id": task_id,
+        "binding": {
+            "binding_id": binding.get("binding_id"),
+            "fence_token": binding.get("fence_token"),
+            "credential_id": binding.get("credential_id"),
+        },
+        "error": error,
+        "fixture_after_command": fixture_after,
+        "raw_receipts": raw_receipts,
+        "chain_verification": chain,
+    }
+
+
 def run_eval(base_url: str) -> dict[str, Any]:
     wait_for_api(base_url)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     records = [run_chain_and_fault_case(base_url, run_id)]
+    records.append(run_allowed_command_receipt_case(base_url, run_id))
+    records.append(run_command_operation_denial_case(base_url, run_id))
     records.extend(run_agent_forgery_case(base_url, run_id, case) for case in FORGERY_CASES)
     run = {
         "all_receipt_fault_checks_passed": all(record["passed"] for record in records),

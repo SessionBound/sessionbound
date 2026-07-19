@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""Triage probe: isolate which adversarial input triggers the fail_receipt segfault.
+"""Historical triage probe for a fail_receipt backend-crash suspicion.
 
-The postmaster has been observed crashing with signal 11 while running
-``SELECT taskbound.fail_receipt($1, $2)`` during the 140-case adversarial sweep.
-fail_receipt is called by taskbound.run whenever a query is denied, so only
-denied (Blocked) cases can reach it.  This script runs each attack through the
-public /agent-query endpoint ONE AT A TIME, counting postmaster segfaults in the
-postgres logs before/after each call, so the triggering input(s) are identified
-without concurrency masking the cause.
+This script was used after a historical signal-11 observation around
+``SELECT taskbound.fail_receipt($1, $2)`` during adversarial sweeps.  It runs
+each attack through the public /agent-query endpoint one at a time and compares
+the cumulative backend-crash count before and after each call, so any triggering
+input can be identified without concurrency masking the cause.
 """
 
 from __future__ import annotations

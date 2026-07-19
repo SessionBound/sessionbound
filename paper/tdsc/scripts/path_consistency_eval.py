@@ -34,6 +34,10 @@ import psycopg
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AGENT_DB_HOST = os.environ.get("TDSC_AGENT_DB_HOST", "localhost")
 AGENT_DB_PORT = int(os.environ.get("TDSC_AGENT_DB_PORT", "15432"))
+CONTROL_PLANE_KEY = os.environ.get(
+    "TASKBOUND_CONTROL_PLANE_KEY",
+    "tdsc-demo-control-plane-key",
+)
 
 
 PATHS = ("api_wrapper", "direct_wrapper", "direct_native")
@@ -69,6 +73,13 @@ CASES: list[dict[str, Any]] = [
             ") "
             "SELECT expense_id FROM recent ORDER BY expense_id"
         ),
+    },
+    {
+        "id": "PC13",
+        "name": "schema_qualified_safe_view_allowed",
+        "expected": "Allowed",
+        "reason_bucket": "allowed",
+        "sql": "SELECT expense_id, amount FROM taskbound.expenses ORDER BY amount DESC LIMIT 2",
     },
     {
         "id": "PC04",
@@ -170,10 +181,13 @@ def git_commit() -> str:
 
 
 def post_json(base_url: str, path: str, body: dict[str, Any]) -> dict[str, Any]:
+    headers = {"Content-Type": "application/json; charset=utf-8"}
+    if path.startswith(("/credentials", "/tasks", "/todos", "/admin/")):
+        headers["X-TaskBound-Control-Plane-Key"] = CONTROL_PLANE_KEY
     request = urllib.request.Request(
         base_url.rstrip("/") + path,
         data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json; charset=utf-8"},
+        headers=headers,
         method="POST",
     )
     try:

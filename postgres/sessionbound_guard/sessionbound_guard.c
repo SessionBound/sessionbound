@@ -91,7 +91,7 @@ struct NativeQueryState
 	QueryDesc *query_desc;
 	MemoryContext context;
 	GuardDestReceiver receiver;
-	uint64 rows_returned;
+	uint64 rows_authorized;
 	uint64 unique_seen_count;
 	bool budget_accounting_enabled;
 	bool receipts_enabled;
@@ -176,11 +176,13 @@ static void guard_check_query(Query *query, GuardContext *ctx);
 static void guard_check_group_policy(Query *query);
 static void guard_deny(const char *detail);
 static bool guard_expr_walker(Node *node, void *context);
+static void guard_check_pg_catalog_procedure(Oid funcid, const char *kind);
 static bool relation_scan_walker(Node *node, void *context);
 static void collect_touched_views_from_query(Query *query, TouchedViewContext *ctx);
 static bool touched_view_walker(Node *node, void *context);
 static ArrayType *oid_list_to_array(List *oids);
 static bool planned_runtime_expr_walker(Node *node, void *context);
+static void native_restore_dest(NativeQueryState *state, QueryDesc *query_desc);
 
 static bool
 valid_guard_task_id(void)
@@ -276,6 +278,17 @@ guard_require_bound_identity(const char *sql_text)
 	}
 }
 
+static bool
+guard_session_has_runtime_role(void)
+{
+	Oid runtime_role = get_role_oid("agent_runtime", true);
+
+	if (!OidIsValid(runtime_role))
+		return false;
+
+	return is_member_of_role_nosuper(GetSessionUserId(), runtime_role);
+}
+
 static void
 spi_call_void(const char *command, int nargs, Oid *argtypes, Datum *values, char *nulls)
 {
@@ -321,6 +334,67 @@ spi_call_void(const char *command, int nargs, Oid *argtypes, Datum *values, char
 		PG_RE_THROW();
 	}
 	PG_END_TRY();
+}
+
+static char *
+spi_call_text(const char *command, int nargs, Oid *argtypes, Datum *values, char *nulls)
+{
+	bool old_internal = guard_in_internal_spi;
+	bool connected = false;
+	bool pushed_snapshot = false;
+	char *result = NULL;
+
+	PG_TRY();
+	{
+		int rc;
+
+		guard_in_internal_spi = true;
+		if (!ActiveSnapshotSet())
+		{
+			PushActiveSnapshot(GetTransactionSnapshot());
+			pushed_snapshot = true;
+		}
+		rc = SPI_connect();
+		if (rc != SPI_OK_CONNECT)
+			elog(ERROR, "SPI_connect failed: %d", rc);
+		connected = true;
+
+		rc = SPI_execute_with_args(command, nargs, argtypes, values, nulls, false, 1);
+		if (rc < 0)
+			elog(ERROR, "SPI_execute_with_args failed: %d", rc);
+
+		if (SPI_processed > 0 && SPI_tuptable != NULL)
+		{
+			char *raw = SPI_getvalue(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, 1);
+			if (raw != NULL)
+			{
+				MemoryContext old_context = MemoryContextSwitchTo(TopMemoryContext);
+				result = pstrdup(raw);
+				MemoryContextSwitchTo(old_context);
+			}
+		}
+
+		rc = SPI_finish();
+		if (rc != SPI_OK_FINISH)
+			elog(ERROR, "SPI_finish failed: %d", rc);
+		connected = false;
+		if (pushed_snapshot)
+			PopActiveSnapshot();
+		pushed_snapshot = false;
+		guard_in_internal_spi = old_internal;
+	}
+	PG_CATCH();
+	{
+		guard_in_internal_spi = old_internal;
+		if (connected)
+			SPI_finish();
+		if (pushed_snapshot)
+			PopActiveSnapshot();
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	return result;
 }
 
 static void
@@ -739,6 +813,40 @@ guard_check_function(Oid funcid, GuardContext *ctx)
 	}
 }
 
+static void
+guard_check_pg_catalog_procedure(Oid funcid, const char *kind)
+{
+	char *funcname;
+	char *namespace_name;
+	char detail[256];
+
+	if (!OidIsValid(funcid))
+		return;
+
+	funcname = get_func_name(funcid);
+	namespace_name = get_namespace_name(get_func_namespace(funcid));
+
+	if (namespace_name == NULL ||
+		pg_strcasecmp(namespace_name, "pg_catalog") != 0)
+	{
+		snprintf(detail, sizeof(detail),
+				 "%s procedure %s.%s is not allowed in task SQL",
+				 kind != NULL ? kind : "expression",
+				 namespace_name ? namespace_name : "<unknown>",
+				 funcname ? funcname : "<unknown>");
+		guard_deny(detail);
+	}
+
+	if (func_volatile(funcid) == PROVOLATILE_VOLATILE)
+	{
+		snprintf(detail, sizeof(detail),
+				 "%s procedure pg_catalog.%s is volatile and not allowed in task SQL",
+				 kind != NULL ? kind : "expression",
+				 funcname ? funcname : "<unknown>");
+		guard_deny(detail);
+	}
+}
+
 static bool
 relation_is_guarded(Oid relid)
 {
@@ -862,6 +970,53 @@ guard_expr_walker(Node *node, void *context)
 	{
 		guard_check_function(((Aggref *) node)->aggfnoid, ctx);
 	}
+	else if (IsA(node, OpExpr))
+	{
+		guard_check_pg_catalog_procedure(((OpExpr *) node)->opfuncid, "operator");
+	}
+	else if (IsA(node, DistinctExpr))
+	{
+		guard_check_pg_catalog_procedure(((DistinctExpr *) node)->opfuncid, "distinct operator");
+	}
+	else if (IsA(node, NullIfExpr))
+	{
+		guard_check_pg_catalog_procedure(((NullIfExpr *) node)->opfuncid, "nullif operator");
+	}
+	else if (IsA(node, ScalarArrayOpExpr))
+	{
+		ScalarArrayOpExpr *expr = (ScalarArrayOpExpr *) node;
+		guard_check_pg_catalog_procedure(expr->opfuncid, "scalar-array operator");
+		guard_check_pg_catalog_procedure(expr->hashfuncid, "scalar-array hash operator");
+		guard_check_pg_catalog_procedure(expr->negfuncid, "scalar-array negator operator");
+	}
+	else if (IsA(node, RowCompareExpr))
+	{
+		RowCompareExpr *expr = (RowCompareExpr *) node;
+		ListCell *lc;
+
+		foreach(lc, expr->opnos)
+			guard_check_pg_catalog_procedure(get_opcode(lfirst_oid(lc)), "row-comparison operator");
+	}
+	else if (IsA(node, CoerceViaIO))
+	{
+		CoerceViaIO *expr = (CoerceViaIO *) node;
+		Oid source_type = exprType((Node *) expr->arg);
+		Oid output_funcid = InvalidOid;
+		Oid input_funcid = InvalidOid;
+		Oid typioparam = InvalidOid;
+		bool typisvarlena = false;
+
+		if (OidIsValid(source_type))
+		{
+			getTypeOutputInfo(source_type, &output_funcid, &typisvarlena);
+			guard_check_pg_catalog_procedure(output_funcid, "IO coercion output");
+		}
+		if (OidIsValid(expr->resulttype))
+		{
+			getTypeInputInfo(expr->resulttype, &input_funcid, &typioparam);
+			guard_check_pg_catalog_procedure(input_funcid, "IO coercion input");
+		}
+	}
 	else if (IsA(node, WindowFunc))
 	{
 		guard_deny("window functions require an approved aggregate template");
@@ -958,6 +1113,8 @@ guard_check_utility(Node *utility_stmt, GuardContext *ctx)
 		case T_DeclareCursorStmt:
 		{
 			DeclareCursorStmt *stmt = (DeclareCursorStmt *) utility_stmt;
+			if ((stmt->options & CURSOR_OPT_HOLD) != 0)
+				guard_deny("holdable cursors are not allowed in task SQL");
 			if (stmt->query != NULL && IsA(stmt->query, Query))
 				guard_check_query((Query *) stmt->query, ctx);
 			else
@@ -1241,6 +1398,7 @@ sessionbound_guard_post_parse_analyze(ParseState *pstate, Query *query,
 	RelationScanContext scan;
 	const char *old_sql = guard_current_sql;
 	bool should_enforce;
+	bool unbound_runtime_session;
 
 	if (prev_post_parse_analyze_hook)
 		prev_post_parse_analyze_hook(pstate, query, jstate);
@@ -1262,10 +1420,12 @@ sessionbound_guard_post_parse_analyze(ParseState *pstate, Query *query,
 	memset(&scan, 0, sizeof(scan));
 	relation_scan_walker((Node *) query, &scan);
 
+	unbound_runtime_session = !guard_task_bound && guard_session_has_runtime_role();
 	should_enforce = guard_enabled ||
 					 guard_task_bound ||
 					 scan.saw_guarded_relation ||
-					 scan.saw_private_taskbound_function;
+					 scan.saw_private_taskbound_function ||
+					 unbound_runtime_session;
 
 	if (!should_enforce)
 		return;
@@ -1300,6 +1460,12 @@ sessionbound_guard_post_parse_analyze(ParseState *pstate, Query *query,
 				guard_deny("no approved safe views are bound to this session");
 
 			guard_check_query(query, &ctx);
+
+			if (unbound_runtime_session &&
+				(!ctx.saw_public_runtime_entrypoint ||
+				 ctx.saw_non_public_runtime_function ||
+				 ctx.saw_relation))
+				guard_deny("no trusted task binding is active");
 
 			if ((guard_enabled || guard_task_bound || scan.saw_guarded_relation) &&
 				ctx.allowed_relation_refs == 0 &&
@@ -1353,7 +1519,14 @@ guard_utility_precheck(Node *utility_stmt, const char *query_string)
 			break;
 		}
 		case T_PrepareStmt:
+			break;
 		case T_DeclareCursorStmt:
+		{
+			DeclareCursorStmt *stmt = (DeclareCursorStmt *) utility_stmt;
+			if ((stmt->options & CURSOR_OPT_HOLD) != 0)
+				guard_deny("holdable cursors are not allowed in task SQL");
+			break;
+		}
 		case T_ExecuteStmt:
 		case T_FetchStmt:
 		case T_ClosePortalStmt:
@@ -1453,6 +1626,12 @@ sessionbound_guard_ProcessUtility(PlannedStmt *pstmt,
 
 	PG_TRY();
 	{
+		if (!guard_in_internal_spi && !guard_task_bound && guard_session_has_runtime_role())
+		{
+			guard_current_sql = queryString;
+			guard_deny("no trusted task binding is active");
+		}
+
 		if (!guard_in_internal_spi && guard_task_bound)
 		{
 			guard_require_bound_identity(queryString);
@@ -1630,6 +1809,14 @@ planned_runtime_expr_walker(Node *node, void *context)
 		planned_runtime_check_function(((FuncExpr *) node)->funcid, ctx);
 	else if (IsA(node, Aggref))
 		planned_runtime_check_function(((Aggref *) node)->aggfnoid, ctx);
+	else if (IsA(node, OpExpr))
+		planned_runtime_check_function(((OpExpr *) node)->opfuncid, ctx);
+	else if (IsA(node, DistinctExpr))
+		planned_runtime_check_function(((DistinctExpr *) node)->opfuncid, ctx);
+	else if (IsA(node, NullIfExpr))
+		planned_runtime_check_function(((NullIfExpr *) node)->opfuncid, ctx);
+	else if (IsA(node, ScalarArrayOpExpr))
+		planned_runtime_check_function(((ScalarArrayOpExpr *) node)->opfuncid, ctx);
 	else if (IsA(node, SQLValueFunction))
 		ctx->saw_non_public_runtime_function = true;
 
@@ -1708,20 +1895,6 @@ planned_stmt_is_runtime_entrypoint_only(PlannedStmt *plannedstmt)
 }
 
 static bool
-source_text_calls_public_runtime_entrypoint(const char *source_text)
-{
-	if (source_text == NULL)
-		return false;
-
-	return strstr(source_text, "taskbound.bind_task") != NULL ||
-		   strstr(source_text, "taskbound.unbind_task") != NULL ||
-		   strstr(source_text, "taskbound.run") != NULL ||
-		   strstr(source_text, "taskbound.command") != NULL ||
-		   strstr(source_text, "taskbound.inspect_task_state") != NULL ||
-		   strstr(source_text, "taskbound.receipts") != NULL;
-}
-
-static bool
 should_account_query(QueryDesc *query_desc)
 {
 	bool references_allowed_safe_view;
@@ -1755,9 +1928,6 @@ should_account_query(QueryDesc *query_desc)
 	if (GetUserId() != GetOuterUserId())
 		return false;
 
-	if (source_text_calls_public_runtime_entrypoint(query_desc->sourceText))
-		return false;
-
 	references_allowed_safe_view =
 		planned_stmt_references_allowed_safe_view(query_desc->plannedstmt);
 	if (!references_allowed_safe_view)
@@ -1777,6 +1947,7 @@ native_reserve_query(NativeQueryState *state)
 	Oid argtypes[8] = {TEXTOID, TEXTOID, TEXTOID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
 	Datum values[8];
 	char nulls[8] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
+	char *status;
 
 	values[0] = CStringGetTextDatum(state->task_id);
 	values[1] = CStringGetTextDatum(state->budget_account);
@@ -1787,12 +1958,20 @@ native_reserve_query(NativeQueryState *state)
 	values[6] = CStringGetTextDatum(state->binding_id);
 	values[7] = Int64GetDatum(state->fence_token);
 
-	spi_call_void(
-		"SELECT taskbound.native_reserve_query($1, $2, $3, $4, $5, $6, $7::uuid, $8)",
+	status = spi_call_text(
+		"SELECT taskbound.native_reserve_query_status($1, $2, $3, $4, $5, $6, $7::uuid, $8)",
 		8,
 		argtypes,
 		values,
 		nulls);
+	if (status == NULL || strcmp(status, "ok") != 0)
+	{
+		const char *reason = status != NULL ? status : "query denied";
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 errmsg("SessionBoundDB denied query: %s", reason)));
+	}
+	pfree(status);
 }
 
 static void
@@ -1802,18 +1981,21 @@ native_finish_query(NativeQueryState *state)
 	Datum values[11];
 	char nulls[11] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
 	Datum empty_array;
+	char *status;
 
 	/*
 	 * v_new_expense_ids remains in the SQL ABI for in-place upgrades. Native
 	 * accounting intentionally never derives a charge from a caller-visible
-	 * identifier: every released result tuple is one conservative unit.
+	 * identifier: every release-barrier-authorized result tuple is one
+	 * conservative unit. The SQL receipt column is named rows_returned for
+	 * compatibility, but it records authorization before network delivery.
 	 */
 	empty_array = PointerGetDatum(construct_empty_array(TEXTOID));
 
 	values[0] = CStringGetTextDatum(state->task_id);
 	values[1] = CStringGetTextDatum(state->budget_account);
 	values[2] = CStringGetTextDatum(state->source_text != NULL ? state->source_text : "");
-	values[3] = Int64GetDatum((int64) state->rows_returned);
+	values[3] = Int64GetDatum((int64) state->rows_authorized);
 	values[4] = empty_array;
 	values[5] = Int32GetDatum(guard_max_queries);
 	values[6] = Int32GetDatum(state->max_unique_expense_rows);
@@ -1822,12 +2004,20 @@ native_finish_query(NativeQueryState *state)
 	values[9] = CStringGetTextDatum(state->binding_id);
 	values[10] = Int64GetDatum(state->fence_token);
 
-	spi_call_void(
-		"SELECT taskbound.native_finish_query($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::uuid, $11)",
+	status = spi_call_text(
+		"SELECT taskbound.native_finish_query_status($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::uuid, $11)",
 		11,
 		argtypes,
 		values,
 		nulls);
+	if (status == NULL || strcmp(status, "ok") != 0)
+	{
+		const char *reason = status != NULL ? status : "query denied";
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 errmsg("SessionBoundDB denied query: %s", reason)));
+	}
+	pfree(status);
 	state->finished = true;
 }
 
@@ -1886,7 +2076,7 @@ native_observe_slot(NativeQueryState *state, TupleTableSlot *slot)
 	{
 		state->unique_seen_count++;
 	}
-	state->rows_returned++;
+	state->rows_authorized++;
 }
 
 static void
@@ -1957,6 +2147,15 @@ native_wrap_dest(NativeQueryState *state, QueryDesc *query_desc)
 	state->receiver.pub.rDestroy = guard_dest_destroy;
 	state->receiver.pub.mydest = query_desc->dest != NULL ? query_desc->dest->mydest : DestNone;
 	query_desc->dest = (DestReceiver *) &state->receiver;
+}
+
+static void
+native_restore_dest(NativeQueryState *state, QueryDesc *query_desc)
+{
+	if (state == NULL || query_desc == NULL)
+		return;
+	if (query_desc->dest == (DestReceiver *) &state->receiver)
+		query_desc->dest = state->receiver.original;
 }
 
 static void
@@ -2031,26 +2230,12 @@ native_create_state(QueryDesc *query_desc)
 static void
 sessionbound_guard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 {
-	NativeQueryState *state = NULL;
-
 	cleanup_stale_native_states();
 
 	if (should_account_query(queryDesc))
 	{
 		validate_active_binding_or_error();
-		state = native_create_state(queryDesc);
-		PG_TRY();
-		{
-			native_wrap_dest(state, queryDesc);
-		}
-		PG_CATCH();
-		{
-			state->aborted = true;
-			remove_native_state(state);
-			MemoryContextDelete(state->context);
-			PG_RE_THROW();
-		}
-		PG_END_TRY();
+		native_create_state(queryDesc);
 	}
 
 	if (prev_ExecutorStart_hook)
@@ -2069,12 +2254,22 @@ sessionbound_guard_ExecutorRun(QueryDesc *queryDesc,
 
 	if (state != NULL)
 	{
-		if (!state->reserved)
+		PG_TRY();
 		{
-			native_reserve_query(state);
-			state->reserved = true;
+			if (!state->reserved)
+			{
+				native_reserve_query(state);
+				state->reserved = true;
+			}
+			native_wrap_dest(state, queryDesc);
 		}
-		native_wrap_dest(state, queryDesc);
+		PG_CATCH();
+		{
+			state->aborted = true;
+			native_restore_dest(state, queryDesc);
+			PG_RE_THROW();
+		}
+		PG_END_TRY();
 	}
 
 	PG_TRY();
@@ -2095,6 +2290,7 @@ sessionbound_guard_ExecutorRun(QueryDesc *queryDesc,
 		{
 			state->aborted = true;
 			native_record_state_denial(state, edata->message);
+			native_restore_dest(state, queryDesc);
 		}
 		else if (valid_guard_task_id() &&
 				 (queryDesc == NULL ||
@@ -2122,14 +2318,9 @@ sessionbound_guard_ExecutorRun(QueryDesc *queryDesc,
 		}
 		PG_CATCH();
 		{
-			ErrorData *edata;
-
-			MemoryContextSwitchTo(ErrorContext);
-			edata = CopyErrorData();
-			FlushErrorState();
 			state->aborted = true;
-			native_record_state_denial(state, edata->message);
-			ReThrowError(edata);
+			native_restore_dest(state, queryDesc);
+			PG_RE_THROW();
 		}
 		PG_END_TRY();
 	}
@@ -2155,14 +2346,9 @@ sessionbound_guard_ExecutorFinish(QueryDesc *queryDesc)
 		}
 		PG_CATCH();
 		{
-			ErrorData *edata;
-
-			MemoryContextSwitchTo(ErrorContext);
-			edata = CopyErrorData();
-			FlushErrorState();
 			state->aborted = true;
-			native_record_state_denial(state, edata->message);
-			ReThrowError(edata);
+			native_restore_dest(state, queryDesc);
+			PG_RE_THROW();
 		}
 		PG_END_TRY();
 	}
@@ -2182,8 +2368,7 @@ sessionbound_guard_ExecutorEnd(QueryDesc *queryDesc)
 	if (state != NULL)
 	{
 		state_context = state->context;
-		if (queryDesc != NULL && queryDesc->dest == (DestReceiver *) &state->receiver)
-			queryDesc->dest = state->receiver.original;
+		native_restore_dest(state, queryDesc);
 
 		/* ExecutorFinish is the normal release barrier.  This fallback is for
 		 * unusual executor lifecycles and preserves the same atomic ordering. */
@@ -2196,14 +2381,9 @@ sessionbound_guard_ExecutorEnd(QueryDesc *queryDesc)
 			}
 			PG_CATCH();
 			{
-				ErrorData *edata;
-
-				MemoryContextSwitchTo(ErrorContext);
-				edata = CopyErrorData();
-				FlushErrorState();
 				state->aborted = true;
-				native_record_state_denial(state, edata->message);
-				ReThrowError(edata);
+				native_restore_dest(state, queryDesc);
+				PG_RE_THROW();
 			}
 			PG_END_TRY();
 		}

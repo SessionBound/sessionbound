@@ -145,6 +145,9 @@ CREATE TABLE taskbound.task_execution_state (
   expires_at timestamptz NOT NULL
 );
 
+COMMENT ON COLUMN taskbound.task_execution_state.returned_rows IS
+  'Cumulative count of rows authorized by the release barrier for this task. This is counted before client forwarding and is not proof of network delivery.';
+
 CREATE TABLE taskbound.task_rows_seen (
   budget_account text NOT NULL,
   row_kind text NOT NULL,
@@ -155,6 +158,7 @@ CREATE TABLE taskbound.task_rows_seen (
 CREATE TABLE taskbound.task_query_receipts (
   receipt_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   execution_id uuid NOT NULL DEFAULT gen_random_uuid(),
+  receipt_sequence bigint NOT NULL DEFAULT 0,
   task_id text NOT NULL,
   budget_account text NOT NULL,
   binding_id uuid,
@@ -170,8 +174,47 @@ CREATE TABLE taskbound.task_query_receipts (
   previous_receipt_hash text,
   receipt_hash text,
   created_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT task_query_receipts_task_execution_id_key UNIQUE (task_id, execution_id)
+  CONSTRAINT task_query_receipts_task_execution_id_key UNIQUE (task_id, execution_id),
+  CONSTRAINT task_query_receipts_task_sequence_key UNIQUE (task_id, receipt_sequence)
 );
+
+COMMENT ON COLUMN taskbound.task_query_receipts.rows_returned IS
+  'Legacy receipt field for release-barrier-authorized rows. For wrapper/native reads, rows are staged and counted before client forwarding, so this is an authorization count, not proof of network delivery.';
+
+CREATE TABLE taskbound.task_receipt_chain_heads (
+  task_id text PRIMARY KEY,
+  last_sequence bigint NOT NULL DEFAULT 0,
+  last_receipt_hash text NOT NULL DEFAULT '',
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE FUNCTION taskbound.advance_receipt_chain_head()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, pg_temp
+AS $$
+BEGIN
+  INSERT INTO taskbound.task_receipt_chain_heads (
+    task_id, last_sequence, last_receipt_hash, updated_at
+  )
+  VALUES (
+    NEW.task_id, NEW.receipt_sequence, COALESCE(NEW.receipt_hash, ''), clock_timestamp()
+  )
+  ON CONFLICT (task_id) DO UPDATE
+    SET last_sequence = EXCLUDED.last_sequence,
+        last_receipt_hash = EXCLUDED.last_receipt_hash,
+        updated_at = EXCLUDED.updated_at
+    WHERE taskbound.task_receipt_chain_heads.last_sequence < EXCLUDED.last_sequence;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER task_query_receipts_chain_head_ai
+AFTER INSERT ON taskbound.task_query_receipts
+FOR EACH ROW
+EXECUTE FUNCTION taskbound.advance_receipt_chain_head();
 
 CREATE TABLE taskbound.safe_view_registry (
   view_name text PRIMARY KEY,
