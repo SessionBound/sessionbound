@@ -39,8 +39,17 @@ classes in `postgres/sessionbound_guard/sessionbound_guard.c`.
 - Executor accounting skips statements when the original SQL text contains
   runtime-helper substrings such as `taskbound.run` or `taskbound.native_`.
   That makes accounting depend on raw SQL text rather than the analyzed plan.
+  **Resolved 2026-07-17:** the raw-text gate (`source_is_runtime_helper_call`)
+  is removed from `should_account_query`; it was redundant and exploitable. See
+  `paper/revision_notes/native_refmon_text_bypass_fix_20260717.md`.
 - `should_account_query` returns false when `GetUserId() != GetSessionUserId()`.
   Pre-bound role switching can therefore avoid executor accounting.
+  **Clarified 2026-07-17:** this check is retained as the trusted
+  wrapper/native accounting discriminator (`taskbound.run`/`bind_task` are
+  SECURITY DEFINER and account themselves in PL/pgSQL; the native bare-SELECT
+  path runs as the session user). It is not an exploitable bypass because the
+  utility precheck refuses SET ROLE once a binding is active. See
+  `paper/revision_notes/native_refmon_text_bypass_fix_20260717.md`.
 - The native payload-aggregation denylist omits JSON aggregate spellings covered
   by the API validator, including `json_array_agg` and `json_arrayagg`.
 - Window partitions are not checked with the same completeness as GROUP BY and
@@ -69,6 +78,8 @@ Canonical blocking notes:
 - `paper/revision_notes/tdsc_blocking_audit_20260710.md`
 - `paper/revision_notes/tdsc_summary_experiment_review_20260710.md`
 - `paper/revision_notes/tdsc_novelty_review_20260710.md`
+- `paper/revision_notes/native_refmon_text_bypass_fix_20260717.md` (resolves
+  audit finding #3, text-matching gate)
 
 The TDSC manuscript is the canonical claim contract for this candidate. The
 arXiv v1 workspace is an earlier preprint snapshot unless and until an arXiv v2

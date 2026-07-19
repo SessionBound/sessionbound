@@ -352,7 +352,6 @@ REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_install_binding(text, text,
 REVOKE EXECUTE ON FUNCTION public.sessionbound_guard_clear_binding() FROM PUBLIC;
 
 GRANT USAGE ON SCHEMA taskbound TO agent_runtime;
-GRANT USAGE ON SCHEMA app_data TO agent_runtime;
 GRANT SELECT ON TABLE
   taskbound.expenses,
   taskbound.departments,

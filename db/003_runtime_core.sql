@@ -799,6 +799,8 @@ BEGIN
         USING ERRCODE = '42501';
     END IF;
 
+    PERFORM set_config('search_path', 'taskbound, pg_temp', false);
+
     PERFORM public.sessionbound_guard_install_binding(
       v_task_id,
       v_budget_account,
@@ -824,10 +826,9 @@ BEGIN
       v_advisory_lock_key
     ));
     PERFORM public.sessionbound_guard_clear_binding();
+    PERFORM set_config('search_path', '"$user", public', false);
     RAISE;
   END;
-
-  PERFORM set_config('search_path', 'taskbound, pg_temp', false);
 
   RETURN jsonb_build_object(
     'bound', true,

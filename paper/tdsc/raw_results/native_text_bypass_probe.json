@@ -1,0 +1,7 @@
+{
+  "bypass_closed": true,
+  "ok": true,
+  "output_tail": "bind_task                                                                                                                                                                                            \n------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_text_bypass_probe_1784421101\", \"binding_id\": \"a6d13ebc-f220-4671-948f-1e46a745b683\", \"fence_token\": 2081, \"credential_id\": \"agent_tdsc_text_bypass_probe_1784421101_97b3cb45\", \"budget_account\": \"task_text_bypass_probe_1784421101\", \"stale_recovered\": false, \"advisory_lock_key\": 8037618646976292962}\n(1 row)\n\n expense_id | amount \n------------+--------\n(0 rows)\n\nERROR:  SessionBoundDB denied query: query budget exhausted\nCONTEXT:  PL/pgSQL function native_reserve_query(text,text,text,integer,boolean,boolean,uuid,bigint) line 66 at RAISE\nSQL statement \"SELECT taskbound.native_reserve_query($1, $2, $3, $4, $5, $6, $7::uuid, $8)\"",
+  "psql_returncode": 3,
+  "q2_budget_exhausted": true
+}

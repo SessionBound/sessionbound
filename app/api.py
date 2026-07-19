@@ -66,6 +66,10 @@ class CredentialRequest(BaseModel):
     ttl_minutes: int = Field(default=15, ge=1, le=60)
 
 
+class CredentialReapRequest(BaseModel):
+    grace_minutes: int = Field(default=0, ge=0, le=24 * 60)
+
+
 class AgentCredential(BaseModel):
     db_host: str = "postgres"
     db_port: int = 5432
@@ -138,6 +142,157 @@ def connect_with_credential(credential: AgentCredential):
     conn = psycopg.connect(conninfo)
     conn.autocommit = True
     return conn
+
+
+def reap_expired_runtime_credentials(grace_minutes: int = 0) -> dict[str, Any]:
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=grace_minutes)
+    marked_revoked: list[dict[str, Any]] = []
+    terminated_backends: list[dict[str, Any]] = []
+    dropped_roles: list[dict[str, Any]] = []
+    skipped_roles: list[dict[str, Any]] = []
+    errors: list[dict[str, str]] = []
+
+    with admin_connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE taskbound.credential_ledger
+                SET revoked = true
+                WHERE expires_at <= %s
+                  AND revoked = false
+                RETURNING credential_id, db_user, actor, audience, expires_at
+                """,
+                (cutoff,),
+            )
+            marked_revoked = rows_as_dicts(cur)
+
+            cur.execute(
+                """
+                SELECT credential_id, db_user, actor, audience, expires_at, revoked
+                FROM taskbound.credential_ledger
+                WHERE revoked = true
+                   OR expires_at <= %s
+                ORDER BY expires_at, credential_id
+                """,
+                (cutoff,),
+            )
+            expired_or_revoked = rows_as_dicts(cur)
+
+            for credential in expired_or_revoked:
+                cur.execute(
+                    """
+                    SELECT pid, pg_terminate_backend(pid) AS terminated
+                    FROM pg_catalog.pg_stat_activity
+                    WHERE usename = %s
+                      AND pid <> pg_catalog.pg_backend_pid()
+                    """,
+                    (credential["db_user"],),
+                )
+                for row in rows_as_dicts(cur):
+                    terminated_backends.append(
+                        {
+                            "credential_id": credential["credential_id"],
+                            "db_user": credential["db_user"],
+                            **row,
+                        }
+                    )
+
+            cur.execute("SELECT taskbound.reap_stale_bindings() AS removed")
+            stale_bindings_removed = cur.fetchone()[0]
+
+            cur.execute(
+                """
+                SELECT c.credential_id,
+                       c.db_user,
+                       c.actor,
+                       c.audience,
+                       c.expires_at,
+                       c.revoked,
+                       EXISTS (
+                         SELECT 1
+                         FROM taskbound.active_sessions a
+                         WHERE a.credential_id = c.credential_id
+                       ) AS has_active_binding,
+                       EXISTS (
+                         SELECT 1
+                         FROM taskbound.task_credential_bindings b
+                         JOIN taskbound.task_execution_state s
+                           ON s.task_id = b.task_id
+                         WHERE b.credential_id = c.credential_id
+                           AND s.revoked = false
+                           AND s.expires_at > now()
+                       ) AS has_valid_task
+                FROM taskbound.credential_ledger c
+                WHERE c.expires_at <= %s
+                  AND c.revoked = true
+                ORDER BY c.expires_at, c.credential_id
+                """,
+                (cutoff,),
+            )
+            candidates = rows_as_dicts(cur)
+
+            for credential in candidates:
+                if credential["has_active_binding"] or credential["has_valid_task"]:
+                    skipped_roles.append(
+                        {
+                            "credential_id": credential["credential_id"],
+                            "db_user": credential["db_user"],
+                            "reason": "active binding or unexpired task still exists",
+                            "has_active_binding": credential["has_active_binding"],
+                            "has_valid_task": credential["has_valid_task"],
+                        }
+                    )
+                    continue
+
+                cur.execute(
+                    "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = %s)",
+                    (credential["db_user"],),
+                )
+                role_exists = cur.fetchone()[0]
+                if not role_exists:
+                    skipped_roles.append(
+                        {
+                            "credential_id": credential["credential_id"],
+                            "db_user": credential["db_user"],
+                            "reason": "role already absent",
+                        }
+                    )
+                    continue
+
+                try:
+                    cur.execute(
+                        psql.SQL("REVOKE agent_runtime FROM {}")
+                        .format(psql.Identifier(credential["db_user"]))
+                    )
+                    cur.execute(
+                        psql.SQL("DROP ROLE IF EXISTS {}")
+                        .format(psql.Identifier(credential["db_user"]))
+                    )
+                    dropped_roles.append(
+                        {
+                            "credential_id": credential["credential_id"],
+                            "db_user": credential["db_user"],
+                        }
+                    )
+                except Exception as exc:
+                    errors.append(
+                        {
+                            "credential_id": credential["credential_id"],
+                            "db_user": credential["db_user"],
+                            "error": str(exc).splitlines()[0],
+                        }
+                    )
+
+    return {
+        "ok": not errors,
+        "cutoff": cutoff.isoformat(),
+        "marked_revoked": marked_revoked,
+        "terminated_backends": terminated_backends,
+        "stale_bindings_removed": stale_bindings_removed,
+        "dropped_roles": dropped_roles,
+        "skipped_roles": skipped_roles,
+        "errors": errors,
+    }
 
 
 def rows_as_dicts(cur) -> list[dict[str, Any]]:
@@ -1189,7 +1344,8 @@ def issue_credential(req: CredentialRequest):
                 )
             )
             cur.execute(
-                psql.SQL("GRANT agent_runtime TO {}").format(psql.Identifier(db_user))
+                psql.SQL("GRANT agent_runtime TO {} WITH INHERIT TRUE, SET FALSE")
+                .format(psql.Identifier(db_user))
             )
             cur.execute(
                 """
@@ -1214,6 +1370,11 @@ def issue_credential(req: CredentialRequest):
         "role": "agent_runtime",
         "note": "This short-lived DB credential only authenticates the agent runtime. It still needs a signed task token to access task-scoped data.",
     }
+
+
+@app.post("/credentials/reap-expired")
+def reap_expired_credentials(req: CredentialReapRequest):
+    return reap_expired_runtime_credentials(req.grace_minutes)
 
 
 @app.post("/query")

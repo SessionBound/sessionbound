@@ -16,6 +16,7 @@
 #include "nodes/nodeFuncs.h"
 #include "nodes/nodes.h"
 #include "nodes/parsenodes.h"
+#include "nodes/plannodes.h"
 #include "parser/analyze.h"
 #include "parser/parsetree.h"
 #include "tcop/dest.h"
@@ -49,6 +50,9 @@ typedef struct GuardContext
 	List *allowed_view_oids;
 	int allowed_relation_refs;
 	bool saw_relation;
+	bool saw_public_runtime_entrypoint;
+	bool saw_non_public_runtime_function;
+	bool defer_safe_view_requirement;
 	bool explicit_check;
 } GuardContext;
 
@@ -58,6 +62,12 @@ typedef struct RelationScanContext
 	bool saw_guarded_relation;
 	bool saw_private_taskbound_function;
 } RelationScanContext;
+
+typedef struct PlannedRuntimeContext
+{
+	bool saw_public_runtime_entrypoint;
+	bool saw_non_public_runtime_function;
+} PlannedRuntimeContext;
 
 typedef struct NativeQueryState NativeQueryState;
 
@@ -125,6 +135,7 @@ static char *guard_token_digest = NULL;
 static char *guard_credential_id = NULL;
 static int64 guard_fence_token = 0;
 static int64 guard_advisory_lock_key = 0;
+static Oid guard_bound_session_user_oid = InvalidOid;
 static bool guard_in_internal_spi = false;
 /* taskbound.run() records the caught error once; avoid one receipt per nested
  * SPI parse node while its explicit guard check is running. */
@@ -152,29 +163,10 @@ static void sessionbound_guard_ExecutorFinish(QueryDesc *queryDesc);
 static void sessionbound_guard_ExecutorEnd(QueryDesc *queryDesc);
 static void guard_check_query(Query *query, GuardContext *ctx);
 static void guard_check_group_policy(Query *query);
+static void guard_deny(const char *detail);
 static bool guard_expr_walker(Node *node, void *context);
 static bool relation_scan_walker(Node *node, void *context);
-
-static bool
-source_contains_i(const char *source, const char *needle)
-{
-	size_t needle_len;
-	const char *p;
-
-	if (source == NULL || needle == NULL)
-		return false;
-
-	needle_len = strlen(needle);
-	if (needle_len == 0)
-		return true;
-
-	for (p = source; *p; p++)
-	{
-		if (pg_strncasecmp(p, needle, needle_len) == 0)
-			return true;
-	}
-	return false;
-}
+static bool planned_runtime_expr_walker(Node *node, void *context);
 
 static bool
 valid_guard_task_id(void)
@@ -241,6 +233,32 @@ clear_trusted_binding_state(void)
 	assign_top_string(&guard_credential_id, "");
 	guard_fence_token = 0;
 	guard_advisory_lock_key = 0;
+	guard_bound_session_user_oid = InvalidOid;
+}
+
+static bool
+guard_bound_identity_is_stable(void)
+{
+	Oid session_user_oid = GetSessionUserId();
+	Oid bound_session_user_oid = OidIsValid(guard_bound_session_user_oid)
+									? guard_bound_session_user_oid
+									: session_user_oid;
+
+	return session_user_oid == bound_session_user_oid &&
+		   GetOuterUserId() == bound_session_user_oid;
+}
+
+static void
+guard_require_bound_identity(const char *sql_text)
+{
+	if (!guard_task_bound)
+		return;
+
+	if (!guard_bound_identity_is_stable())
+	{
+		guard_current_sql = sql_text;
+		guard_deny("bound task session identity cannot change with SET ROLE or SET SESSION AUTHORIZATION");
+	}
 }
 
 static void
@@ -515,7 +533,7 @@ guard_check_group_policy(Query *query)
 }
 
 static void
-guard_check_function(Oid funcid)
+guard_check_function(Oid funcid, GuardContext *ctx)
 {
 	char *funcname;
 	Oid namespace_oid;
@@ -539,7 +557,14 @@ guard_check_function(Oid funcid)
 		guard_deny("session lock or trusted runtime state cannot be modified by task SQL");
 
 	if (function_is_public_runtime_entrypoint(namespace_name, funcname))
+	{
+		if (ctx != NULL)
+			ctx->saw_public_runtime_entrypoint = true;
 		return;
+	}
+
+	if (ctx != NULL)
+		ctx->saw_non_public_runtime_function = true;
 
 	if (function_is_taskbound_private(namespace_name, funcname))
 		guard_deny("direct access to taskbound runtime helper functions is not allowed");
@@ -665,11 +690,15 @@ guard_expr_walker(Node *node, void *context)
 	}
 	else if (IsA(node, FuncExpr))
 	{
-		guard_check_function(((FuncExpr *) node)->funcid);
+		guard_check_function(((FuncExpr *) node)->funcid, (GuardContext *) context);
 	}
 	else if (IsA(node, Aggref))
 	{
-		guard_check_function(((Aggref *) node)->aggfnoid);
+		guard_check_function(((Aggref *) node)->aggfnoid, (GuardContext *) context);
+	}
+	else if (IsA(node, SQLValueFunction))
+	{
+		((GuardContext *) context)->saw_non_public_runtime_function = true;
 	}
 
 	return expression_tree_walker(node, guard_expr_walker, context);
@@ -694,6 +723,8 @@ guard_check_utility(Node *utility_stmt, GuardContext *ctx)
 				guard_deny("COPY must wrap an approved SELECT query");
 			if (IsA(stmt->query, Query))
 				guard_check_query((Query *) stmt->query, ctx);
+			else
+				ctx->defer_safe_view_requirement = true;
 			return;
 		}
 		case T_ExplainStmt:
@@ -709,6 +740,8 @@ guard_check_utility(Node *utility_stmt, GuardContext *ctx)
 			}
 			if (stmt->query != NULL && IsA(stmt->query, Query))
 				guard_check_query((Query *) stmt->query, ctx);
+			else
+				ctx->defer_safe_view_requirement = true;
 			return;
 		}
 		case T_PrepareStmt:
@@ -716,6 +749,8 @@ guard_check_utility(Node *utility_stmt, GuardContext *ctx)
 			PrepareStmt *stmt = (PrepareStmt *) utility_stmt;
 			if (stmt->query != NULL && IsA(stmt->query, Query))
 				guard_check_query((Query *) stmt->query, ctx);
+			else
+				ctx->defer_safe_view_requirement = true;
 			return;
 		}
 		case T_DeclareCursorStmt:
@@ -723,6 +758,8 @@ guard_check_utility(Node *utility_stmt, GuardContext *ctx)
 			DeclareCursorStmt *stmt = (DeclareCursorStmt *) utility_stmt;
 			if (stmt->query != NULL && IsA(stmt->query, Query))
 				guard_check_query((Query *) stmt->query, ctx);
+			else
+				ctx->defer_safe_view_requirement = true;
 			return;
 		}
 		case T_ExecuteStmt:
@@ -730,6 +767,7 @@ guard_check_utility(Node *utility_stmt, GuardContext *ctx)
 		case T_ClosePortalStmt:
 		case T_DeallocateStmt:
 		case T_TransactionStmt:
+			ctx->defer_safe_view_requirement = true;
 			return;
 		case T_VariableSetStmt:
 		case T_VariableShowStmt:
@@ -841,7 +879,12 @@ sessionbound_guard_post_parse_analyze(ParseState *pstate, Query *query,
 	if (guard_in_internal_spi || query == NULL)
 		return;
 
-	if (!guard_enabled && GetUserId() != GetSessionUserId())
+	guard_require_bound_identity(pstate != NULL ? pstate->p_sourcetext : NULL);
+
+	if (!guard_enabled && !guard_task_bound && GetOuterUserId() != GetSessionUserId())
+		return;
+
+	if (!guard_enabled && GetUserId() != GetOuterUserId())
 		return;
 
 	if (!guard_enabled && !guard_task_bound && superuser())
@@ -869,6 +912,9 @@ sessionbound_guard_post_parse_analyze(ParseState *pstate, Query *query,
 		ctx.allowed_view_oids = parse_allowed_oids(guard_allowed_view_oids);
 		ctx.allowed_relation_refs = 0;
 		ctx.saw_relation = false;
+		ctx.saw_public_runtime_entrypoint = false;
+		ctx.saw_non_public_runtime_function = false;
+		ctx.defer_safe_view_requirement = false;
 		ctx.explicit_check = guard_enabled;
 
 		if ((guard_enabled || scan.saw_guarded_relation) && ctx.allowed_view_oids == NIL)
@@ -876,7 +922,12 @@ sessionbound_guard_post_parse_analyze(ParseState *pstate, Query *query,
 
 		guard_check_query(query, &ctx);
 
-		if ((guard_enabled || scan.saw_guarded_relation) && ctx.allowed_relation_refs == 0)
+		if ((guard_enabled || guard_task_bound || scan.saw_guarded_relation) &&
+			ctx.allowed_relation_refs == 0 &&
+			!ctx.defer_safe_view_requirement &&
+			(!ctx.saw_public_runtime_entrypoint ||
+			 ctx.saw_non_public_runtime_function ||
+			 ctx.saw_relation))
 			guard_deny("task SQL must reference at least one approved safe view");
 	}
 	PG_CATCH();
@@ -935,15 +986,7 @@ guard_utility_precheck(Node *utility_stmt, const char *query_string)
 			guard_deny("session state utility command is not allowed in task SQL");
 			break;
 		default:
-			if (source_contains_i(query_string, "app_data") ||
-				source_contains_i(query_string, "pg_catalog") ||
-				source_contains_i(query_string, "information_schema") ||
-				source_contains_i(query_string, "create ") ||
-				source_contains_i(query_string, "alter ") ||
-				source_contains_i(query_string, "drop ") ||
-				source_contains_i(query_string, "grant ") ||
-				source_contains_i(query_string, "revoke "))
-				guard_deny("utility statement is not allowed in task SQL");
+			guard_deny("utility statement is not allowed in task SQL");
 			break;
 	}
 }
@@ -1031,6 +1074,7 @@ sessionbound_guard_ProcessUtility(PlannedStmt *pstmt,
 	{
 		if (!guard_in_internal_spi && guard_task_bound)
 		{
+			guard_require_bound_identity(queryString);
 			/*
 			 * Transaction control can be issued while the current transaction is
 			 * aborted.  Running SPI validation in that state is unsafe and is not
@@ -1127,26 +1171,170 @@ cleanup_stale_native_states(void)
 }
 
 static bool
-source_is_runtime_helper_call(const char *source)
+planned_stmt_references_allowed_safe_view(PlannedStmt *plannedstmt)
 {
-	return source_contains_i(source, "taskbound.bind_task") ||
-		   source_contains_i(source, "taskbound.unbind_task") ||
-		   source_contains_i(source, "taskbound.run") ||
-		   source_contains_i(source, "taskbound.command") ||
-		   source_contains_i(source, "taskbound.inspect_task_state") ||
-		   source_contains_i(source, "taskbound.receipts") ||
-		   source_contains_i(source, "taskbound.fail_receipt") ||
-		   source_contains_i(source, "taskbound.native_") ||
-		   source_contains_i(source, "taskbound.audit_") ||
-		   source_contains_i(source, "public.sessionbound_guard_check") ||
-		   source_contains_i(source, "public.sessionbound_guard_status");
+	List *allowed_view_oids;
+	ListCell *lc;
+
+	if (plannedstmt == NULL)
+		return false;
+
+	allowed_view_oids = parse_allowed_oids(guard_allowed_view_oids);
+	if (allowed_view_oids == NIL)
+		return false;
+
+	foreach(lc, plannedstmt->rtable)
+	{
+		RangeTblEntry *rte = (RangeTblEntry *) lfirst(lc);
+		char relkind;
+
+		if (rte == NULL || rte->rtekind != RTE_RELATION)
+			continue;
+		if (!list_member_oid(allowed_view_oids, rte->relid))
+			continue;
+
+		relkind = get_rel_relkind(rte->relid);
+		if (relkind == RELKIND_VIEW || relkind == RELKIND_MATVIEW)
+			return true;
+	}
+
+	/*
+	 * PostgreSQL rewrite can expand a view into base-relation RTEs before the
+	 * final plan reaches ExecutorStart.  PlannedStmt keeps relation dependency
+	 * OIDs for invalidation; use them as the same unforgeable OID signal when
+	 * the view no longer appears as an RTE_RELATION.
+	 */
+	foreach(lc, plannedstmt->relationOids)
+	{
+		Oid relid = lfirst_oid(lc);
+		char relkind;
+
+		if (!list_member_oid(allowed_view_oids, relid))
+			continue;
+
+		relkind = get_rel_relkind(relid);
+		if (relkind == RELKIND_VIEW || relkind == RELKIND_MATVIEW)
+			return true;
+	}
+
+	return false;
+}
+
+static void
+planned_runtime_check_function(Oid funcid, PlannedRuntimeContext *ctx)
+{
+	char *funcname;
+	char *namespace_name;
+
+	if (!OidIsValid(funcid) || ctx == NULL)
+		return;
+
+	funcname = get_func_name(funcid);
+	namespace_name = get_namespace_name(get_func_namespace(funcid));
+	if (function_is_public_runtime_entrypoint(namespace_name, funcname))
+		ctx->saw_public_runtime_entrypoint = true;
+	else
+		ctx->saw_non_public_runtime_function = true;
+}
+
+static bool
+planned_runtime_expr_walker(Node *node, void *context)
+{
+	PlannedRuntimeContext *ctx = (PlannedRuntimeContext *) context;
+
+	if (node == NULL || ctx == NULL)
+		return false;
+
+	if (IsA(node, FuncExpr))
+		planned_runtime_check_function(((FuncExpr *) node)->funcid, ctx);
+	else if (IsA(node, Aggref))
+		planned_runtime_check_function(((Aggref *) node)->aggfnoid, ctx);
+	else if (IsA(node, SQLValueFunction))
+		ctx->saw_non_public_runtime_function = true;
+
+	return expression_tree_walker(node, planned_runtime_expr_walker, context);
+}
+
+static void
+planned_runtime_scan_plan(Plan *plan, PlannedRuntimeContext *ctx)
+{
+	ListCell *lc;
+
+	if (plan == NULL || ctx == NULL)
+		return;
+
+	expression_tree_walker((Node *) plan->targetlist, planned_runtime_expr_walker, ctx);
+	expression_tree_walker((Node *) plan->qual, planned_runtime_expr_walker, ctx);
+	expression_tree_walker((Node *) plan->initPlan, planned_runtime_expr_walker, ctx);
+
+	if (IsA(plan, FunctionScan))
+	{
+		FunctionScan *scan = (FunctionScan *) plan;
+
+		foreach(lc, scan->functions)
+		{
+			RangeTblFunction *rtfunc = (RangeTblFunction *) lfirst(lc);
+			if (rtfunc != NULL)
+				planned_runtime_expr_walker(rtfunc->funcexpr, ctx);
+		}
+	}
+
+	planned_runtime_scan_plan(plan->lefttree, ctx);
+	planned_runtime_scan_plan(plan->righttree, ctx);
+}
+
+static bool
+planned_stmt_is_runtime_entrypoint_only(PlannedStmt *plannedstmt)
+{
+	PlannedRuntimeContext ctx;
+	ListCell *lc;
+
+	if (plannedstmt == NULL)
+		return false;
+
+	memset(&ctx, 0, sizeof(ctx));
+
+	foreach(lc, plannedstmt->rtable)
+	{
+		RangeTblEntry *rte = (RangeTblEntry *) lfirst(lc);
+		ListCell *flc;
+
+		if (rte == NULL)
+			continue;
+
+		if (rte->rtekind == RTE_RELATION ||
+			rte->rtekind == RTE_SUBQUERY ||
+			rte->rtekind == RTE_TABLEFUNC ||
+			rte->rtekind == RTE_NAMEDTUPLESTORE ||
+			rte->rtekind == RTE_CTE)
+			return false;
+
+		if (rte->rtekind != RTE_FUNCTION)
+			continue;
+
+		foreach(flc, rte->functions)
+		{
+			RangeTblFunction *rtfunc = (RangeTblFunction *) lfirst(flc);
+			if (rtfunc != NULL)
+				planned_runtime_expr_walker(rtfunc->funcexpr, &ctx);
+		}
+	}
+
+	planned_runtime_scan_plan(plannedstmt->planTree, &ctx);
+
+	return ctx.saw_public_runtime_entrypoint &&
+		   !ctx.saw_non_public_runtime_function;
 }
 
 static bool
 should_account_query(QueryDesc *query_desc)
 {
+	bool references_allowed_safe_view;
+
 	if (guard_in_internal_spi || !guard_task_bound || query_desc == NULL)
 		return false;
+
+	guard_require_bound_identity(query_desc->sourceText);
 
 	if (!valid_guard_task_id())
 		return false;
@@ -1161,11 +1349,26 @@ should_account_query(QueryDesc *query_desc)
 		query_desc->plannedstmt->commandType != CMD_SELECT)
 		return false;
 
-	if (GetUserId() != GetSessionUserId())
+	/*
+	 * taskbound.run(), taskbound.command(), guard SPI, and receipt/budget
+	 * maintenance execute through trusted SECURITY DEFINER or internal paths.
+	 * Native caller SELECTs execute with CurrentUser == OuterUser == the bound
+	 * session user and are accounted only if the already-planned statement
+	 * carries a safe-view OID approved for this task.  Comments, string
+	 * literals, aliases, and helper-name substrings cannot forge that OID.
+	 */
+	if (GetUserId() != GetOuterUserId())
 		return false;
 
-	if (source_is_runtime_helper_call(query_desc->sourceText))
-		return false;
+	references_allowed_safe_view =
+		planned_stmt_references_allowed_safe_view(query_desc->plannedstmt);
+	if (!references_allowed_safe_view)
+	{
+		if (planned_stmt_is_runtime_entrypoint_only(query_desc->plannedstmt))
+			return false;
+		guard_current_sql = query_desc->sourceText;
+		guard_deny("task SQL must reference at least one approved safe view");
+	}
 
 	return true;
 }
@@ -1749,6 +1952,11 @@ sessionbound_guard_status(PG_FUNCTION_ARGS)
 Datum
 sessionbound_guard_install_binding(PG_FUNCTION_ARGS)
 {
+	if (GetOuterUserId() != GetSessionUserId())
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 errmsg("SessionBound guard denied binding: SET ROLE or SET SESSION AUTHORIZATION is active")));
+
 	assign_top_string(&guard_task_id, text_arg_to_top_cstring(fcinfo, 0));
 	assign_top_string(&guard_budget_account, text_arg_to_top_cstring(fcinfo, 1));
 	assign_top_string(&guard_allowed_view_oids, text_arg_to_top_cstring(fcinfo, 2));
@@ -1762,6 +1970,7 @@ sessionbound_guard_install_binding(PG_FUNCTION_ARGS)
 	guard_advisory_lock_key = PG_GETARG_INT64(10);
 	assign_top_string(&guard_token_digest, text_arg_to_top_cstring(fcinfo, 11));
 	assign_top_string(&guard_credential_id, text_arg_to_top_cstring(fcinfo, 12));
+	guard_bound_session_user_oid = GetSessionUserId();
 	guard_task_bound = true;
 	guard_enabled = false;
 

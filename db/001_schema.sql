@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS sessionbound_guard;
 
 CREATE ROLE agent_runtime NOLOGIN;
 CREATE ROLE agent_app LOGIN PASSWORD 'agentpass';
-GRANT agent_runtime TO agent_app;
+GRANT agent_runtime TO agent_app WITH INHERIT TRUE, SET FALSE;
 
 CREATE SCHEMA app_data;
 CREATE SCHEMA taskbound;

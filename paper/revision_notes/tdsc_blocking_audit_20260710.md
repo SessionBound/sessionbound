@@ -48,6 +48,23 @@ just missing tests.
   properties and trusted internal execution state, not caller text. Revalidate
   role switching after binding.
 
+- Resolution (2026-07-17): Partially addressed; see
+  `paper/revision_notes/native_refmon_text_bypass_fix_20260717.md`. The raw-text
+  gate was the genuine bypass and has been removed: `source_is_runtime_helper_call`
+  and its call site in `should_account_query` are deleted. It was redundant
+  (direct helper calls are denied at plan analysis by
+  `function_is_taskbound_private`; guard-internal SELECTs run under
+  `guard_in_internal_spi`) and exploitable (any task SELECT could exempt itself
+  by embedding a helper substring in a comment/literal/alias). The
+  `GetUserId() != GetSessionUserId()` check is intentionally RETAINED: it is the
+  load-bearing discriminator between the wrapper path (`taskbound.run` /
+  `bind_task` are SECURITY DEFINER, accounted by the PL/pgSQL wrapper itself) and
+  the native bare-SELECT path (accounted here), not a bypass -- the utility
+  precheck refuses SET ROLE once a binding is active, so a native session cannot
+  change effective user to evade it. Verified: guard hook 18/18 unchanged, and
+  `paper/tdsc/scripts/native_text_bypass_probe.py` shows the bypass closed on the
+  fixed build (before/after: `bypass_closed` false -> true).
+
 4. Native structural checks are incomplete for claimed attack families.
 
 - Evidence: native `function_is_payload_aggregation(...)` blocks `json_agg`,

@@ -858,37 +858,86 @@ RETURNS TABLE (
   unique_expense_rows bigint,
   revoked boolean
 )
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = taskbound, pg_temp
 AS $$
+DECLARE
+  active record;
+  v_backend_start timestamptz;
+  v_postmaster_start timestamptz;
+BEGIN
+  SELECT backend_start INTO v_backend_start
+  FROM pg_catalog.pg_stat_activity
+  WHERE pid = pg_backend_pid();
+  SELECT pg_catalog.pg_postmaster_start_time() INTO v_postmaster_start;
+
+  SELECT *
+  INTO active
+  FROM taskbound.active_sessions a
+  WHERE a.owner_backend_pid = pg_backend_pid()
+    AND a.owner_backend_start = v_backend_start
+    AND a.owner_postmaster_start = v_postmaster_start
+    AND a.database_oid = taskbound.current_database_oid();
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  PERFORM taskbound.validate_active_binding(
+    active.task_id,
+    active.binding_id,
+    active.fence_token,
+    active.advisory_lock_key
+  );
+
+  RETURN QUERY
   SELECT s.task_id, s.budget_account, s.query_count, s.returned_rows,
          s.unique_expense_rows, s.revoked
   FROM taskbound.task_execution_state s
-  JOIN taskbound.active_sessions a ON a.task_id = s.task_id
-  WHERE a.owner_backend_pid = pg_backend_pid()
-    AND a.owner_backend_start = (
-      SELECT backend_start FROM pg_catalog.pg_stat_activity WHERE pid = pg_backend_pid()
-    )
-    AND a.owner_postmaster_start = pg_catalog.pg_postmaster_start_time()
-    AND a.database_oid = taskbound.current_database_oid()
+  WHERE s.task_id = active.task_id;
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION taskbound.receipts()
 RETURNS SETOF taskbound.task_query_receipts
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = taskbound, pg_temp
 AS $$
+DECLARE
+  active record;
+  v_backend_start timestamptz;
+  v_postmaster_start timestamptz;
+BEGIN
+  SELECT backend_start INTO v_backend_start
+  FROM pg_catalog.pg_stat_activity
+  WHERE pid = pg_backend_pid();
+  SELECT pg_catalog.pg_postmaster_start_time() INTO v_postmaster_start;
+
+  SELECT *
+  INTO active
+  FROM taskbound.active_sessions a
+  WHERE a.owner_backend_pid = pg_backend_pid()
+    AND a.owner_backend_start = v_backend_start
+    AND a.owner_postmaster_start = v_postmaster_start
+    AND a.database_oid = taskbound.current_database_oid();
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  PERFORM taskbound.validate_active_binding(
+    active.task_id,
+    active.binding_id,
+    active.fence_token,
+    active.advisory_lock_key
+  );
+
+  RETURN QUERY
   SELECT r.*
   FROM taskbound.task_query_receipts r
-  JOIN taskbound.active_sessions a
-    ON a.task_id = r.task_id
-  WHERE a.owner_backend_pid = pg_backend_pid()
-    AND a.owner_backend_start = (
-      SELECT backend_start FROM pg_catalog.pg_stat_activity WHERE pid = pg_backend_pid()
-    )
-    AND a.owner_postmaster_start = pg_catalog.pg_postmaster_start_time()
-    AND a.database_oid = taskbound.current_database_oid()
-  ORDER BY r.created_at DESC
+  WHERE r.task_id = active.task_id
+  ORDER BY r.created_at DESC;
+END;
 $$;
