@@ -230,3 +230,16 @@ CREATE TABLE taskbound.safe_view_registry (
   policy_version text NOT NULL DEFAULT 'travel-demo-v1',
   description text NOT NULL
 );
+
+CREATE TABLE taskbound.task_policy_registry (
+  task_type text PRIMARY KEY,
+  policy_version text NOT NULL,
+  template_hash text NOT NULL DEFAULT '',
+  updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+
+INSERT INTO taskbound.task_policy_registry (task_type, policy_version, template_hash)
+VALUES
+  ('monthly_travel_expense_review', 'travel-demo-v1', ''),
+  ('finance_compliance_review', 'finance-review-v1', ''),
+  ('payment_readiness_audit', 'payment-readiness-v1', '');

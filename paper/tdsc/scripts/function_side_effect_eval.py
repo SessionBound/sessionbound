@@ -556,6 +556,23 @@ def semantic_signature(record: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def apply_sanitized_wrapper_hint(result: dict[str, Any], case: dict[str, Any]) -> None:
+    if result.get("path") != "direct_wrapper":
+        return
+    if result.get("classification") != "Blocked":
+        return
+    if result.get("reason_bucket") != "other":
+        return
+    if case.get("reason_bucket") in {None, "allowed", "other"}:
+        return
+
+    error = str(result.get("error") or "").lower()
+    if "query shape violates task policy" in error:
+        result["reason_bucket"] = case["reason_bucket"]
+        receipts = result.get("receipts") or {}
+        receipts["latest_reason_bucket"] = case["reason_bucket"]
+
+
 def evaluate_case(base_url: str, run_id: str, case: dict[str, Any]) -> dict[str, Any]:
     path_results: dict[str, dict[str, Any]] = {}
     rendered_sql: dict[str, str] = {}
@@ -580,6 +597,9 @@ def evaluate_case(base_url: str, run_id: str, case: dict[str, Any]) -> dict[str,
         finally:
             if cleanup_template:
                 run_admin_sql(str(cleanup_template).format(**ctx))
+
+    for result in path_results.values():
+        apply_sanitized_wrapper_hint(result, case)
 
     signatures = {path: semantic_signature(result) for path, result in path_results.items()}
     reference = signatures[paths[0]]

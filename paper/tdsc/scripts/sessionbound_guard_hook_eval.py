@@ -75,11 +75,11 @@ AGENT_CASES: list[dict[str, str]] = [
     },
     {
         "id": "HG08",
-        "name": "native_cursor_fetch",
+        "name": "native_cursor_fetch_blocked",
         "mode": "native_script",
-        "expected": "Allowed",
+        "expected": "Blocked",
         "sql": "BEGIN;\nDECLARE c CURSOR FOR SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 3;\nFETCH 2 FROM c;\nCLOSE c;\nCOMMIT;",
-        "expected_reason": "",
+        "expected_reason": "cursors are not available under task binding",
     },
     {
         "id": "HG09",
@@ -91,11 +91,11 @@ AGENT_CASES: list[dict[str, str]] = [
     },
     {
         "id": "HG10",
-        "name": "native_explain_select",
+        "name": "native_explain_select_blocked",
         "mode": "native_script",
-        "expected": "Allowed",
+        "expected": "Blocked",
         "sql": "EXPLAIN SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;",
-        "expected_reason": "",
+        "expected_reason": "EXPLAIN output is not available under task binding",
     },
     {
         "id": "HG11",
@@ -103,7 +103,7 @@ AGENT_CASES: list[dict[str, str]] = [
         "mode": "native_script",
         "expected": "Blocked",
         "sql": "EXPLAIN ANALYZE SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;",
-        "expected_reason": "EXPLAIN ANALYZE is not allowed",
+        "expected_reason": "EXPLAIN output is not available under task binding",
     },
     {
         "id": "HG12",
@@ -111,7 +111,7 @@ AGENT_CASES: list[dict[str, str]] = [
         "mode": "native_script",
         "expected": "Blocked",
         "sql": "BEGIN;\nDECLARE c CURSOR WITH HOLD FOR SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;\nCOMMIT;",
-        "expected_reason": "holdable cursors are not allowed",
+        "expected_reason": "cursors are not available under task binding",
     },
 ]
 
@@ -255,31 +255,91 @@ def classify_psql(result: dict[str, Any]) -> str:
     return "Allowed" if result["returncode"] == 0 else "Blocked"
 
 
-def issue_task(base_url: str, run_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def issue_task(
+    base_url: str,
+    run_id: str,
+    *,
+    task_suffix: str = "",
+    credential_id: str | None = None,
+    task_type: str = "monthly_travel_expense_review",
+    delegator: str = "user:alice",
+    actor: str = "agent:travel-expense-analyst",
+) -> tuple[dict[str, Any], dict[str, Any]]:
     credential = post_json(
         base_url,
         "/credentials",
         {
             "agent_id": f"hook-eval-{run_id}",
-            "actor": "agent:travel-expense-analyst",
+            "actor": actor,
             "ttl_minutes": 30,
         },
-    )
+    ) if credential_id is None else {"credential_id": credential_id}
     task = post_json(
         base_url,
         "/tasks",
         {
-            "task_id": f"task_hook_eval_{run_id}",
-            "task_type": "monthly_travel_expense_review",
-            "delegator": "user:alice",
-            "actor": "agent:travel-expense-analyst",
-            "credential_id": credential.get("credential_id"),
+            "task_id": f"task_hook_eval_{run_id}{task_suffix}",
+            "task_type": task_type,
+            "delegator": delegator,
+            "actor": actor,
+            "credential_id": credential_id or credential.get("credential_id"),
             "scope": {"expense_month": "2026-06"},
             "max_rows": 5000,
             "max_queries": 50,
         },
     )
     return credential, task
+
+
+def run_prepared_rebind_case(base_url: str, run_id: str, credential: dict[str, Any]) -> dict[str, Any]:
+    shared_actor = credential.get("actor") or "agent:travel-expense-analyst"
+    _, finance_task = issue_task(
+        base_url,
+        run_id,
+        task_suffix="_prepared_finance",
+        credential_id=credential["credential_id"],
+        task_type="finance_compliance_review",
+        delegator="user:fiona",
+        actor=shared_actor,
+    )
+    _, payment_task = issue_task(
+        base_url,
+        run_id,
+        task_suffix="_prepared_payment",
+        credential_id=credential["credential_id"],
+        task_type="payment_readiness_audit",
+        delegator="user:fiona",
+        actor=shared_actor,
+    )
+    sql_script = (
+        f"SELECT taskbound.bind_task({sql_literal(finance_task['payload_text'])}, {sql_literal(finance_task['signature'])});\n"
+        "PREPARE crossbind AS "
+        "SELECT e.expense_id, emp.employee_name "
+        "FROM expenses e JOIN employees emp USING (employee_id) "
+        "ORDER BY e.expense_id LIMIT 1;\n"
+        "SELECT taskbound.unbind_task();\n"
+        f"SELECT taskbound.bind_task({sql_literal(payment_task['payload_text'])}, {sql_literal(payment_task['signature'])});\n"
+        "EXECUTE crossbind;\n"
+    )
+    result = run_psql(sql_script, user=credential["db_user"], password=credential["db_password"])
+    actual = classify_psql(result)
+    reason_ok = (
+        "prepared statement is not available" in result["output_tail"]
+        or "prepared statement" in result["output_tail"]
+        or "does not exist" in result["output_tail"]
+    )
+    return {
+        "id": "HG13",
+        "name": "prepared_plan_dropped_across_rebind",
+        "mode": "native_script",
+        "expected": "Blocked",
+        "expected_reason": "prepared statement is not available after unbind/rebind",
+        "path": "agent credential native SQL surface",
+        "actual": actual,
+        "passed": actual == "Blocked" and reason_ok,
+        "reason_matched": reason_ok,
+        "psql": result,
+    }
 
 
 def run_agent_case(case: dict[str, str], credential: dict[str, Any], task: dict[str, Any]) -> dict[str, Any]:
@@ -380,6 +440,7 @@ def run_eval(base_url: str) -> dict[str, Any]:
 
     records = [run_guc_protection_case()]
     records.extend(run_agent_case(case, credential, task) for case in AGENT_CASES)
+    records.append(run_prepared_rebind_case(base_url, run_id, credential))
     records.extend(run_hook_only_case(case) for case in HOOK_ONLY_CASES)
 
     return {

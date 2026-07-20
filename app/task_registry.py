@@ -581,6 +581,10 @@ def build_task_from_template(
     allowed_departments = allowed_scope.get("department_ids")
     if requested_department and allowed_departments and requested_department not in allowed_departments:
         raise PermissionError(f"department_id {requested_department} is outside grant scope")
+    requested_month = scope.get("expense_month")
+    allowed_month = allowed_scope.get("expense_month")
+    if requested_month and allowed_month and requested_month != allowed_month:
+        raise PermissionError(f"expense_month {requested_month} is outside grant scope")
 
     budgets = dict(template.get("default_budgets", {}))
     budgets.update(grant.get("budget_overrides", {}))

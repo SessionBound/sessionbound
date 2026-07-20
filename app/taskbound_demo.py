@@ -102,6 +102,7 @@ def default_task(
         "key_id": "dev",
         "audience": "sessionbounddb",
         "task_id": task_id or f"task_expense_review_2026_06_{uuid4().hex[:8]}",
+        "task_type": "monthly_travel_expense_review",
         "tenant_id": "company_a",
         "delegator": "user:alice",
         "actor": DEMO_ACTOR,

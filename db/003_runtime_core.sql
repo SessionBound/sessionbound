@@ -10,6 +10,7 @@ AS $$
 DECLARE
   canonical text;
   digest_hex text;
+  lock_key bigint;
 BEGIN
   canonical :=
     'task_id=' || COALESCE(length(v_task_id)::text, '0') || ':' || COALESCE(v_task_id, '') ||
@@ -18,9 +19,29 @@ BEGIN
     E'\x1f' ||
     'credential_id=' || COALESCE(length(v_credential_id)::text, '0') || ':' || COALESCE(v_credential_id, '');
   digest_hex := substr(encode(public.digest(canonical, 'sha256'), 'hex'), 1, 16);
-  RETURN ('x' || digest_hex)::bit(64)::bigint;
+  lock_key := ('x' || digest_hex)::bit(64)::bigint;
+  IF lock_key = 0 THEN
+    RETURN 1;
+  END IF;
+  RETURN lock_key;
 END;
 $$;
+
+CREATE TABLE IF NOT EXISTS taskbound.task_policy_registry (
+  task_type text PRIMARY KEY,
+  policy_version text NOT NULL,
+  template_hash text NOT NULL DEFAULT '',
+  updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+
+INSERT INTO taskbound.task_policy_registry (task_type, policy_version, template_hash)
+VALUES
+  ('monthly_travel_expense_review', 'travel-demo-v1', ''),
+  ('finance_compliance_review', 'finance-review-v1', ''),
+  ('payment_readiness_audit', 'payment-readiness-v1', '')
+ON CONFLICT (task_type) DO UPDATE
+SET policy_version = EXCLUDED.policy_version,
+    updated_at = clock_timestamp();
 
 CREATE OR REPLACE FUNCTION taskbound.current_database_oid()
 RETURNS oid
@@ -140,6 +161,7 @@ AS $$
 DECLARE
   existing record;
   stale_backend record;
+  task_binding record;
 BEGIN
   FOR stale_backend IN
     SELECT *
@@ -289,6 +311,35 @@ BEGIN
       v_task_id, v_credential_id, v_token_digest, v_owner_backend_pid, v_owner_session_user
     )
     ON CONFLICT (task_id) DO NOTHING;
+
+    SELECT *
+    INTO task_binding
+    FROM taskbound.task_credential_bindings b
+    WHERE b.task_id = v_task_id
+    FOR UPDATE;
+
+    IF NOT FOUND
+       OR task_binding.credential_id <> v_credential_id
+       OR task_binding.token_digest <> v_token_digest THEN
+      DELETE FROM taskbound.active_sessions
+      WHERE binding_id = v_binding_id
+        AND fence_token = v_fence_token;
+      PERFORM taskbound.log_binding_event_local(
+        'TASK_CREDENTIAL_BINDING_CONFLICT',
+        v_task_id,
+        v_token_digest,
+        v_credential_id,
+        v_binding_id,
+        v_fence_token,
+        v_advisory_lock_key,
+        v_owner_backend_pid,
+        'task_id is already bound to a different credential or token'
+      );
+      status := 'conflict';
+      recovered := false;
+      RETURN NEXT;
+      RETURN;
+    END IF;
   END IF;
 
   INSERT INTO taskbound.task_execution_state (
@@ -484,7 +535,7 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  IF active.token_expires_at <= now() THEN
+  IF active.token_expires_at <= clock_timestamp() THEN
     RAISE EXCEPTION 'task token is expired'
       USING ERRCODE = '42501';
   END IF;
@@ -503,7 +554,7 @@ BEGIN
     SELECT 1
     FROM taskbound.credential_ledger c
     WHERE c.credential_id = active.credential_id
-      AND (c.revoked OR c.expires_at <= now() OR c.db_user <> session_user)
+      AND (c.revoked OR c.expires_at <= clock_timestamp() OR c.db_user <> session_user)
   ) THEN
     RAISE EXCEPTION 'runtime credential is expired, revoked, or no longer matches the session'
       USING ERRCODE = '42501';
@@ -537,6 +588,137 @@ BEGIN
 
   -- last_seen_at is diagnostic only; do not update it in the caller
   -- transaction because bind/unbind state is maintained autonomously.
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.validate_active_binding_identity(
+  v_task_id text,
+  v_binding_id uuid,
+  v_fence_token bigint,
+  v_advisory_lock_key bigint,
+  v_owner_backend_pid int,
+  v_owner_backend_start timestamptz,
+  v_owner_postmaster_start timestamptz,
+  v_owner_session_user name
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, pg_temp
+AS $$
+DECLARE
+  active record;
+  v_expected_snapshot jsonb;
+BEGIN
+  SELECT *
+  INTO active
+  FROM taskbound.active_sessions a
+  WHERE a.task_id = v_task_id
+    AND a.binding_id = v_binding_id
+    AND a.fence_token = v_fence_token
+    AND a.advisory_lock_key = v_advisory_lock_key
+    AND a.owner_backend_pid = v_owner_backend_pid
+    AND a.owner_backend_start = v_owner_backend_start
+    AND a.owner_postmaster_start = v_owner_postmaster_start
+    AND a.owner_session_user = v_owner_session_user
+    AND a.database_oid = taskbound.current_database_oid();
+
+  IF NOT FOUND THEN
+    PERFORM taskbound.log_binding_event_local(
+      'BINDING_FENCED',
+      v_task_id,
+      NULL,
+      NULL,
+      v_binding_id,
+      v_fence_token,
+      v_advisory_lock_key,
+      v_owner_backend_pid,
+      'active binding row does not match supplied owner fence'
+    );
+    RAISE EXCEPTION 'BINDING_FENCED: active binding fence mismatch'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF NOT taskbound.owner_is_live(
+    active.database_oid,
+    active.owner_backend_pid,
+    active.owner_backend_start,
+    active.owner_postmaster_start
+  ) THEN
+    RAISE EXCEPTION 'BINDING_LOST: active binding owner backend is no longer live'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF NOT taskbound.advisory_lock_held_by_backend(v_advisory_lock_key, active.lock_backend_pid) THEN
+    PERFORM taskbound.log_binding_event_local(
+      'BINDING_LOST',
+      active.task_id,
+      active.token_digest,
+      active.credential_id,
+      active.binding_id,
+      active.fence_token,
+      active.advisory_lock_key,
+      active.owner_backend_pid,
+      'session advisory lock is no longer held by the owner backend'
+    );
+    RAISE EXCEPTION 'BINDING_LOST: active binding advisory lock is no longer held'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF active.token_expires_at <= clock_timestamp() THEN
+    RAISE EXCEPTION 'task token is expired'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM taskbound.task_execution_state s
+    WHERE s.task_id = active.task_id
+      AND s.revoked
+  ) THEN
+    RAISE EXCEPTION 'task is revoked'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF active.credential_id <> '' AND EXISTS (
+    SELECT 1
+    FROM taskbound.credential_ledger c
+    WHERE c.credential_id = active.credential_id
+      AND (
+        c.revoked
+        OR c.expires_at <= clock_timestamp()
+        OR c.db_user <> active.owner_session_user
+      )
+  ) THEN
+    RAISE EXCEPTION 'runtime credential is expired, revoked, or no longer matches the session'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF jsonb_typeof(active.payload->'allowed_views') IS DISTINCT FROM 'array'
+     OR NOT (active.payload ? 'safe_view_registry')
+     OR NOT (active.payload ? 'database_oid')
+     OR NOT (active.payload ? 'safe_view_registry_version')
+     OR NOT (active.payload ? 'view_definition_hash')
+     OR NOT (active.payload ? 'exposed_column_hash')
+     OR NOT (active.payload ? 'view_dependency_hash')
+     OR NOT (active.payload ? 'view_option_hash') THEN
+    RAISE EXCEPTION 'task token safe-view registry drift claims are missing from active binding'
+      USING ERRCODE = '42501';
+  END IF;
+
+  v_expected_snapshot := taskbound.safe_view_registry_snapshot(
+    taskbound.jsonb_text_array(active.payload->'allowed_views')
+  );
+  IF active.payload->'safe_view_registry' <> v_expected_snapshot
+     OR active.payload->>'database_oid' <> v_expected_snapshot->>'database_oid'
+     OR active.payload->>'safe_view_registry_version' <> v_expected_snapshot->>'safe_view_registry_version'
+     OR active.payload->>'view_definition_hash' <> v_expected_snapshot->>'view_definition_hash'
+     OR active.payload->>'exposed_column_hash' <> v_expected_snapshot->>'exposed_column_hash'
+     OR active.payload->>'view_dependency_hash' <> v_expected_snapshot->>'view_dependency_hash'
+     OR active.payload->>'view_option_hash' <> v_expected_snapshot->>'view_option_hash' THEN
+    RAISE EXCEPTION 'task token safe-view registry snapshot is stale; re-approval is required'
+      USING ERRCODE = '42501';
+  END IF;
 END;
 $$;
 
@@ -630,6 +812,7 @@ DECLARE
   v_expected_view_count int;
   v_actual_view_count int;
   v_policy_violation text;
+  v_expected_policy_version text;
   v_binding_id uuid := gen_random_uuid();
   v_fence_token bigint;
   v_advisory_lock_key bigint;
@@ -656,7 +839,7 @@ BEGIN
     RAISE EXCEPTION 'invalid task token signature';
   END IF;
 
-  IF (p->>'expires_at')::timestamptz <= now() THEN
+  IF (p->>'expires_at')::timestamptz <= clock_timestamp() THEN
     RAISE EXCEPTION 'task token is expired';
   END IF;
 
@@ -718,6 +901,19 @@ BEGIN
 
   IF COALESCE(v_task_id, '') = '' THEN
     RAISE EXCEPTION 'task token task_id claim is required';
+  END IF;
+  IF COALESCE(p->>'task_type', '') <> '' THEN
+    SELECT policy_version
+    INTO v_expected_policy_version
+    FROM taskbound.task_policy_registry
+    WHERE task_type = p->>'task_type';
+
+    IF v_expected_policy_version IS NULL THEN
+      RAISE EXCEPTION 'task token task_type is not in the authoritative policy registry';
+    END IF;
+    IF COALESCE(p->>'policy_version', '') <> v_expected_policy_version THEN
+      RAISE EXCEPTION 'task token policy_version is stale; re-approval is required';
+    END IF;
   END IF;
   IF COALESCE(p->>'tenant_id', '') = '' THEN
     RAISE EXCEPTION 'task token tenant_id claim is required';
@@ -853,6 +1049,17 @@ BEGIN
     RAISE EXCEPTION 'database session is already bound to another active task; unbind before rebinding';
   END IF;
 
+  BEGIN
+    EXECUTE 'CLOSE ALL';
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+  BEGIN
+    EXECUTE 'DEALLOCATE ALL';
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
   IF v_credential_id <> '' THEN
     SELECT *
     INTO v_credential
@@ -871,7 +1078,7 @@ BEGIN
     IF v_credential.audience <> COALESCE(p->>'audience', 'sessionbounddb') THEN
       RAISE EXCEPTION 'runtime credential audience does not match the signed task token';
     END IF;
-    IF v_credential.revoked OR v_credential.expires_at <= now() THEN
+    IF v_credential.revoked OR v_credential.expires_at <= clock_timestamp() THEN
       RAISE EXCEPTION 'runtime credential is expired or revoked';
     END IF;
 
@@ -1047,16 +1254,19 @@ BEGIN
     AND a.database_oid = taskbound.current_database_oid();
 
   IF NOT FOUND THEN
+    BEGIN
+      EXECUTE 'CLOSE ALL';
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+    BEGIN
+      EXECUTE 'DEALLOCATE ALL';
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
     PERFORM public.sessionbound_guard_clear_binding();
     RETURN;
   END IF;
-
-  PERFORM taskbound.validate_active_binding(
-    active.task_id,
-    active.binding_id,
-    active.fence_token,
-    active.advisory_lock_key
-  );
 
   SELECT public.dblink_get_connections() INTO v_connections;
   IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
@@ -1072,6 +1282,16 @@ BEGIN
   ));
 
   PERFORM public.sessionbound_guard_clear_binding();
+  BEGIN
+    EXECUTE 'CLOSE ALL';
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+  BEGIN
+    EXECUTE 'DEALLOCATE ALL';
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
   PERFORM set_config('search_path', '"$user", public', false);
 END;
 $$;
@@ -1172,7 +1392,25 @@ BEGIN
                 dep.refobjid::text || ':' ||
                 dep.refobjsubid::text || ':' ||
                 dep.deptype::text || ':' ||
-                pg_catalog.pg_describe_object(dep.refclassid, dep.refobjid, dep.refobjsubid),
+                pg_catalog.pg_describe_object(dep.refclassid, dep.refobjid, dep.refobjsubid) || ':' ||
+                COALESCE(
+                  CASE WHEN dep.refclassid = 'pg_proc'::regclass THEN
+                    proc.pronamespace::regnamespace::text || ':' ||
+                    proc.proowner::regrole::text || ':' ||
+                    proc.prolang::text || ':' ||
+                    proc.prokind::text || ':' ||
+                    proc.prosecdef::text || ':' ||
+                    proc.proleakproof::text || ':' ||
+                    proc.provolatile::text || ':' ||
+                    proc.proparallel::text || ':' ||
+                    COALESCE(proc.proconfig::text, '') || ':' ||
+                    COALESCE(proc.proacl::text, '') || ':' ||
+                    COALESCE(proc.probin, '') || ':' ||
+                    COALESCE(proc.prosqlbody::text, '') || ':' ||
+                    COALESCE(proc.prosrc, '')
+                  END,
+                  ''
+                ),
                 '|' ORDER BY dep.refclassid::regclass::text, dep.refobjid, dep.refobjsubid, dep.deptype
               ),
               ''
@@ -1199,6 +1437,9 @@ BEGIN
         ON dep.classid = 'pg_rewrite'::regclass
        AND dep.objid = rw.oid
        AND dep.deptype IN ('n', 'a')
+      LEFT JOIN pg_catalog.pg_proc proc
+        ON dep.refclassid = 'pg_proc'::regclass
+       AND proc.oid = dep.refobjid
       WHERE rw.ev_class = c.oid
         AND NOT (
           dep.refclassid = 'pg_class'::regclass

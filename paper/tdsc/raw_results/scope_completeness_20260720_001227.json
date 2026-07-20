@@ -1,0 +1,647 @@
+{
+  "run": {
+    "all_scope_complete": true,
+    "all_view_checks_non_vacuous": true,
+    "base_url": "http://localhost:8000",
+    "commit": "70034b3",
+    "failed_scenarios": 0,
+    "failed_view_checks": 0,
+    "non_vacuous_view_checks": 14,
+    "passed_scenarios": 4,
+    "scenario_count": 4,
+    "timestamp": "2026-07-20T00:12:55Z",
+    "view_check_count": 14
+  },
+  "records": [
+    {
+      "id": "SC01",
+      "name": "monthly_month_scope",
+      "task_type": "monthly_travel_expense_review",
+      "delegator": "user:alice",
+      "scope": {
+        "expense_month": "2026-06"
+      },
+      "tenant_id": "company_a",
+      "allowed_views": [
+        "expenses",
+        "departments",
+        "employees"
+      ],
+      "bound": {
+        "bound": true,
+        "purpose": "monthly_travel_expense_anomaly_review",
+        "task_id": "task_scope_20260720_001227_sc01",
+        "binding_id": "c6ebecdf-4c30-4154-967c-2ffc25e11fe0",
+        "fence_token": 2106,
+        "credential_id": "agent_scope_20260720_001227_sc01_22213661",
+        "budget_account": "task_scope_20260720_001227_sc01",
+        "stale_recovered": false,
+        "advisory_lock_key": -8486053877513708130
+      },
+      "passed": true,
+      "view_results": [
+        {
+          "view": "expenses",
+          "passed": true,
+          "row_count": 347,
+          "raw_in_scope_count": 347,
+          "raw_out_of_scope_candidate_count": 57,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "exp_001",
+            "exp_002",
+            "exp_003",
+            "exp_004",
+            "exp_005",
+            "exp_006",
+            "exp_007",
+            "exp_008",
+            "exp_100",
+            "exp_101",
+            "exp_103",
+            "exp_104",
+            "exp_107",
+            "exp_108",
+            "exp_109",
+            "exp_111",
+            "exp_112",
+            "exp_113",
+            "exp_114",
+            "exp_115"
+          ]
+        },
+        {
+          "view": "departments",
+          "passed": true,
+          "row_count": 22,
+          "raw_in_scope_count": 22,
+          "raw_out_of_scope_candidate_count": 91,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "dep_109",
+            "dep_ 18",
+            "dep_ 19",
+            "dep_ 28",
+            "dep_ 29",
+            "dep_ 38",
+            "dep_ 39",
+            "dep_ 49",
+            "dep_ 58",
+            "dep_ 59",
+            "dep_ 68",
+            "dep_ 69",
+            "dep_ 78",
+            "dep_ 79",
+            "dep_  8",
+            "dep_ 89",
+            "dep_  9",
+            "dep_ 98",
+            "dep_ 99",
+            "dep_eng"
+          ]
+        },
+        {
+          "view": "employees",
+          "passed": true,
+          "row_count": 218,
+          "raw_in_scope_count": 218,
+          "raw_out_of_scope_candidate_count": 8,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "emp_001",
+            "emp_002",
+            "emp_003",
+            "emp_004",
+            "emp_005",
+            "emp_ 10",
+            "emp_100",
+            "emp_101",
+            "emp_102",
+            "emp_103",
+            "emp_104",
+            "emp_105",
+            "emp_106",
+            "emp_107",
+            "emp_109",
+            "emp_ 11",
+            "emp_110",
+            "emp_111",
+            "emp_112",
+            "emp_113"
+          ]
+        }
+      ],
+      "accounting": {
+        "passed": true,
+        "query_count": 3,
+        "receipt_count": 3,
+        "allowed_receipt_count": 3,
+        "expected_allowed_queries": 3,
+        "state": [
+          {
+            "task_id": "task_scope_20260720_001227_sc01",
+            "budget_account": "task_scope_20260720_001227_sc01",
+            "query_count": 3,
+            "returned_rows": 587,
+            "unique_expense_rows": 587,
+            "revoked": false
+          }
+        ],
+        "receipt_touched_views": [
+          [
+            "employees"
+          ],
+          [
+            "departments"
+          ],
+          [
+            "expenses"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "SC02",
+      "name": "monthly_month_department_scope",
+      "task_type": "monthly_travel_expense_review",
+      "delegator": "user:alice",
+      "scope": {
+        "expense_month": "2026-06",
+        "department_id": "dep_sales"
+      },
+      "tenant_id": "company_a",
+      "allowed_views": [
+        "expenses",
+        "departments",
+        "employees"
+      ],
+      "bound": {
+        "bound": true,
+        "purpose": "monthly_travel_expense_anomaly_review",
+        "task_id": "task_scope_20260720_001227_sc02",
+        "binding_id": "5c552349-7994-4099-ab7c-b3f41de43dbf",
+        "fence_token": 2107,
+        "credential_id": "agent_scope_20260720_001227_sc02_6ad5de22",
+        "budget_account": "task_scope_20260720_001227_sc02",
+        "stale_recovered": false,
+        "advisory_lock_key": -3134345438457009901
+      },
+      "passed": true,
+      "view_results": [
+        {
+          "view": "expenses",
+          "passed": true,
+          "row_count": 112,
+          "raw_in_scope_count": 112,
+          "raw_out_of_scope_candidate_count": 292,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "exp_004",
+            "exp_005",
+            "exp_006",
+            "exp_107",
+            "exp_108",
+            "exp_117",
+            "exp_118",
+            "exp_127",
+            "exp_128",
+            "exp_129",
+            "exp_ 13",
+            "exp_130",
+            "exp_138",
+            "exp_139",
+            "exp_ 14",
+            "exp_140",
+            "exp_141",
+            "exp_149",
+            "exp_150",
+            "exp_151"
+          ]
+        },
+        {
+          "view": "departments",
+          "passed": true,
+          "row_count": 1,
+          "raw_in_scope_count": 1,
+          "raw_out_of_scope_candidate_count": 112,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "dep_sales"
+          ]
+        },
+        {
+          "view": "employees",
+          "passed": true,
+          "row_count": 63,
+          "raw_in_scope_count": 63,
+          "raw_out_of_scope_candidate_count": 163,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "emp_003",
+            "emp_004",
+            "emp_ 10",
+            "emp_100",
+            "emp_101",
+            "emp_102",
+            "emp_ 11",
+            "emp_110",
+            "emp_111",
+            "emp_112",
+            "emp_ 12",
+            "emp_120",
+            "emp_121",
+            "emp_122",
+            "emp_130",
+            "emp_131",
+            "emp_132",
+            "emp_140",
+            "emp_141",
+            "emp_142"
+          ]
+        }
+      ],
+      "accounting": {
+        "passed": true,
+        "query_count": 3,
+        "receipt_count": 3,
+        "allowed_receipt_count": 3,
+        "expected_allowed_queries": 3,
+        "state": [
+          {
+            "task_id": "task_scope_20260720_001227_sc02",
+            "budget_account": "task_scope_20260720_001227_sc02",
+            "query_count": 3,
+            "returned_rows": 176,
+            "unique_expense_rows": 176,
+            "revoked": false
+          }
+        ],
+        "receipt_touched_views": [
+          [
+            "employees"
+          ],
+          [
+            "departments"
+          ],
+          [
+            "expenses"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "SC03",
+      "name": "finance_workflow_month_department_scope",
+      "task_type": "finance_compliance_review",
+      "delegator": "user:fiona",
+      "scope": {
+        "expense_month": "2026-06",
+        "department_id": "dep_sales"
+      },
+      "tenant_id": "company_a",
+      "allowed_views": [
+        "expenses",
+        "departments",
+        "employees",
+        "approval_events"
+      ],
+      "bound": {
+        "bound": true,
+        "purpose": "finance_reimbursement_compliance_review",
+        "task_id": "task_scope_20260720_001227_sc03",
+        "binding_id": "6605fc59-06b9-4ab9-a8e2-7b403491dcbf",
+        "fence_token": 2108,
+        "credential_id": "agent_scope_20260720_001227_sc03_f462e5b4",
+        "budget_account": "task_scope_20260720_001227_sc03",
+        "stale_recovered": false,
+        "advisory_lock_key": 6511445812847866788
+      },
+      "passed": true,
+      "view_results": [
+        {
+          "view": "expenses",
+          "passed": true,
+          "row_count": 112,
+          "raw_in_scope_count": 112,
+          "raw_out_of_scope_candidate_count": 292,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "exp_004",
+            "exp_005",
+            "exp_006",
+            "exp_107",
+            "exp_108",
+            "exp_117",
+            "exp_118",
+            "exp_127",
+            "exp_128",
+            "exp_129",
+            "exp_ 13",
+            "exp_130",
+            "exp_138",
+            "exp_139",
+            "exp_ 14",
+            "exp_140",
+            "exp_141",
+            "exp_149",
+            "exp_150",
+            "exp_151"
+          ]
+        },
+        {
+          "view": "departments",
+          "passed": true,
+          "row_count": 1,
+          "raw_in_scope_count": 1,
+          "raw_out_of_scope_candidate_count": 112,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "dep_sales"
+          ]
+        },
+        {
+          "view": "employees",
+          "passed": true,
+          "row_count": 63,
+          "raw_in_scope_count": 63,
+          "raw_out_of_scope_candidate_count": 163,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "emp_003",
+            "emp_004",
+            "emp_ 10",
+            "emp_100",
+            "emp_101",
+            "emp_102",
+            "emp_ 11",
+            "emp_110",
+            "emp_111",
+            "emp_112",
+            "emp_ 12",
+            "emp_120",
+            "emp_121",
+            "emp_122",
+            "emp_130",
+            "emp_131",
+            "emp_132",
+            "emp_140",
+            "emp_141",
+            "emp_142"
+          ]
+        },
+        {
+          "view": "approval_events",
+          "passed": true,
+          "row_count": 267,
+          "raw_in_scope_count": 267,
+          "raw_out_of_scope_candidate_count": 699,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "013b2f03-2fe0-40ab-8d88-a9d07c09f1d7",
+            "01674048-9db4-4944-9036-8c9b23a0c9fc",
+            "0256907d-47d1-4370-bda3-7fc6802151c9",
+            "068a5d4a-e25d-41f8-b0e5-d0f9a40cce01",
+            "06bf349a-547a-407d-94dc-ea6767333552",
+            "07174e5f-5518-40e5-8853-97e114e88201",
+            "09294baf-d6b9-4006-a489-7767c0445b3f",
+            "098756b7-5e26-415c-a6c4-8c15628a95bf",
+            "099ba039-d1ac-4b95-bb12-7b2617cc1378",
+            "0c1a9b56-7e47-40ff-9543-8c61adeba9e0",
+            "0c52433b-bcc3-4e2a-8dea-29fe8096424c",
+            "0d4857fb-214d-47aa-8f43-f22899a5ebc2",
+            "129b2157-bae0-42df-87a6-fe0ab3d61c9a",
+            "12b6cd48-8b60-4fdd-8aca-135181a4c017",
+            "143a6f9b-d478-40e9-8f37-99ea4201e82d",
+            "14678681-907e-4339-a48c-2e748abf3582",
+            "14801112-fc9f-44dd-b168-596a226832d3",
+            "163d4a63-ea30-4929-a1fd-29adde467503",
+            "18d837a8-4915-43fb-84c4-7b3669390079",
+            "1abcdd81-b013-4074-a1f8-5d0a7426460c"
+          ]
+        }
+      ],
+      "accounting": {
+        "passed": true,
+        "query_count": 4,
+        "receipt_count": 4,
+        "allowed_receipt_count": 4,
+        "expected_allowed_queries": 4,
+        "state": [
+          {
+            "task_id": "task_scope_20260720_001227_sc03",
+            "budget_account": "task_scope_20260720_001227_sc03",
+            "query_count": 4,
+            "returned_rows": 443,
+            "unique_expense_rows": 443,
+            "revoked": false
+          }
+        ],
+        "receipt_touched_views": [
+          [
+            "approval_events"
+          ],
+          [
+            "employees"
+          ],
+          [
+            "departments"
+          ],
+          [
+            "expenses"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "SC04",
+      "name": "payment_ledger_month_department_scope",
+      "task_type": "payment_readiness_audit",
+      "delegator": "user:fiona",
+      "scope": {
+        "expense_month": "2026-06",
+        "department_id": "dep_sales"
+      },
+      "tenant_id": "company_a",
+      "allowed_views": [
+        "expenses",
+        "departments",
+        "approval_events",
+        "ledger_entries"
+      ],
+      "bound": {
+        "bound": true,
+        "purpose": "reimbursement_payment_readiness_audit",
+        "task_id": "task_scope_20260720_001227_sc04",
+        "binding_id": "cd406890-4d8f-41d5-9abb-173110144a8a",
+        "fence_token": 2109,
+        "credential_id": "agent_scope_20260720_001227_sc04_3d03d297",
+        "budget_account": "task_scope_20260720_001227_sc04",
+        "stale_recovered": false,
+        "advisory_lock_key": -1456954465342689484
+      },
+      "passed": true,
+      "view_results": [
+        {
+          "view": "expenses",
+          "passed": true,
+          "row_count": 112,
+          "raw_in_scope_count": 112,
+          "raw_out_of_scope_candidate_count": 292,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "exp_004",
+            "exp_005",
+            "exp_006",
+            "exp_107",
+            "exp_108",
+            "exp_117",
+            "exp_118",
+            "exp_127",
+            "exp_128",
+            "exp_129",
+            "exp_ 13",
+            "exp_130",
+            "exp_138",
+            "exp_139",
+            "exp_ 14",
+            "exp_140",
+            "exp_141",
+            "exp_149",
+            "exp_150",
+            "exp_151"
+          ]
+        },
+        {
+          "view": "departments",
+          "passed": true,
+          "row_count": 1,
+          "raw_in_scope_count": 1,
+          "raw_out_of_scope_candidate_count": 112,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "dep_sales"
+          ]
+        },
+        {
+          "view": "approval_events",
+          "passed": true,
+          "row_count": 267,
+          "raw_in_scope_count": 267,
+          "raw_out_of_scope_candidate_count": 699,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "013b2f03-2fe0-40ab-8d88-a9d07c09f1d7",
+            "01674048-9db4-4944-9036-8c9b23a0c9fc",
+            "0256907d-47d1-4370-bda3-7fc6802151c9",
+            "068a5d4a-e25d-41f8-b0e5-d0f9a40cce01",
+            "06bf349a-547a-407d-94dc-ea6767333552",
+            "07174e5f-5518-40e5-8853-97e114e88201",
+            "09294baf-d6b9-4006-a489-7767c0445b3f",
+            "098756b7-5e26-415c-a6c4-8c15628a95bf",
+            "099ba039-d1ac-4b95-bb12-7b2617cc1378",
+            "0c1a9b56-7e47-40ff-9543-8c61adeba9e0",
+            "0c52433b-bcc3-4e2a-8dea-29fe8096424c",
+            "0d4857fb-214d-47aa-8f43-f22899a5ebc2",
+            "129b2157-bae0-42df-87a6-fe0ab3d61c9a",
+            "12b6cd48-8b60-4fdd-8aca-135181a4c017",
+            "143a6f9b-d478-40e9-8f37-99ea4201e82d",
+            "14678681-907e-4339-a48c-2e748abf3582",
+            "14801112-fc9f-44dd-b168-596a226832d3",
+            "163d4a63-ea30-4929-a1fd-29adde467503",
+            "18d837a8-4915-43fb-84c4-7b3669390079",
+            "1abcdd81-b013-4074-a1f8-5d0a7426460c"
+          ]
+        },
+        {
+          "view": "ledger_entries",
+          "passed": true,
+          "row_count": 50,
+          "raw_in_scope_count": 50,
+          "raw_out_of_scope_candidate_count": 116,
+          "non_vacuous": true,
+          "row_count_matches_raw_scope": true,
+          "violations": [],
+          "returned_key_sample": [
+            "0513fdfe-d5cd-4892-8d13-57d4887c6a63",
+            "0753d57b-3945-4cd6-8454-3d55b74f305a",
+            "0b477fc7-244b-469e-b04d-328efbbe7f10",
+            "10a2cbb8-6fcf-4ac6-a2d7-9a2129d68114",
+            "1424777c-7694-4fbc-b813-c11a881637dc",
+            "1534ee92-9cd3-4842-9f08-be05bedef11c",
+            "199b40a1-fb6d-4a32-af21-ff6729a61101",
+            "1ace51e3-0b77-498f-9a39-6d959732fe59",
+            "26b30191-3ad1-4afd-9ed1-63ae8caa9707",
+            "2cc17b21-32ca-4e80-ab4d-c7c861daab1b",
+            "2cecdbb7-5796-4905-8426-857212070077",
+            "31000c3f-0d9e-43e4-b3ae-a10396fb5c81",
+            "32cfca93-4740-478d-b8be-dedcd9f3fd5c",
+            "35b7dbd8-a516-499a-9184-9cb01622c59a",
+            "39fc24f7-e6cd-428e-bce8-d5c9aea2f1fc",
+            "4874d666-6839-4441-b085-03cb8e6a9678",
+            "538f9fa4-8a89-4012-b5b3-ce8e17c1991e",
+            "5b439880-4fbe-4d45-8f59-6c1ac5c7f447",
+            "63fd2945-a26c-4eb9-924e-9e530ca994ae",
+            "64738ea7-9d0c-40eb-942f-2d5075f78304"
+          ]
+        }
+      ],
+      "accounting": {
+        "passed": true,
+        "query_count": 4,
+        "receipt_count": 4,
+        "allowed_receipt_count": 4,
+        "expected_allowed_queries": 4,
+        "state": [
+          {
+            "task_id": "task_scope_20260720_001227_sc04",
+            "budget_account": "task_scope_20260720_001227_sc04",
+            "query_count": 4,
+            "returned_rows": 430,
+            "unique_expense_rows": 430,
+            "revoked": false
+          }
+        ],
+        "receipt_touched_views": [
+          [
+            "ledger_entries"
+          ],
+          [
+            "approval_events"
+          ],
+          [
+            "departments"
+          ],
+          [
+            "expenses"
+          ]
+        ]
+      }
+    }
+  ]
+}

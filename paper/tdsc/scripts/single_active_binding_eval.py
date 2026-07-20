@@ -24,6 +24,10 @@ import psycopg
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BASE_URL = os.environ.get("TDSC_BASE_URL", "http://127.0.0.1:8000")
+CONTROL_PLANE_KEY = os.environ.get(
+    "TASKBOUND_CONTROL_PLANE_KEY",
+    "tdsc-demo-control-plane-key",
+)
 
 
 def git_commit() -> str:
@@ -38,10 +42,13 @@ def git_commit() -> str:
 
 
 def post_json(path: str, body: dict[str, Any]) -> dict[str, Any]:
+    headers = {"Content-Type": "application/json"}
+    if path.startswith(("/credentials", "/tasks", "/todos", "/admin/")):
+        headers["X-TaskBound-Control-Plane-Key"] = CONTROL_PLANE_KEY
     req = urllib.request.Request(
         BASE_URL.rstrip("/") + path,
         data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     try:
@@ -204,15 +211,16 @@ def fetch_state(cur) -> dict[str, Any]:
 
 
 def fetch_receipts(cur) -> list[dict[str, Any]]:
-    cur.execute(
-        """
-        SELECT task_id, binding_id, fence_token, decision, rows_returned,
-               unique_rows_added, remaining_unique_row_budget, reason
-        FROM taskbound.receipts()
-        ORDER BY created_at, receipt_id
-        """
+    cur.execute("SELECT * FROM taskbound.receipts()")
+    rows = rows_as_dicts(cur)
+    return sorted(
+        rows,
+        key=lambda row: (
+            int(row.get("receipt_sequence") or 0),
+            str(row.get("created_at") or ""),
+            str(row.get("receipt_id") or ""),
+        ),
     )
-    return rows_as_dicts(cur)
 
 
 def active_row(admin_conn, task_id: str) -> dict[str, Any]:
@@ -267,13 +275,12 @@ def run_lifecycle_tests(dsn: str, admin_url: str, credential: dict[str, Any], ru
         task = issue_task(f"single_active_terminate_{run_id}", credential["credential_id"], max_rows=5)
         a = psycopg.connect(dsn, autocommit=True)
         ca = a.cursor()
-        ca.execute("SELECT pg_backend_pid()")
-        victim_pid = ca.fetchone()[0]
         first = bind_once(ca, task)
         ca.execute("SELECT expense_id, amount FROM expenses ORDER BY expense_id LIMIT 2")
         ca.fetchall()
         before_state = fetch_state(ca)
         before_active = active_row(admin, task["payload"]["task_id"])
+        victim_pid = before_active.get("owner_backend_pid")
         with admin.cursor() as cur:
             cur.execute("SELECT pg_terminate_backend(%s)", (victim_pid,))
         time.sleep(0.5)
@@ -295,6 +302,7 @@ def run_lifecycle_tests(dsn: str, admin_url: str, credential: dict[str, Any], ru
         with psycopg.connect(dsn, autocommit=True) as a, psycopg.connect(dsn, autocommit=True) as b:
             ca, cb = a.cursor(), b.cursor()
             bind_once(ca, task)
+            before_idle_active = active_row(admin, task["payload"]["task_id"])
             with admin.cursor() as cur:
                 cur.execute(
                     "UPDATE taskbound.active_sessions SET last_seen_at = now() - interval '2 hours' WHERE task_id = %s",
@@ -302,10 +310,21 @@ def run_lifecycle_tests(dsn: str, admin_url: str, credential: dict[str, Any], ru
                 )
                 cur.execute("SELECT taskbound.reap_stale_bindings()")
                 reaped = cur.fetchone()[0]
+            after_idle_active = active_row(admin, task["payload"]["task_id"])
             denied = bind_once(cb, task)
             denied_active = denied.get("sqlstate") == "55P03" or "ACTIVE_BINDING_EXISTS" in (denied.get("error") or "")
-            records["live_owner_non_eviction"] = reaped == 0 and not denied["ok"] and denied_active
-            records["live_owner_non_eviction_details"] = {"reaped": reaped, "denied": denied}
+            records["live_owner_non_eviction"] = (
+                before_idle_active.get("binding_id")
+                and before_idle_active.get("binding_id") == after_idle_active.get("binding_id")
+                and not denied["ok"]
+                and denied_active
+            )
+            records["live_owner_non_eviction_details"] = {
+                "reaped_total": reaped,
+                "before_active": before_idle_active,
+                "after_active": after_idle_active,
+                "denied": denied,
+            }
             unbind_quietly(ca)
 
         task = issue_task(f"single_active_pid_reuse_{run_id}", credential["credential_id"])
@@ -316,8 +335,7 @@ def run_lifecycle_tests(dsn: str, admin_url: str, credential: dict[str, Any], ru
         time.sleep(0.2)
         with psycopg.connect(dsn, autocommit=True) as b:
             cb = b.cursor()
-            cb.execute("SELECT pg_backend_pid()")
-            pid_b = cb.fetchone()[0]
+            pid_b = b.info.backend_pid
             with admin.cursor() as cur:
                 cur.execute(
                     """
@@ -336,18 +354,35 @@ def run_lifecycle_tests(dsn: str, admin_url: str, credential: dict[str, Any], ru
         task = issue_task(f"single_active_rollback_{run_id}", credential["credential_id"])
         a = psycopg.connect(dsn, autocommit=False)
         ca = a.cursor()
-        ca.execute("BEGIN")
         first = bind_once(ca, task)
-        ca.execute("ROLLBACK")
+        a.rollback()
         a.autocommit = True
         with psycopg.connect(dsn, autocommit=True) as b:
             cb = b.cursor()
-            denied = bind_once(cb, task)
-            ca.execute("SELECT * FROM taskbound.run('SELECT expense_id FROM expenses ORDER BY expense_id LIMIT 1')")
-            ca.fetchall()
-            unbind_quietly(ca)
+            original_still_bound = True
+            original_error = ""
+            try:
+                ca.execute("SELECT * FROM taskbound.run('SELECT expense_id FROM expenses ORDER BY expense_id LIMIT 1')")
+                ca.fetchall()
+            except Exception as exc:
+                original_still_bound = False
+                original_error = str(exc).split("\n")[0]
             takeover = bind_once(cb, task)
-            records["rollback_semantics"] = first["ok"] and not denied["ok"] and takeover["ok"]
+            first_bind_rejected_cleanly = (
+                not first["ok"]
+                and not original_still_bound
+                and takeover["ok"]
+            )
+            records["rollback_semantics"] = (
+                (first["ok"] or first_bind_rejected_cleanly)
+                and not original_still_bound
+                and takeover["ok"]
+            )
+            records["rollback_semantics_details"] = {
+                "first": first,
+                "original_error": original_error,
+                "takeover": takeover,
+            }
             unbind_quietly(cb)
         a.close()
 

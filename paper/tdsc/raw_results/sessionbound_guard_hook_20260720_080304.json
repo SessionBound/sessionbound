@@ -1,0 +1,364 @@
+{
+  "records": [
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "permission denied to set parameter",
+      "id": "HGUC",
+      "name": "trusted_guc_requires_superuser",
+      "passed": true,
+      "path": "non-superuser GUC tamper attempt",
+      "psql": {
+        "output_tail": "SET\nERROR:  permission denied to set parameter \"sessionbound_guard.enabled\"",
+        "returncode": 3,
+        "stderr": "ERROR:  permission denied to set parameter \"sessionbound_guard.enabled\"\n",
+        "stdout": "SET\n"
+      },
+      "reason_matched": true
+    },
+    {
+      "actual": "Allowed",
+      "expected": "Allowed",
+      "expected_reason": "",
+      "id": "HG01",
+      "name": "allowed_safe_view_select_through_runtime",
+      "passed": true,
+      "path": "agent credential direct database call through taskbound.run",
+      "psql": {
+        "output_tail": "bind_task                                                                                                                                                                             \n------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"ff299c94-7150-4afd-a4d7-f01b04fa13a4\", \"fence_token\": 587, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": false, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\n                      run                      \n-----------------------------------------------\n {\"amount\": 17200.00, \"expense_id\": \"exp_296\"}\n {\"amount\": 16550.00, \"expense_id\": \"exp_259\"}\n(2 rows)",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "                                                                                                                                                                            bind_task                                                                                                                                                                             \n------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"ff299c94-7150-4afd-a4d7-f01b04fa13a4\", \"fence_token\": 587, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": false, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\n                      run                      \n-----------------------------------------------\n {\"amount\": 17200.00, \"expense_id\": \"exp_296\"}\n {\"amount\": 16550.00, \"expense_id\": \"exp_259\"}\n(2 rows)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "UNION, INTERSECT, and EXCEPT are not allowed",
+      "id": "HG02",
+      "name": "hook_blocks_union",
+      "passed": true,
+      "path": "agent credential direct database call through taskbound.run",
+      "psql": {
+        "output_tail": "bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"25d5c4f9-8d62-460d-b234-230f0ed26dc8\", \"fence_token\": 588, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nERROR:  SessionBoundDB denied query: UNION, INTERSECT, and EXCEPT are not allowed\nCONTEXT:  PL/pgSQL function run(text) line 51 at RAISE",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBoundDB denied query: UNION, INTERSECT, and EXCEPT are not allowed\nCONTEXT:  PL/pgSQL function run(text) line 51 at RAISE\n",
+        "stdout": "                                                                                                                                                                            bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"25d5c4f9-8d62-460d-b234-230f0ed26dc8\", \"fence_token\": 588, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT expense_id FROM expenses UNION SELECT employee_id FROM employees"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "catalog access is not allowed",
+      "id": "HG03",
+      "name": "hook_blocks_catalog_view",
+      "passed": true,
+      "path": "agent credential direct database call through taskbound.run",
+      "psql": {
+        "output_tail": "bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"6f68320c-30df-4bbe-ac72-8928f606a58a\", \"fence_token\": 589, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nERROR:  SessionBoundDB denied query: catalog access is not allowed\nCONTEXT:  PL/pgSQL function run(text) line 66 at RAISE",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBoundDB denied query: catalog access is not allowed\nCONTEXT:  PL/pgSQL function run(text) line 66 at RAISE\n",
+        "stdout": "                                                                                                                                                                            bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"6f68320c-30df-4bbe-ac72-8928f606a58a\", \"fence_token\": 589, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT schemaname, tablename FROM pg_tables"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "recursive CTEs are not allowed",
+      "id": "HG04",
+      "name": "hook_blocks_recursive_cte",
+      "passed": true,
+      "path": "agent credential direct database call through taskbound.run",
+      "psql": {
+        "output_tail": "bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"4fc5aff0-16d7-4918-9c61-a088e9513a01\", \"fence_token\": 590, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nERROR:  SessionBoundDB denied query: recursive CTEs are not allowed\nCONTEXT:  PL/pgSQL function run(text) line 46 at RAISE",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBoundDB denied query: recursive CTEs are not allowed\nCONTEXT:  PL/pgSQL function run(text) line 46 at RAISE\n",
+        "stdout": "                                                                                                                                                                            bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"4fc5aff0-16d7-4918-9c61-a088e9513a01\", \"fence_token\": 590, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM r WHERE n < 2) SELECT * FROM r"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "direct access to taskbound runtime helper functions is not allowed",
+      "id": "HG05",
+      "name": "runtime_helper_name_blocked",
+      "passed": true,
+      "path": "agent credential direct database call through taskbound.run",
+      "psql": {
+        "output_tail": "bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"54b56bc3-6a20-4c5a-b3af-4d9584bd0433\", \"fence_token\": 591, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nERROR:  SessionBoundDB denied query: direct access to taskbound runtime helper functions is not allowed\nCONTEXT:  PL/pgSQL function run(text) line 76 at RAISE",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBoundDB denied query: direct access to taskbound runtime helper functions is not allowed\nCONTEXT:  PL/pgSQL function run(text) line 76 at RAISE\n",
+        "stdout": "                                                                                                                                                                            bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"54b56bc3-6a20-4c5a-b3af-4d9584bd0433\", \"fence_token\": 591, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT claim(ARRAY['tenant_id']) FROM expenses LIMIT 1"
+    },
+    {
+      "actual": "Allowed",
+      "expected": "Allowed",
+      "expected_reason": "",
+      "id": "HG06",
+      "mode": "bare_select",
+      "name": "bound_bare_safe_view_select_native_accounted",
+      "passed": true,
+      "path": "agent credential direct native safe-view SELECT",
+      "psql": {
+        "output_tail": "bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"e27f4ed3-dcf7-4ad0-ae94-7b67c13db219\", \"fence_token\": 592, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\n expense_id | amount  \n------------+---------\n exp_001    | 1880.00\n(1 row)",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "                                                                                                                                                                            bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"e27f4ed3-dcf7-4ad0-ae94-7b67c13db219\", \"fence_token\": 592, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\n expense_id | amount  \n------------+---------\n exp_001    | 1880.00\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT expense_id, amount FROM taskbound.expenses LIMIT 1"
+    },
+    {
+      "actual": "Allowed",
+      "expected": "Allowed",
+      "expected_reason": "",
+      "id": "HG07",
+      "mode": "native_script",
+      "name": "native_prepared_execute",
+      "passed": true,
+      "path": "agent credential native SQL surface",
+      "psql": {
+        "output_tail": "bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"fc97453d-a988-4564-bce3-7fb84783b77b\", \"fence_token\": 593, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nPREPARE\n expense_id |  amount  \n------------+----------\n exp_296    | 17200.00\n exp_259    | 16550.00\n(2 rows)",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "                                                                                                                                                                            bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"fc97453d-a988-4564-bce3-7fb84783b77b\", \"fence_token\": 593, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nPREPARE\n expense_id |  amount  \n------------+----------\n exp_296    | 17200.00\n exp_259    | 16550.00\n(2 rows)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "PREPARE q AS SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;\nEXECUTE q;"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "cursors are not available under task binding",
+      "id": "HG08",
+      "mode": "native_script",
+      "name": "native_cursor_fetch_blocked",
+      "passed": true,
+      "path": "agent credential native SQL surface",
+      "psql": {
+        "output_tail": "bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"51a49655-de27-4ca0-bde2-2ed60189c67d\", \"fence_token\": 594, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nBEGIN\nERROR:  SessionBound guard denied query: cursors are not available under task binding",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: cursors are not available under task binding\n",
+        "stdout": "                                                                                                                                                                            bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"51a49655-de27-4ca0-bde2-2ed60189c67d\", \"fence_token\": 594, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nBEGIN\n"
+      },
+      "reason_matched": true,
+      "sql": "BEGIN;\nDECLARE c CURSOR FOR SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 3;\nFETCH 2 FROM c;\nCLOSE c;\nCOMMIT;"
+    },
+    {
+      "actual": "Allowed",
+      "expected": "Allowed",
+      "expected_reason": "",
+      "id": "HG09",
+      "mode": "native_script",
+      "name": "native_copy_select",
+      "passed": true,
+      "path": "agent credential native SQL surface",
+      "psql": {
+        "output_tail": "bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"b629fd40-e8b0-42fd-9f32-7d523d01e175\", \"fence_token\": 595, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nexpense_id,amount\nexp_296,17200.00\nexp_259,16550.00",
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "                                                                                                                                                                            bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"b629fd40-e8b0-42fd-9f32-7d523d01e175\", \"fence_token\": 595, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nexpense_id,amount\nexp_296,17200.00\nexp_259,16550.00\n"
+      },
+      "reason_matched": true,
+      "sql": "COPY (SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2) TO STDOUT WITH CSV HEADER;"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "EXPLAIN output is not available under task binding",
+      "id": "HG10",
+      "mode": "native_script",
+      "name": "native_explain_select_blocked",
+      "passed": true,
+      "path": "agent credential native SQL surface",
+      "psql": {
+        "output_tail": "bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"cde4c762-599b-4045-b422-eff8b7239bb9\", \"fence_token\": 596, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nERROR:  SessionBound guard denied query: EXPLAIN output is not available under task binding",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: EXPLAIN output is not available under task binding\n",
+        "stdout": "                                                                                                                                                                            bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"cde4c762-599b-4045-b422-eff8b7239bb9\", \"fence_token\": 596, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "EXPLAIN SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "EXPLAIN output is not available under task binding",
+      "id": "HG11",
+      "mode": "native_script",
+      "name": "native_explain_analyze_blocked",
+      "passed": true,
+      "path": "agent credential native SQL surface",
+      "psql": {
+        "output_tail": "bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"74def464-7eea-44d4-b31a-28b3fa954853\", \"fence_token\": 597, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nERROR:  SessionBound guard denied query: EXPLAIN output is not available under task binding",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: EXPLAIN output is not available under task binding\n",
+        "stdout": "                                                                                                                                                                            bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"74def464-7eea-44d4-b31a-28b3fa954853\", \"fence_token\": 597, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "EXPLAIN ANALYZE SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "cursors are not available under task binding",
+      "id": "HG12",
+      "mode": "native_script",
+      "name": "native_holdable_cursor_blocked",
+      "passed": true,
+      "path": "agent credential native SQL surface",
+      "psql": {
+        "output_tail": "bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"f46bc9ce-982c-43f3-b85d-9706cc224570\", \"fence_token\": 598, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nBEGIN\nERROR:  SessionBound guard denied query: cursors are not available under task binding",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: cursors are not available under task binding\n",
+        "stdout": "                                                                                                                                                                            bind_task                                                                                                                                                                            \n-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_hook_eval_1784505784\", \"binding_id\": \"f46bc9ce-982c-43f3-b85d-9706cc224570\", \"fence_token\": 598, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784\", \"stale_recovered\": true, \"advisory_lock_key\": 5383006379835440499}\n(1 row)\n\nBEGIN\n"
+      },
+      "reason_matched": true,
+      "sql": "BEGIN;\nDECLARE c CURSOR WITH HOLD FOR SELECT expense_id, amount FROM expenses ORDER BY amount DESC LIMIT 2;\nCOMMIT;"
+    },
+    {
+      "actual": "Blocked",
+      "expected": "Blocked",
+      "expected_reason": "prepared statement is not available after unbind/rebind",
+      "id": "HG13",
+      "mode": "native_script",
+      "name": "prepared_plan_dropped_across_rebind",
+      "passed": true,
+      "path": "agent credential native SQL surface",
+      "psql": {
+        "output_tail": "PREPARE\n unbind_task \n-------------\n \n(1 row)\n\n                                                                                                                                                                                             bind_task                                                                                                                                                                                              \n----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"reimbursement_payment_readiness_audit\", \"task_id\": \"task_hook_eval_1784505784_prepared_payment\", \"binding_id\": \"f13a5b86-e07e-4d5f-bf8c-99cadbb8cc19\", \"fence_token\": 600, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784_prepared_payment\", \"stale_recovered\": false, \"advisory_lock_key\": 4934950577912097364}\n(1 row)\n\nERROR:  SessionBound guard denied query: prepared statement is not available under the current task binding",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: prepared statement is not available under the current task binding\n",
+        "stdout": "                                                                                                                                                                                              bind_task                                                                                                                                                                                               \n------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"finance_reimbursement_compliance_review\", \"task_id\": \"task_hook_eval_1784505784_prepared_finance\", \"binding_id\": \"baa6d975-235e-4bdf-88f8-e30a4a2d2353\", \"fence_token\": 599, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784_prepared_finance\", \"stale_recovered\": false, \"advisory_lock_key\": 1225678078401685376}\n(1 row)\n\nPREPARE\n unbind_task \n-------------\n \n(1 row)\n\n                                                                                                                                                                                             bind_task                                                                                                                                                                                              \n----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"reimbursement_payment_readiness_audit\", \"task_id\": \"task_hook_eval_1784505784_prepared_payment\", \"binding_id\": \"f13a5b86-e07e-4d5f-bf8c-99cadbb8cc19\", \"fence_token\": 600, \"credential_id\": \"agent_hook_eval_1784505784_53bb97d3\", \"budget_account\": \"task_hook_eval_1784505784_prepared_payment\", \"stale_recovered\": false, \"advisory_lock_key\": 4934950577912097364}\n(1 row)\n\n"
+      },
+      "reason_matched": true
+    },
+    {
+      "actual": "Blocked",
+      "allowed_views": "all",
+      "expected": "Blocked",
+      "expected_reason": "only SELECT statements are allowed",
+      "id": "HH01",
+      "name": "hook_blocks_non_select",
+      "passed": true,
+      "path": "superuser trusted-GUC hook check without API preflight",
+      "psql": {
+        "output_tail": "          set_config           \n-------------------------------\n 16694,16684,16689,16679,16699\n(1 row)\n\n set_config \n------------\n on\n(1 row)\n\nERROR:  SessionBound guard denied query: only SELECT statements are allowed\nCONTEXT:  SQL statement \"DELETE FROM expenses WHERE expense_id = 'exp_001'\"",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: only SELECT statements are allowed\nCONTEXT:  SQL statement \"DELETE FROM expenses WHERE expense_id = 'exp_001'\"\n",
+        "stdout": "SET\n          set_config           \n-------------------------------\n 16694,16684,16689,16679,16699\n(1 row)\n\n set_config \n------------\n on\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "DELETE FROM expenses WHERE expense_id = 'exp_001'"
+    },
+    {
+      "actual": "Blocked",
+      "allowed_views": "all",
+      "expected": "Blocked",
+      "expected_reason": "raw application schema access is not allowed",
+      "id": "HH02",
+      "name": "hook_blocks_raw_schema",
+      "passed": true,
+      "path": "superuser trusted-GUC hook check without API preflight",
+      "psql": {
+        "output_tail": "          set_config           \n-------------------------------\n 16694,16684,16689,16679,16699\n(1 row)\n\n set_config \n------------\n on\n(1 row)\n\nERROR:  SessionBound guard denied query: raw application schema access is not allowed\nCONTEXT:  SQL statement \"SELECT * FROM app_data.expenses\"",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: raw application schema access is not allowed\nCONTEXT:  SQL statement \"SELECT * FROM app_data.expenses\"\n",
+        "stdout": "SET\n          set_config           \n-------------------------------\n 16694,16684,16689,16679,16699\n(1 row)\n\n set_config \n------------\n on\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT * FROM app_data.expenses"
+    },
+    {
+      "actual": "Blocked",
+      "allowed_views": "all",
+      "expected": "Blocked",
+      "expected_reason": "aggregate release requires an approved aggregate template",
+      "id": "HH03",
+      "name": "hook_blocks_payload_aggregation",
+      "passed": true,
+      "path": "superuser trusted-GUC hook check without API preflight",
+      "psql": {
+        "output_tail": "          set_config           \n-------------------------------\n 16694,16684,16689,16679,16699\n(1 row)\n\n set_config \n------------\n on\n(1 row)\n\nERROR:  SessionBound guard denied query: aggregate release requires an approved aggregate template\nCONTEXT:  SQL statement \"SELECT array_agg(expense_id) FROM expenses\"",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: aggregate release requires an approved aggregate template\nCONTEXT:  SQL statement \"SELECT array_agg(expense_id) FROM expenses\"\n",
+        "stdout": "SET\n          set_config           \n-------------------------------\n 16694,16684,16689,16679,16699\n(1 row)\n\n set_config \n------------\n on\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT array_agg(expense_id) FROM expenses"
+    },
+    {
+      "actual": "Blocked",
+      "allowed_views": "expenses_only",
+      "expected": "Blocked",
+      "expected_reason": "relation is outside the approved safe-view registry",
+      "id": "HH04",
+      "name": "hook_blocks_unapproved_safe_view_oid",
+      "passed": true,
+      "path": "superuser trusted-GUC hook check without API preflight",
+      "psql": {
+        "output_tail": " set_config \n------------\n 16679\n(1 row)\n\n set_config \n------------\n on\n(1 row)\n\nERROR:  SessionBound guard denied query: relation is outside the approved safe-view registry\nCONTEXT:  SQL statement \"SELECT department_id FROM departments\"",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: relation is outside the approved safe-view registry\nCONTEXT:  SQL statement \"SELECT department_id FROM departments\"\n",
+        "stdout": "SET\n set_config \n------------\n 16679\n(1 row)\n\n set_config \n------------\n on\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT department_id FROM departments"
+    },
+    {
+      "actual": "Blocked",
+      "allowed_views": "all",
+      "expected": "Blocked",
+      "expected_reason": "minimum group-size policy denies grouping by sensitive entity identifiers",
+      "id": "HH05",
+      "name": "hook_blocks_group_by_sensitive_entity",
+      "passed": true,
+      "path": "superuser trusted-GUC hook check without API preflight",
+      "psql": {
+        "output_tail": "          set_config           \n-------------------------------\n 16694,16684,16689,16679,16699\n(1 row)\n\n set_config \n------------\n on\n(1 row)\n\nERROR:  SessionBound guard denied query: minimum group-size policy denies grouping by sensitive entity identifiers\nCONTEXT:  SQL statement \"SELECT department_id, employee_id, count(*) FROM expenses GROUP BY department_id, employee_id\"",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: minimum group-size policy denies grouping by sensitive entity identifiers\nCONTEXT:  SQL statement \"SELECT department_id, employee_id, count(*) FROM expenses GROUP BY department_id, employee_id\"\n",
+        "stdout": "SET\n          set_config           \n-------------------------------\n 16694,16684,16689,16679,16699\n(1 row)\n\n set_config \n------------\n on\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT department_id, employee_id, count(*) FROM expenses GROUP BY department_id, employee_id"
+    },
+    {
+      "actual": "Blocked",
+      "allowed_views": "all",
+      "expected": "Blocked",
+      "expected_reason": "minimum group-size policy denies HAVING predicates",
+      "id": "HH06",
+      "name": "hook_blocks_having_small_group_probe",
+      "passed": true,
+      "path": "superuser trusted-GUC hook check without API preflight",
+      "psql": {
+        "output_tail": "          set_config           \n-------------------------------\n 16694,16684,16689,16679,16699\n(1 row)\n\n set_config \n------------\n on\n(1 row)\n\nERROR:  SessionBound guard denied query: minimum group-size policy denies HAVING predicates\nCONTEXT:  SQL statement \"SELECT department_id, count(*) FROM expenses GROUP BY department_id HAVING count(*) < 5\"",
+        "returncode": 3,
+        "stderr": "ERROR:  SessionBound guard denied query: minimum group-size policy denies HAVING predicates\nCONTEXT:  SQL statement \"SELECT department_id, count(*) FROM expenses GROUP BY department_id HAVING count(*) < 5\"\n",
+        "stdout": "SET\n          set_config           \n-------------------------------\n 16694,16684,16689,16679,16699\n(1 row)\n\n set_config \n------------\n on\n(1 row)\n\n"
+      },
+      "reason_matched": true,
+      "sql": "SELECT department_id, count(*) FROM expenses GROUP BY department_id HAVING count(*) < 5"
+    }
+  ],
+  "run": {
+    "base_url": "http://localhost:8000",
+    "case_count": 20,
+    "commit": "70034b3",
+    "failed": 0,
+    "passed": 20,
+    "timestamp": "2026-07-20T00:03:15Z"
+  }
+}

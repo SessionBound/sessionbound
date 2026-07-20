@@ -1,0 +1,203 @@
+{
+  "records": [
+    {
+      "actual": "Failed",
+      "evidence": {
+        "observations": [
+          {
+            "error": "SessionBoundDB denied query: execution failed before release",
+            "receipts": [
+              {
+                "actor": "agent:travel-expense-analyst",
+                "binding_id": "5fcaf5b1-6f1b-4d58-9784-e5c24e182f82",
+                "budget_account": "task_native_partial_budget_1784505976",
+                "created_at": "2026-07-20 00:06:20.095856+00:00",
+                "decision": "denied",
+                "execution_id": "80b154e3-719c-4319-81de-175845c293e8",
+                "fence_token": 699,
+                "previous_receipt_hash": "",
+                "query_digest": "88c82bc95b966ad73665d4eeb0bbc90b3a4937dfe8fc8ea05f00ea2a4db2b17e",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "receipt_hash": "db94af4318d4f3ba06c723a05d3d72ff7afa1429c7bf1b91bacad09d7c69bcaf",
+                "receipt_id": "e29adba9-40d1-4981-a5b3-a09d050ab96a",
+                "receipt_sequence": 1,
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "task_id": "task_native_partial_budget_1784505976",
+                "touched_views": [
+                  "expenses"
+                ],
+                "unique_rows_added": 0
+              }
+            ],
+            "sql": "SELECT amount FROM expenses ORDER BY expense_id LIMIT 3",
+            "state": [
+              {
+                "budget_account": "task_native_partial_budget_1784505976",
+                "query_count": 1,
+                "returned_rows": 0,
+                "revoked": false,
+                "task_id": "task_native_partial_budget_1784505976",
+                "unique_expense_rows": 0
+              }
+            ]
+          },
+          {
+            "error": "SessionBoundDB denied query: execution failed before release",
+            "receipts": [
+              {
+                "actor": "agent:travel-expense-analyst",
+                "binding_id": "5fcaf5b1-6f1b-4d58-9784-e5c24e182f82",
+                "budget_account": "task_native_partial_budget_1784505976",
+                "created_at": "2026-07-20 00:06:22.102026+00:00",
+                "decision": "denied",
+                "execution_id": "ed2af150-6abb-4dad-ba15-a6cdf73520b9",
+                "fence_token": 699,
+                "previous_receipt_hash": "db94af4318d4f3ba06c723a05d3d72ff7afa1429c7bf1b91bacad09d7c69bcaf",
+                "query_digest": "09e370677b14a6e12c0207e1e80172b050110439e81dc318c7eb6c1476df1541",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "receipt_hash": "315bdd569009715bf9215840c3062caa84c33886ef609e78ad6ddd2d1e8d9685",
+                "receipt_id": "ff5ef56e-60ad-46e4-94d3-00ba52c1c26c",
+                "receipt_sequence": 2,
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "task_id": "task_native_partial_budget_1784505976",
+                "touched_views": [
+                  "expenses"
+                ],
+                "unique_rows_added": 0
+              },
+              {
+                "actor": "agent:travel-expense-analyst",
+                "binding_id": "5fcaf5b1-6f1b-4d58-9784-e5c24e182f82",
+                "budget_account": "task_native_partial_budget_1784505976",
+                "created_at": "2026-07-20 00:06:20.095856+00:00",
+                "decision": "denied",
+                "execution_id": "80b154e3-719c-4319-81de-175845c293e8",
+                "fence_token": 699,
+                "previous_receipt_hash": "",
+                "query_digest": "88c82bc95b966ad73665d4eeb0bbc90b3a4937dfe8fc8ea05f00ea2a4db2b17e",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "receipt_hash": "db94af4318d4f3ba06c723a05d3d72ff7afa1429c7bf1b91bacad09d7c69bcaf",
+                "receipt_id": "e29adba9-40d1-4981-a5b3-a09d050ab96a",
+                "receipt_sequence": 1,
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "task_id": "task_native_partial_budget_1784505976",
+                "touched_views": [
+                  "expenses"
+                ],
+                "unique_rows_added": 0
+              }
+            ],
+            "sql": "SELECT amount AS renamed_amount FROM expenses ORDER BY expense_id LIMIT 3",
+            "state": [
+              {
+                "budget_account": "task_native_partial_budget_1784505976",
+                "query_count": 2,
+                "returned_rows": 0,
+                "revoked": false,
+                "task_id": "task_native_partial_budget_1784505976",
+                "unique_expense_rows": 0
+              }
+            ]
+          },
+          {
+            "error": "SessionBound guard denied query: GROUP BY aggregate release requires an approved aggregate template",
+            "receipts": [
+              {
+                "actor": "agent:travel-expense-analyst",
+                "binding_id": "5fcaf5b1-6f1b-4d58-9784-e5c24e182f82",
+                "budget_account": "task_native_partial_budget_1784505976",
+                "created_at": "2026-07-20 00:06:22.109714+00:00",
+                "decision": "denied",
+                "execution_id": "62dd31d6-3cd5-41f0-981f-e6bcd3be6b0a",
+                "fence_token": 699,
+                "previous_receipt_hash": "315bdd569009715bf9215840c3062caa84c33886ef609e78ad6ddd2d1e8d9685",
+                "query_digest": "fe534c44e0b4d3cf8436ea56abe011e59ee1d3d3017289a0d456b816098fd592",
+                "reason": "GROUP BY aggregate release requires an approved aggregate template",
+                "receipt_hash": "ebd429d1daf1b8ffa4abc44a86161355ff2d9b0c36f99bb71da99a0521347616",
+                "receipt_id": "7c3ea830-12b9-4d85-9093-b5dda3b14ef3",
+                "receipt_sequence": 3,
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "task_id": "task_native_partial_budget_1784505976",
+                "touched_views": [
+                  "expenses"
+                ],
+                "unique_rows_added": 0
+              },
+              {
+                "actor": "agent:travel-expense-analyst",
+                "binding_id": "5fcaf5b1-6f1b-4d58-9784-e5c24e182f82",
+                "budget_account": "task_native_partial_budget_1784505976",
+                "created_at": "2026-07-20 00:06:22.102026+00:00",
+                "decision": "denied",
+                "execution_id": "ed2af150-6abb-4dad-ba15-a6cdf73520b9",
+                "fence_token": 699,
+                "previous_receipt_hash": "db94af4318d4f3ba06c723a05d3d72ff7afa1429c7bf1b91bacad09d7c69bcaf",
+                "query_digest": "09e370677b14a6e12c0207e1e80172b050110439e81dc318c7eb6c1476df1541",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "receipt_hash": "315bdd569009715bf9215840c3062caa84c33886ef609e78ad6ddd2d1e8d9685",
+                "receipt_id": "ff5ef56e-60ad-46e4-94d3-00ba52c1c26c",
+                "receipt_sequence": 2,
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "task_id": "task_native_partial_budget_1784505976",
+                "touched_views": [
+                  "expenses"
+                ],
+                "unique_rows_added": 0
+              },
+              {
+                "actor": "agent:travel-expense-analyst",
+                "binding_id": "5fcaf5b1-6f1b-4d58-9784-e5c24e182f82",
+                "budget_account": "task_native_partial_budget_1784505976",
+                "created_at": "2026-07-20 00:06:20.095856+00:00",
+                "decision": "denied",
+                "execution_id": "80b154e3-719c-4319-81de-175845c293e8",
+                "fence_token": 699,
+                "previous_receipt_hash": "",
+                "query_digest": "88c82bc95b966ad73665d4eeb0bbc90b3a4937dfe8fc8ea05f00ea2a4db2b17e",
+                "reason": "result tuple budget exceeded; atomic release withheld",
+                "receipt_hash": "db94af4318d4f3ba06c723a05d3d72ff7afa1429c7bf1b91bacad09d7c69bcaf",
+                "receipt_id": "e29adba9-40d1-4981-a5b3-a09d050ab96a",
+                "receipt_sequence": 1,
+                "remaining_unique_row_budget": null,
+                "rows_returned": 0,
+                "task_id": "task_native_partial_budget_1784505976",
+                "touched_views": [
+                  "expenses"
+                ],
+                "unique_rows_added": 0
+              }
+            ],
+            "sql": "SELECT category, count(*) FROM expenses GROUP BY category",
+            "state": [
+              {
+                "budget_account": "task_native_partial_budget_1784505976",
+                "query_count": 2,
+                "returned_rows": 0,
+                "revoked": false,
+                "task_id": "task_native_partial_budget_1784505976",
+                "unique_expense_rows": 0
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "Projection, alias, and aggregate shapes cannot release a prefix or bypass the conservative tuple budget",
+      "id": "NPB01",
+      "name": "native_over_budget_projection_independent_atomic_denial",
+      "passed": false
+    }
+  ],
+  "run": {
+    "case_count": 1,
+    "commit": "70034b3",
+    "database_url": "postgresql://agent_app:***@localhost:15432/travel",
+    "failed": 1,
+    "passed": 0,
+    "timestamp": "2026-07-20T00:06:22.119348Z"
+  }
+}

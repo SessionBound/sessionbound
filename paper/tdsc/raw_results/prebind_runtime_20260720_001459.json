@@ -1,0 +1,125 @@
+{
+  "run": {
+    "timestamp": "2026-07-20T00:14:59Z",
+    "commit": "70034b3",
+    "base_url": "http://localhost:8000",
+    "case_count": 7,
+    "passed": 7,
+    "failed": 0,
+    "all_prebind_runtime_checks_passed": true,
+    "credential_id": "agent_prebind_eval_20260720_001456_8e0d0095",
+    "task_id": "task_prebind_runtime_20260720_001456"
+  },
+  "records": [
+    {
+      "id": "PB01",
+      "name": "ordinary_select_without_binding",
+      "sql": "SELECT 1;",
+      "expected_reason": "no trusted task binding is active",
+      "expected": "Blocked",
+      "actual": "Blocked",
+      "passed": true,
+      "reason_matched": true,
+      "psql": {
+        "returncode": 3,
+        "stdout": "",
+        "stderr": "ERROR:  SessionBound guard denied query: no trusted task binding is active\n",
+        "output_tail": "ERROR:  SessionBound guard denied query: no trusted task binding is active"
+      }
+    },
+    {
+      "id": "PB02",
+      "name": "safe_view_select_without_binding",
+      "sql": "SELECT expense_id FROM taskbound.expenses LIMIT 1;",
+      "expected_reason": "no trusted task binding is active",
+      "expected": "Blocked",
+      "actual": "Blocked",
+      "passed": true,
+      "reason_matched": true,
+      "psql": {
+        "returncode": 3,
+        "stdout": "",
+        "stderr": "ERROR:  SessionBound guard denied query: no trusted task binding is active\n",
+        "output_tail": "ERROR:  SessionBound guard denied query: no trusted task binding is active"
+      }
+    },
+    {
+      "id": "PB03",
+      "name": "side_effect_function_without_binding",
+      "sql": "SELECT pg_notify('prebind_runtime_eval', 'payload');",
+      "expected_reason": "not allowed in task SQL",
+      "expected": "Blocked",
+      "actual": "Blocked",
+      "passed": true,
+      "reason_matched": true,
+      "psql": {
+        "returncode": 3,
+        "stdout": "",
+        "stderr": "ERROR:  SessionBound guard denied query: function pg_catalog.pg_notify is not allowed in task SQL\n",
+        "output_tail": "ERROR:  SessionBound guard denied query: function pg_catalog.pg_notify is not allowed in task SQL"
+      }
+    },
+    {
+      "id": "PB04",
+      "name": "temp_table_utility_without_binding",
+      "sql": "CREATE TEMP TABLE tb_prebind_runtime_eval(x int);",
+      "expected_reason": "utility statement is not allowed in task SQL",
+      "expected": "Blocked",
+      "actual": "Blocked",
+      "passed": true,
+      "reason_matched": true,
+      "psql": {
+        "returncode": 3,
+        "stdout": "",
+        "stderr": "ERROR:  SessionBound guard denied query: utility statement is not allowed in task SQL\n",
+        "output_tail": "ERROR:  SessionBound guard denied query: utility statement is not allowed in task SQL"
+      }
+    },
+    {
+      "id": "PB05",
+      "name": "prepared_statement_without_binding",
+      "sql": "PREPARE q AS SELECT 1;",
+      "expected_reason": "no trusted task binding is active",
+      "expected": "Blocked",
+      "actual": "Blocked",
+      "passed": true,
+      "reason_matched": true,
+      "psql": {
+        "returncode": 3,
+        "stdout": "",
+        "stderr": "ERROR:  SessionBound guard denied query: no trusted task binding is active\n",
+        "output_tail": "ERROR:  SessionBound guard denied query: no trusted task binding is active"
+      }
+    },
+    {
+      "id": "PB06",
+      "name": "private_runtime_helper_without_binding",
+      "sql": "SELECT taskbound.require_payload();",
+      "expected_reason": "no trusted task binding is active",
+      "expected": "Blocked",
+      "actual": "Blocked",
+      "passed": true,
+      "reason_matched": true,
+      "psql": {
+        "returncode": 3,
+        "stdout": "",
+        "stderr": "ERROR:  SessionBound guard denied query: no trusted task binding is active\n",
+        "output_tail": "ERROR:  SessionBound guard denied query: no trusted task binding is active"
+      }
+    },
+    {
+      "id": "PB07",
+      "name": "public_bind_entrypoint_then_bound_select",
+      "expected": "Allowed",
+      "actual": "Allowed",
+      "passed": true,
+      "reason_matched": true,
+      "psql": {
+        "returncode": 0,
+        "stdout": "                                                                                                                                                                                            bind_task                                                                                                                                                                                            \n-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_prebind_runtime_20260720_001456\", \"binding_id\": \"4166c522-7ad5-4a37-8aed-b8e7327c9612\", \"fence_token\": 2228, \"credential_id\": \"agent_prebind_eval_20260720_001456_8e0d0095\", \"budget_account\": \"task_prebind_runtime_20260720_001456\", \"stale_recovered\": false, \"advisory_lock_key\": 2648947538288219449}\n(1 row)\n\n expense_id | amount  \n------------+---------\n exp_001    | 1880.00\n(1 row)\n\n unbind_task \n-------------\n \n(1 row)\n\n",
+        "stderr": "",
+        "output_tail": " {\"bound\": true, \"purpose\": \"monthly_travel_expense_anomaly_review\", \"task_id\": \"task_prebind_runtime_20260720_001456\", \"binding_id\": \"4166c522-7ad5-4a37-8aed-b8e7327c9612\", \"fence_token\": 2228, \"credential_id\": \"agent_prebind_eval_20260720_001456_8e0d0095\", \"budget_account\": \"task_prebind_runtime_20260720_001456\", \"stale_recovered\": false, \"advisory_lock_key\": 2648947538288219449}\n(1 row)\n\n expense_id | amount  \n------------+---------\n exp_001    | 1880.00\n(1 row)\n\n unbind_task \n-------------\n \n(1 row)"
+      }
+    }
+  ]
+}

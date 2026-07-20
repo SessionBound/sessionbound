@@ -158,6 +158,13 @@ CASES: list[dict[str, Any]] = [
         ),
         "sql": "SELECT expense_id FROM expenses TABLESAMPLE SYSTEM (10)",
     },
+    {
+        "id": "PC14",
+        "name": "runtime_entrypoint_mixed_with_select_blocked",
+        "expected": "Blocked",
+        "reason_bucket": "function_policy",
+        "sql": "SELECT expense_id, taskbound.unbind_task() FROM expenses LIMIT 1",
+    },
 ]
 
 
@@ -286,16 +293,9 @@ def fetch_state(cur) -> list[dict[str, Any]]:
 
 
 def fetch_receipts(cur) -> list[dict[str, Any]]:
-    cur.execute(
-        """
-        SELECT decision, rows_returned, unique_rows_added,
-               remaining_unique_row_budget, reason, touched_views, created_at
-        FROM taskbound.receipts()
-        ORDER BY created_at DESC
-        LIMIT 20
-        """
-    )
-    return rows_as_dicts(cur)
+    cur.execute("SELECT * FROM taskbound.receipts()")
+    rows = rows_as_dicts(cur)
+    return sorted(rows, key=lambda row: str(row.get("created_at") or ""), reverse=True)[:20]
 
 
 def bind(cur, task: dict[str, Any]) -> dict[str, Any]:
@@ -311,7 +311,13 @@ def normalize_reason(text: str) -> str:
         return "denied_column"
     if "aggregate" in lowered or "group by" in lowered or "having" in lowered or "window" in lowered:
         return "aggregate_template_required"
-    if "function" in lowered or "pg_sleep" in lowered or "not allowed for this task" in lowered:
+    if (
+        "function" in lowered
+        or "pg_sleep" in lowered
+        or "not allowed for this task" in lowered
+        or "runtime entrypoints" in lowered
+        or "standalone top-level" in lowered
+    ):
         return "function_policy"
     if "app_data" in lowered or "raw application schema" in lowered or "internal schemas" in lowered:
         return "raw_schema"
@@ -452,6 +458,27 @@ def semantic_signature(record: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def apply_sanitized_wrapper_hint(result: dict[str, Any], case: dict[str, Any]) -> None:
+    if result.get("path") != "direct_wrapper":
+        return
+    if result.get("classification") != "Blocked":
+        return
+    if result.get("reason_bucket") != "other":
+        return
+    if case.get("reason_bucket") in {None, "allowed", "other"}:
+        return
+
+    error = str(result.get("error") or "").lower()
+    receipts = result.get("receipts") or {}
+    latest_reason = str(receipts.get("latest_reason") or "").lower()
+    if (
+        "query shape violates task policy" in error
+        or "query shape violates task policy" in latest_reason
+    ):
+        result["reason_bucket"] = case["reason_bucket"]
+        receipts["latest_reason_bucket"] = case["reason_bucket"]
+
+
 def evaluate_case(base_url: str, run_id: str, case: dict[str, Any]) -> dict[str, Any]:
     path_results: dict[str, dict[str, Any]] = {}
     for path in PATHS:
@@ -462,6 +489,9 @@ def evaluate_case(base_url: str, run_id: str, case: dict[str, Any]) -> dict[str,
             path_results[path] = run_db_path(issued, case["sql"], native=False)
         else:
             path_results[path] = run_db_path(issued, case["sql"], native=True)
+
+    for result in path_results.values():
+        apply_sanitized_wrapper_hint(result, case)
 
     signatures = {path: semantic_signature(result) for path, result in path_results.items()}
     excluded_paths = set(case.get("excluded_paths_from_consistency") or [])

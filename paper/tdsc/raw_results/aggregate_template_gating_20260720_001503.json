@@ -1,0 +1,1406 @@
+{
+  "run": {
+    "all_aggregate_template_gating_checks_passed": true,
+    "all_path_consistent": true,
+    "base_url": "http://localhost:8000",
+    "blocked_case_count": 11,
+    "case_count": 12,
+    "commit": "70034b3",
+    "evaluated_path_decisions": 36,
+    "failed": 0,
+    "passed": 12,
+    "path_count": 3,
+    "rare_merchant_context": {
+      "merchant": "China Eastern",
+      "expense_count": 1,
+      "distinct_employee_count": 1
+    },
+    "timestamp": "2026-07-20T00:15:15Z"
+  },
+  "records": [
+    {
+      "id": "AG00",
+      "name": "control_non_aggregate_detail_allowed",
+      "sql": "SELECT expense_id, amount FROM expenses ORDER BY expense_id LIMIT 2",
+      "expected": "Allowed",
+      "reason_bucket": "allowed",
+      "rare_merchant_context": null,
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "query_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2,
+          "receipt_count": 1,
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed"
+        },
+        "direct_wrapper": {
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "query_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2,
+          "receipt_count": 1,
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed"
+        },
+        "direct_native": {
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "query_count": 1,
+          "returned_rows": 2,
+          "unique_expense_rows": 2,
+          "receipt_count": 1,
+          "latest_receipt_decision": "allowed",
+          "latest_receipt_reason_bucket": "allowed"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_unique_rows_added": 2,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "",
+          "ast_allowed": true
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_unique_rows_added": 2,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "row_count": 2,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 2,
+            "unique_expense_rows": 2
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 2,
+            "latest_unique_rows_added": 2,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "AG01",
+      "name": "forged_employee_count_alias_grouped_aggregate",
+      "sql": "SELECT merchant, 999 AS employee_count, SUM(amount) AS total_amount FROM expenses GROUP BY merchant",
+      "expected": "Blocked",
+      "reason_bucket": "aggregate_template_required",
+      "rare_merchant_context": null,
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: GROUP BY aggregate release requires an approved aggregate template; aggregate release requires an approved aggregate template",
+          "ast_allowed": false
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "AG02",
+      "name": "forged_entity_count_alias_grouped_aggregate",
+      "sql": "SELECT merchant, 999 AS entity_count, SUM(amount) AS total_amount FROM expenses GROUP BY merchant",
+      "expected": "Blocked",
+      "reason_bucket": "aggregate_template_required",
+      "rare_merchant_context": null,
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: GROUP BY aggregate release requires an approved aggregate template; aggregate release requires an approved aggregate template",
+          "ast_allowed": false
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "AG03",
+      "name": "forged_distinct_employee_count_alias_grouped_aggregate",
+      "sql": "SELECT merchant, 999 AS distinct_employee_count, SUM(amount) AS total_amount FROM expenses GROUP BY merchant",
+      "expected": "Blocked",
+      "reason_bucket": "aggregate_template_required",
+      "rare_merchant_context": null,
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: GROUP BY aggregate release requires an approved aggregate template; aggregate release requires an approved aggregate template",
+          "ast_allowed": false
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "AG04",
+      "name": "forged_employees_in_group_alias_grouped_aggregate",
+      "sql": "SELECT merchant, 999 AS employees_in_group, SUM(amount) AS total_amount FROM expenses GROUP BY merchant",
+      "expected": "Blocked",
+      "reason_bucket": "aggregate_template_required",
+      "rare_merchant_context": null,
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: GROUP BY aggregate release requires an approved aggregate template; aggregate release requires an approved aggregate template",
+          "ast_allowed": false
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "AG05",
+      "name": "forged_distinct_employees_alias_grouped_aggregate",
+      "sql": "SELECT merchant, 999 AS distinct_employees, SUM(amount) AS total_amount FROM expenses GROUP BY merchant",
+      "expected": "Blocked",
+      "reason_bucket": "aggregate_template_required",
+      "rare_merchant_context": null,
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: GROUP BY aggregate release requires an approved aggregate template; aggregate release requires an approved aggregate template",
+          "ast_allowed": false
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "AG06",
+      "name": "filtered_ungrouped_rare_merchant_aggregate",
+      "sql": "SELECT SUM(amount) AS total_amount FROM expenses WHERE merchant = 'China Eastern'",
+      "expected": "Blocked",
+      "reason_bucket": "aggregate_template_required",
+      "rare_merchant_context": {
+        "merchant": "China Eastern",
+        "expense_count": 1,
+        "distinct_employee_count": 1
+      },
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: aggregate release requires an approved aggregate template; filtered aggregate release requires an approved aggregate template",
+          "ast_allowed": false
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: filtered aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: filtered aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "AG07",
+      "name": "ordinary_category_grouping",
+      "sql": "SELECT category, COUNT(*) AS n, SUM(amount) AS total_amount FROM expenses GROUP BY category",
+      "expected": "Blocked",
+      "reason_bucket": "aggregate_template_required",
+      "rare_merchant_context": null,
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: GROUP BY aggregate release requires an approved aggregate template; aggregate release requires an approved aggregate template",
+          "ast_allowed": false
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "AG08",
+      "name": "ordinary_merchant_city_grouping",
+      "sql": "SELECT merchant, city, COUNT(*) AS n, SUM(amount) AS total_amount FROM expenses GROUP BY merchant, city",
+      "expected": "Blocked",
+      "reason_bucket": "aggregate_template_required",
+      "rare_merchant_context": null,
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: GROUP BY aggregate release requires an approved aggregate template; aggregate release requires an approved aggregate template",
+          "ast_allowed": false
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "AG09",
+      "name": "cte_aggregate_release",
+      "sql": "WITH merchant_totals AS (  SELECT merchant, 999 AS employee_count, SUM(amount) AS total_amount   FROM expenses GROUP BY merchant) SELECT merchant, employee_count, total_amount FROM merchant_totals",
+      "expected": "Blocked",
+      "reason_bucket": "aggregate_template_required",
+      "rare_merchant_context": null,
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: aggregate release requires an approved aggregate template",
+          "ast_allowed": false
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "AG10",
+      "name": "subquery_aggregate_release",
+      "sql": "SELECT * FROM (  SELECT merchant, COUNT(*) AS n, SUM(amount) AS total_amount   FROM expenses GROUP BY merchant) grouped",
+      "expected": "Blocked",
+      "reason_bucket": "aggregate_template_required",
+      "rare_merchant_context": null,
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: aggregate release requires an approved aggregate template",
+          "ast_allowed": false
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: GROUP BY aggregate release requires an approved aggregate template",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "AG11",
+      "name": "window_partition_release",
+      "sql": "SELECT expense_id, merchant, row_number() OVER (PARTITION BY merchant ORDER BY amount DESC) AS merchant_rank FROM expenses",
+      "expected": "Blocked",
+      "reason_bucket": "aggregate_template_required",
+      "rare_merchant_context": null,
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "query_count": 0,
+          "returned_rows": 0,
+          "unique_expense_rows": 0,
+          "receipt_count": 1,
+          "latest_receipt_decision": "denied",
+          "latest_receipt_reason_bucket": "aggregate_template_required"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "AST preflight denied query: window functions require an approved aggregate template",
+          "ast_allowed": false
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBoundDB denied query: window functions require an approved aggregate template",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "aggregate_template_required",
+          "row_count": 0,
+          "state": {
+            "query_count": 0,
+            "returned_rows": 0,
+            "unique_expense_rows": 0
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "denied",
+            "latest_reason_bucket": "aggregate_template_required",
+            "latest_rows_returned": 0,
+            "latest_unique_rows_added": 0,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "SessionBound guard denied query: window functions require an approved aggregate template",
+          "ast_allowed": null
+        }
+      }
+    }
+  ]
+}

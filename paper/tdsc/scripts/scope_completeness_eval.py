@@ -47,6 +47,10 @@ ADMIN_DSN = os.environ.get(
 )
 AGENT_DB_HOST = os.environ.get("TDSC_AGENT_DB_HOST", "localhost")
 AGENT_DB_PORT = int(os.environ.get("TDSC_AGENT_DB_PORT", "15432"))
+CONTROL_PLANE_KEY = os.environ.get(
+    "TASKBOUND_CONTROL_PLANE_KEY",
+    "tdsc-demo-control-plane-key",
+)
 
 VIEW_ORDER_KEY = {
     "expenses": "expense_id",
@@ -126,10 +130,13 @@ def git_commit() -> str:
 
 
 def post_json(base_url: str, path: str, body: dict[str, Any]) -> dict[str, Any]:
+    headers = {"Content-Type": "application/json; charset=utf-8"}
+    if path.startswith(("/credentials", "/tasks", "/todos", "/admin/")):
+        headers["X-TaskBound-Control-Plane-Key"] = CONTROL_PLANE_KEY
     request = urllib.request.Request(
         base_url.rstrip("/") + path,
         data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json; charset=utf-8"},
+        headers=headers,
         method="POST",
     )
     try:

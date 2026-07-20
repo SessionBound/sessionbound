@@ -1,0 +1,650 @@
+{
+  "run": {
+    "all_dynamic_denied_field_checks_passed": false,
+    "all_path_consistent": false,
+    "base_url": "http://localhost:8000",
+    "case_count": 7,
+    "commit": "70034b3",
+    "evaluated_path_decisions": 21,
+    "failed": 6,
+    "passed": 1,
+    "path_count": 3,
+    "timestamp": "2026-07-20T00:13:10Z"
+  },
+  "records": [
+    {
+      "id": "DF00",
+      "name": "control_amount_allowed_without_dynamic_deny",
+      "sql": "SELECT amount FROM expenses ORDER BY expense_id LIMIT 1",
+      "expected": "Allowed",
+      "reason_bucket": "allowed",
+      "mutate_denied_columns": [],
+      "passed": true,
+      "path_consistent": true,
+      "expected_ok": true,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "query_count": 1,
+          "returned_rows": 1,
+          "unique_expense_rows": 1,
+          "receipt_count": 1,
+          "latest_receipt_decision": "allowed"
+        },
+        "direct_wrapper": {
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "query_count": 1,
+          "returned_rows": 1,
+          "unique_expense_rows": 1,
+          "receipt_count": 1,
+          "latest_receipt_decision": "allowed"
+        },
+        "direct_native": {
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "query_count": 1,
+          "returned_rows": 1,
+          "unique_expense_rows": 1,
+          "receipt_count": 1,
+          "latest_receipt_decision": "allowed"
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "row_count": 1,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 1,
+            "unique_expense_rows": 1
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 1,
+            "latest_unique_rows_added": 1,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "",
+          "ast_allowed": true
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "row_count": 1,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 1,
+            "unique_expense_rows": 1
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 1,
+            "latest_unique_rows_added": 1,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Allowed",
+          "reason_bucket": "allowed",
+          "row_count": 1,
+          "state": {
+            "query_count": 1,
+            "returned_rows": 1,
+            "unique_expense_rows": 1
+          },
+          "receipts": {
+            "count": 1,
+            "latest_decision": "allowed",
+            "latest_reason_bucket": "allowed",
+            "latest_rows_returned": 1,
+            "latest_unique_rows_added": 1,
+            "latest_touched_views": [
+              "expenses"
+            ]
+          },
+          "error": "",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "DF01",
+      "name": "projection_denied_by_dynamic_token_policy",
+      "sql": "SELECT amount FROM expenses ORDER BY expense_id LIMIT 1",
+      "expected": "Blocked",
+      "reason_bucket": "bind_token_denied_exposed",
+      "mutate_denied_columns": [
+        "expenses.amount"
+      ],
+      "passed": false,
+      "path_consistent": false,
+      "expected_ok": false,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "other",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "other",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "SessionBoundDB request denied",
+          "ast_allowed": null
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "task token denied column remains exposed by an approved safe view: expenses.amount",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "task token denied column remains exposed by an approved safe view: expenses.amount",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "DF02",
+      "name": "alias_denied_by_dynamic_token_policy",
+      "sql": "SELECT amount AS reimbursed_amount FROM expenses LIMIT 1",
+      "expected": "Blocked",
+      "reason_bucket": "bind_token_denied_exposed",
+      "mutate_denied_columns": [
+        "expenses.amount"
+      ],
+      "passed": false,
+      "path_consistent": false,
+      "expected_ok": false,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "other",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "other",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "SessionBoundDB request denied",
+          "ast_allowed": null
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "task token denied column remains exposed by an approved safe view: expenses.amount",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "task token denied column remains exposed by an approved safe view: expenses.amount",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "DF03",
+      "name": "where_denied_by_dynamic_token_policy",
+      "sql": "SELECT expense_id FROM expenses WHERE amount > 0 ORDER BY expense_id LIMIT 1",
+      "expected": "Blocked",
+      "reason_bucket": "bind_token_denied_exposed",
+      "mutate_denied_columns": [
+        "expenses.amount"
+      ],
+      "passed": false,
+      "path_consistent": false,
+      "expected_ok": false,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "other",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "other",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "SessionBoundDB request denied",
+          "ast_allowed": null
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "task token denied column remains exposed by an approved safe view: expenses.amount",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "task token denied column remains exposed by an approved safe view: expenses.amount",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "DF04",
+      "name": "order_by_denied_by_dynamic_token_policy",
+      "sql": "SELECT expense_id FROM expenses ORDER BY amount DESC LIMIT 1",
+      "expected": "Blocked",
+      "reason_bucket": "bind_token_denied_exposed",
+      "mutate_denied_columns": [
+        "expenses.amount"
+      ],
+      "passed": false,
+      "path_consistent": false,
+      "expected_ok": false,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "other",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "other",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "SessionBoundDB request denied",
+          "ast_allowed": null
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "task token denied column remains exposed by an approved safe view: expenses.amount",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "task token denied column remains exposed by an approved safe view: expenses.amount",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "DF05",
+      "name": "aggregate_input_denied_by_dynamic_token_policy",
+      "sql": "SELECT sum(amount) AS total_amount FROM expenses",
+      "expected": "Blocked",
+      "reason_bucket": "bind_token_denied_exposed",
+      "mutate_denied_columns": [
+        "expenses.amount"
+      ],
+      "passed": false,
+      "path_consistent": false,
+      "expected_ok": false,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "other",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "other",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "SessionBoundDB request denied",
+          "ast_allowed": null
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "task token denied column remains exposed by an approved safe view: expenses.amount",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "task token denied column remains exposed by an approved safe view: expenses.amount",
+          "ast_allowed": null
+        }
+      }
+    },
+    {
+      "id": "DF06",
+      "name": "window_expression_denied_by_dynamic_token_policy",
+      "sql": "SELECT expense_id, row_number() OVER (ORDER BY amount DESC) AS rn FROM expenses LIMIT 1",
+      "expected": "Blocked",
+      "reason_bucket": "bind_token_denied_exposed",
+      "mutate_denied_columns": [
+        "expenses.amount"
+      ],
+      "passed": false,
+      "path_consistent": false,
+      "expected_ok": false,
+      "receipt_ok": true,
+      "semantic_signatures": {
+        "api_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "other",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        },
+        "direct_wrapper": {
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        },
+        "direct_native": {
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "query_count": null,
+          "returned_rows": null,
+          "unique_expense_rows": null,
+          "receipt_count": 0,
+          "latest_receipt_decision": null
+        }
+      },
+      "path_results": {
+        "api_wrapper": {
+          "path": "api_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "other",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "SessionBoundDB request denied",
+          "ast_allowed": null
+        },
+        "direct_wrapper": {
+          "path": "direct_wrapper",
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "task token denied column remains exposed by an approved safe view: expenses.amount",
+          "ast_allowed": null
+        },
+        "direct_native": {
+          "path": "direct_native",
+          "classification": "Blocked",
+          "reason_bucket": "bind_token_denied_exposed",
+          "row_count": 0,
+          "state": {},
+          "receipts": {
+            "count": 0,
+            "latest_decision": null,
+            "latest_reason_bucket": null
+          },
+          "error": "task token denied column remains exposed by an approved safe view: expenses.amount",
+          "ast_allowed": null
+        }
+      }
+    }
+  ]
+}

@@ -54,17 +54,10 @@ def fetch_state(cur) -> list[dict[str, Any]]:
 
 
 def fetch_receipts(cur) -> list[dict[str, Any]]:
-    cur.execute(
-        """
-        SELECT decision, reason, rows_returned, unique_rows_added,
-               remaining_unique_row_budget
-        FROM taskbound.receipts()
-        ORDER BY created_at DESC, receipt_id DESC
-        LIMIT 5
-        """
-    )
+    cur.execute("SELECT * FROM taskbound.receipts()")
     columns = [desc.name for desc in cur.description]
-    return [dict(zip(columns, row, strict=True)) for row in cur.fetchall()]
+    rows = [dict(zip(columns, row, strict=True)) for row in cur.fetchall()]
+    return sorted(rows, key=lambda row: str(row.get("created_at") or ""), reverse=True)[:5]
 
 
 def evaluate(dsn: str) -> dict[str, Any]:
@@ -96,10 +89,16 @@ def evaluate(dsn: str) -> dict[str, Any]:
     passed = True
     for index, observation in enumerate(observations, start=1):
         state = observation["state"][0] if observation["state"] else {}
+        expected_query_count = 2 if index == 3 else index
         expected_reason = (
             "GROUP BY aggregate release requires an approved aggregate template"
             if index == 3
             else "result tuple budget exceeded"
+        )
+        expected_client_error = (
+            expected_reason
+            if index == 3
+            else "execution failed before release"
         )
         denial = next(
             (
@@ -111,8 +110,8 @@ def evaluate(dsn: str) -> dict[str, Any]:
             {},
         )
         passed = passed and (
-            expected_reason in observation["error"]
-            and state.get("query_count") == 0
+            expected_client_error in observation["error"]
+            and state.get("query_count") == expected_query_count
             and state.get("returned_rows") == 0
             and state.get("unique_expense_rows") == 0
             and denial.get("rows_returned") == 0
@@ -152,7 +151,10 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     timestamp = time.strftime("%Y%m%d_%H%M%S", time.localtime())
     output_path = out_dir / f"native_partial_budget_{timestamp}.json"
-    output_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    output_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, default=str),
+        encoding="utf-8",
+    )
     print(json.dumps(payload["run"], indent=2, sort_keys=True))
     print(output_path)
     return 0 if payload["run"]["failed"] == 0 else 1

@@ -102,15 +102,8 @@ class TaskboundSession:
 
     def receipts(self, *, limit: int = 20) -> list[dict[str, Any]]:
         def run(cur):
-            cur.execute(
-                """
-                SELECT decision, rows_returned, unique_rows_added,
-                       remaining_unique_row_budget, reason, touched_views, created_at
-                FROM taskbound.receipts()
-                LIMIT %s
-                """,
-                (limit,),
-            )
-            return rows_as_dicts(cur)
+            cur.execute("SELECT * FROM taskbound.receipts()")
+            rows = rows_as_dicts(cur)
+            return sorted(rows, key=lambda row: str(row.get("created_at") or ""), reverse=True)[:limit]
 
         return self._with_cursor(run)

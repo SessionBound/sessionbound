@@ -129,15 +129,16 @@ def state(cur) -> dict[str, Any]:
 
 
 def receipts(cur) -> list[dict[str, Any]]:
-    cur.execute(
-        """
-        SELECT task_id, decision, rows_returned, unique_rows_added,
-               remaining_unique_row_budget, reason
-        FROM taskbound.receipts()
-        ORDER BY created_at, receipt_id
-        """
+    cur.execute("SELECT * FROM taskbound.receipts()")
+    rows = rows_as_dicts(cur)
+    return sorted(
+        rows,
+        key=lambda row: (
+            int(row.get("receipt_sequence") or 0),
+            str(row.get("created_at") or ""),
+            str(row.get("receipt_id") or ""),
+        ),
     )
-    return rows_as_dicts(cur)
 
 
 def record(name: str, passed: bool, evidence: dict[str, Any]) -> dict[str, Any]:

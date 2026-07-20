@@ -11,12 +11,13 @@
 - Evaluation script: `paper/tdsc/scripts/sessionbound_guard_hook_eval.py`
 - Hook-only microbenchmark script: `paper/tdsc/scripts/hook_microbenchmark.py`
 - Rollback audit script: `paper/tdsc/scripts/rollback_audit_eval.py`
-- Latest raw result: `paper/tdsc/raw_results/sessionbound_guard_hook_20260719_230317.json`
+- Latest raw result: `paper/tdsc/raw_results/sessionbound_guard_hook_20260720_080304.json`
 - Latest hook-only microbenchmark result:
   `paper/tdsc/raw_results/hook_microbenchmark_20260719_150550.json`
 - Latest rollback audit result:
-  `paper/tdsc/raw_results/rollback_audit_20260719_162553.json`
-- Result: 19 / 19 cases passed
+  `paper/tdsc/raw_results/rollback_audit_20260720_080542.json`
+- Latest raw-result status: 20 / 20 cases passed, including same-binding
+  prepared execution and cross-binding prepared-plan rebind denial.
 - Hook-only microbenchmark result: 7 / 7 checks passed; allowed structural
   checks p50 = 0.101--0.129 ms
 - Rollback audit result: 5 / 5 cases passed
@@ -49,8 +50,9 @@ GUC context for the current backend.
 
 After `taskbound.bind_task(...)`, agents may issue native safe-view `SELECT`
 statements directly. The parse/analyze hook validates relation OIDs, SQL shape,
-and function use. The utility hook covers prepared statements, cursors/FETCH,
-`COPY (SELECT) TO STDOUT`, and non-`ANALYZE` `EXPLAIN`. Executor hooks reserve
+and function use. The utility hook covers prepared statement revalidation and
+`COPY (SELECT) TO STDOUT`; cursor/FETCH and `EXPLAIN` output are denied until
+they have a reviewed release barrier. Executor hooks reserve
 query budget, wrap the destination receiver, stage the complete result in a
 private tuplestore, charge every supported detail output tuple, and emit
 receipts before releasing any tuple. Direct aggregate/window release is denied
@@ -91,12 +93,13 @@ policy before release.
 | Trusted GUC tamper attempt | non-superuser direct DB session | 1 / 1 blocked |
 | Native safe-view SQL | agent credential direct DB connection | 1 / 1 allowed |
 | Bound bare safe-view `SELECT` | agent credential direct DB session without `taskbound.run` | 1 / 1 allowed/accounted |
-| Prepared, cursor/FETCH, COPY, EXPLAIN | agent credential native SQL surface | 4 / 4 allowed |
+| Prepared, COPY, and cross-binding rebind | agent credential native SQL surface | 3 / 3 current-binding operations allowed and cross-binding reuse blocked |
+| Cursor/FETCH, holdable cursor, and EXPLAIN | agent credential native SQL surface | 4 / 4 denied pending release-barrier support |
 | `UNION`, catalog access, recursive CTE | agent credential native SQL surface | 3 / 3 blocked |
-| Runtime helper abuse and `EXPLAIN ANALYZE` | agent credential direct DB connection | 2 / 2 blocked |
+| Runtime helper abuse | agent credential direct DB connection | 1 / 1 blocked |
 | Non-`SELECT`, raw schema, payload aggregation, unapproved safe-view OID | superuser trusted-GUC hook check, no API preflight | 4 / 4 blocked |
 | Aggregate/window shape denials | direct aggregate/window release and HAVING probes | 2 / 2 blocked |
-| Hook enforcement subtotal | mixed direct database paths | 18 / 18 passed |
+| Hook enforcement subtotal | mixed direct database paths | 20 / 20 passed |
 | Rollback-surviving audit | allowed, API preflight, hook/parser, wrapper, and executor denials across autocommit and ROLLBACK | 5 / 5 persisted |
 
 The hook evaluation intentionally bypasses the `/agent-query` API preflight for

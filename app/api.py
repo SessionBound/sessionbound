@@ -383,6 +383,31 @@ def fetch_safe_view_registry_claims(allowed_views: list[str]) -> dict[str, Any]:
     }
 
 
+def sync_task_policy_registry(template: dict[str, Any]) -> None:
+    task_type = template.get("task_type")
+    policy_version = template.get("policy_version", "template-v1")
+    if not task_type:
+        return
+    template_hash = hashlib.sha256(
+        json.dumps(template, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    with admin_connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO taskbound.task_policy_registry (
+                  task_type, policy_version, template_hash, updated_at
+                )
+                VALUES (%s, %s, %s, clock_timestamp())
+                ON CONFLICT (task_type) DO UPDATE
+                SET policy_version = EXCLUDED.policy_version,
+                    template_hash = EXCLUDED.template_hash,
+                    updated_at = EXCLUDED.updated_at
+                """,
+                (task_type, policy_version, template_hash),
+            )
+
+
 def user_role(delegator: str) -> str:
     return {
         "user:eve": "employee",
@@ -573,15 +598,9 @@ def record_preflight_denial_receipt(payload_text: str, sql_text: str, reason: st
 
 
 def fetch_receipts(cur) -> list[dict[str, Any]]:
-    cur.execute(
-        """
-        SELECT decision, rows_returned, unique_rows_added,
-               remaining_unique_row_budget, reason, touched_views, created_at
-        FROM taskbound.receipts()
-        LIMIT 20
-        """
-    )
-    return rows_as_dicts(cur)
+    cur.execute("SELECT * FROM taskbound.receipts()")
+    rows = rows_as_dicts(cur)
+    return sorted(rows, key=lambda row: str(row.get("created_at") or ""), reverse=True)[:20]
 
 
 def is_active_binding_conflict(exc: Exception) -> bool:
@@ -589,6 +608,19 @@ def is_active_binding_conflict(exc: Exception) -> bool:
         getattr(exc, "sqlstate", None) == "55P03"
         or "ACTIVE_BINDING_EXISTS" in str(exc)
     )
+
+
+def agent_safe_error(exc: Exception, *, default: str = "SessionBoundDB request denied") -> str:
+    text = str(exc)
+    if "ACTIVE_BINDING_EXISTS" in text:
+        return "ACTIVE_BINDING_EXISTS"
+    if "SessionBoundDB denied command" in text:
+        return "SessionBoundDB denied command"
+    if "SessionBoundDB denied utility" in text:
+        return "SessionBoundDB denied utility statement"
+    if "SessionBoundDB denied query" in text or "SessionBound guard denied query" in text:
+        return "SessionBoundDB denied query"
+    return default
 
 
 def fallback_sql_for_question(question: str) -> tuple[str, str]:
@@ -1385,6 +1417,7 @@ def save_task_template(
         raise HTTPException(status_code=400, detail="template.purpose is required")
     try:
         saved = upsert_template(req.template)
+        sync_task_policy_registry(saved)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"ok": True, "template": saved}
@@ -1582,7 +1615,7 @@ def query(req: QueryRequest):
                     receipts = []
                 return {
                     "ok": False,
-                    "error": str(exc),
+                    "error": agent_safe_error(exc),
                     "state": state,
                     "receipts": receipts,
                 }
@@ -1593,7 +1626,7 @@ def agent_query(req: AgentQueryRequest):
     try:
         conn = connect_with_credential(req.credential)
     except Exception as exc:
-        raise HTTPException(status_code=401, detail=f"could not connect with dynamic credential: {exc}") from exc
+        raise HTTPException(status_code=401, detail="could not connect with dynamic credential") from exc
 
     with conn:
         with conn.cursor() as cur:
@@ -1642,7 +1675,7 @@ def agent_query(req: AgentQueryRequest):
                 return {
                     "ok": False,
                     "used_dynamic_credential": req.credential.db_user,
-                    "error": str(exc),
+                    "error": agent_safe_error(exc),
                     "state": state,
                     "receipts": receipts,
                 }
@@ -1691,7 +1724,7 @@ def agent_question(req: AgentQuestionRequest):
     try:
         conn = connect_with_credential(req.credential)
     except Exception as exc:
-        raise HTTPException(status_code=401, detail=f"could not connect with dynamic credential: {exc}") from exc
+        raise HTTPException(status_code=401, detail="could not connect with dynamic credential") from exc
 
     with conn:
         with conn.cursor() as cur:
@@ -1749,7 +1782,7 @@ def agent_question(req: AgentQuestionRequest):
                     "generated_sql": sql_text,
                     "generation": generation,
                     "used_dynamic_credential": req.credential.db_user,
-                    "error": str(exc),
+                    "error": agent_safe_error(exc),
                     "state": state,
                     "receipts": receipts,
                 }
@@ -1760,7 +1793,7 @@ def agent_command(req: AgentCommandRequest):
     try:
         conn = connect_with_credential(req.credential)
     except Exception as exc:
-        raise HTTPException(status_code=401, detail=f"could not connect with dynamic credential: {exc}") from exc
+        raise HTTPException(status_code=401, detail="could not connect with dynamic credential") from exc
 
     with conn:
         with conn.cursor() as cur:
@@ -1768,6 +1801,14 @@ def agent_command(req: AgentCommandRequest):
             try:
                 bound = session.bind_task(req.payload_text, req.signature)
                 result = session.command(req.command_name, req.args)
+                if not result.get("ok", False):
+                    return {
+                        "ok": False,
+                        "used_dynamic_credential": req.credential.db_user,
+                        "bound": bound,
+                        "command_result": result,
+                        "error": result.get("error") or "SessionBoundDB denied command",
+                    }
                 return {
                     "ok": True,
                     "used_dynamic_credential": req.credential.db_user,
@@ -1780,7 +1821,7 @@ def agent_command(req: AgentCommandRequest):
                 return {
                     "ok": False,
                     "used_dynamic_credential": req.credential.db_user,
-                    "error": str(exc),
+                    "error": agent_safe_error(exc),
                 }
 
 

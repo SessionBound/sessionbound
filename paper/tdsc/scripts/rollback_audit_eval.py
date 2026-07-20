@@ -17,6 +17,10 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[3]
 STATE_MARKER = "ROLLBACK_AUDIT_STATE"
 RECEIPT_MARKER = "ROLLBACK_AUDIT_RECEIPT"
+CONTROL_PLANE_KEY = os.environ.get(
+    "TASKBOUND_CONTROL_PLANE_KEY",
+    "tdsc-demo-control-plane-key",
+)
 
 
 def git_commit() -> str:
@@ -36,7 +40,10 @@ def post_json(base_url: str, path: str, body: dict[str, Any]) -> dict[str, Any]:
     request = urllib.request.Request(
         base_url.rstrip("/") + path,
         data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json; charset=utf-8"},
+        headers={
+            "Content-Type": "application/json; charset=utf-8",
+            "X-TaskBound-Control-Plane-Key": CONTROL_PLANE_KEY,
+        },
         method="POST",
     )
     try:
@@ -116,28 +123,35 @@ def _parse_text_array(value: str) -> list[str]:
 def extract_snapshot(stdout: str) -> dict[str, Any]:
     state: dict[str, Any] | None = None
     receipts: list[dict[str, Any]] = []
+    section = ""
     for line in stdout.splitlines():
+        if line == STATE_MARKER:
+            section = "state"
+            continue
+        if line == RECEIPT_MARKER:
+            section = "receipts"
+            continue
         parts = line.split("\t")
-        if parts and parts[0] == STATE_MARKER:
+        if section == "state" and len(parts) >= 6:
             state = {
-                "task_id": parts[1],
-                "budget_account": parts[2],
-                "query_count": _parse_int(parts[3]),
-                "returned_rows": _parse_int(parts[4]),
-                "unique_expense_rows": _parse_int(parts[5]),
-                "revoked": parts[6] in {"t", "true"},
+                "task_id": parts[0],
+                "budget_account": parts[1],
+                "query_count": _parse_int(parts[2]),
+                "returned_rows": _parse_int(parts[3]),
+                "unique_expense_rows": _parse_int(parts[4]),
+                "revoked": parts[5] in {"t", "true"},
             }
-        elif parts and parts[0] == RECEIPT_MARKER:
+        elif section == "receipts" and len(parts) >= 17:
             receipts.append(
                 {
-                    "decision": parts[1],
-                    "rows_returned": _parse_int(parts[2]),
-                    "unique_rows_added": _parse_int(parts[3]),
-                    "remaining_unique_row_budget": _parse_int(parts[4]),
-                    "reason": parts[5] if len(parts) > 5 else "",
-                    "touched_views": _parse_text_array(parts[6] if len(parts) > 6 else ""),
-                    "previous_receipt_hash": parts[7] if len(parts) > 7 else "",
-                    "receipt_hash": parts[8] if len(parts) > 8 else "",
+                    "decision": parts[8],
+                    "rows_returned": _parse_int(parts[9]),
+                    "unique_rows_added": _parse_int(parts[10]),
+                    "remaining_unique_row_budget": _parse_int(parts[11]),
+                    "reason": parts[12],
+                    "touched_views": _parse_text_array(parts[14]),
+                    "previous_receipt_hash": parts[15],
+                    "receipt_hash": parts[16],
                 }
             )
     if state is None:
@@ -179,18 +193,11 @@ def issue_task(
 def receipt_snapshot_sql() -> str:
     return f"""
 \\pset fieldsep '\\t'
-SELECT '{STATE_MARKER}', task_id, budget_account, query_count,
-       returned_rows, unique_expense_rows, revoked
-FROM taskbound.inspect_task_state();
+\\echo {STATE_MARKER}
+SELECT * FROM taskbound.inspect_task_state();
 
-SELECT '{RECEIPT_MARKER}', decision, rows_returned, unique_rows_added,
-       COALESCE(remaining_unique_row_budget::text, ''),
-       COALESCE(reason, ''),
-       COALESCE(touched_views::text, ''),
-       COALESCE(previous_receipt_hash, ''),
-       COALESCE(receipt_hash, '')
-FROM taskbound.receipts()
-ORDER BY created_at, receipt_id;
+\\echo {RECEIPT_MARKER}
+SELECT * FROM taskbound.receipts();
 """
 
 
@@ -331,7 +338,7 @@ ROLLBACK;
         and "expenses" in receipt.get("touched_views", [])
         for receipt in receipts
     )
-    error_seen = "result tuple budget exceeded" in result["stderr"]
+    error_seen = "SessionBoundDB denied query" in result["stderr"]
     state_ok = state.get("returned_rows") == 0 and state.get("unique_expense_rows") == 0
     passed = result["returncode"] == 0 and error_seen and denial_receipt and state_ok
     return {
