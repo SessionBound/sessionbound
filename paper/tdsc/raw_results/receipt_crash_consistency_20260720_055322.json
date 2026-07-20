@@ -1,0 +1,75 @@
+{
+  "checks": {
+    "preflight_read_only": true,
+    "recovery_preserved_state": true,
+    "release_linearized": true
+  },
+  "evidence": {
+    "first_bind": {
+      "advisory_lock_key": -1986567809110848200,
+      "binding_id": "546bb8d1-a0a6-4148-b25e-7838cf3940f7",
+      "bound": true,
+      "budget_account": "task_receipt_crash_20260720_055317",
+      "credential_id": "demo-agent-app",
+      "fence_token": 2334,
+      "purpose": "monthly_travel_expense_anomaly_review",
+      "stale_recovered": false,
+      "task_id": "task_receipt_crash_20260720_055317"
+    },
+    "preflight_status": "ok",
+    "recovered_bind": {
+      "advisory_lock_key": -1986567809110848200,
+      "binding_id": "d7bfc289-b1d6-44bd-97af-451bbad5f45d",
+      "bound": true,
+      "budget_account": "task_receipt_crash_20260720_055317",
+      "credential_id": "demo-agent-app",
+      "fence_token": 2335,
+      "purpose": "monthly_travel_expense_anomaly_review",
+      "stale_recovered": true,
+      "task_id": "task_receipt_crash_20260720_055317"
+    },
+    "state_after_preflight": {
+      "budget_account": "task_receipt_crash_20260720_055317",
+      "query_count": 0,
+      "receipt_count": 0,
+      "returned_rows": 0,
+      "revoked": false,
+      "task_id": "task_receipt_crash_20260720_055317",
+      "unique_expense_rows": 0
+    },
+    "state_after_recovery": {
+      "budget_account": "task_receipt_crash_20260720_055317",
+      "query_count": 0,
+      "receipt_count": 0,
+      "returned_rows": 0,
+      "revoked": false,
+      "task_id": "task_receipt_crash_20260720_055317",
+      "unique_expense_rows": 0
+    },
+    "state_after_release": {
+      "budget_account": "task_receipt_crash_20260720_055317",
+      "query_count": 1,
+      "receipt_count": 1,
+      "returned_rows": 1,
+      "revoked": false,
+      "task_id": "task_receipt_crash_20260720_055317",
+      "unique_expense_rows": 1
+    },
+    "state_before": {
+      "budget_account": "task_receipt_crash_20260720_055317",
+      "query_count": 0,
+      "receipt_count": 0,
+      "returned_rows": 0,
+      "revoked": false,
+      "task_id": "task_receipt_crash_20260720_055317",
+      "unique_expense_rows": 0
+    },
+    "terminated_owner_backend": true
+  },
+  "run": {
+    "git_commit": "108f7ae",
+    "passed": true,
+    "task_id": "task_receipt_crash_20260720_055317",
+    "timestamp": "2026-07-20T05:53:22.194862Z"
+  }
+}

@@ -18,7 +18,7 @@ SessionBound submission candidate on branch
   in `paper/tdsc/SUBMISSION_STATUS.md`.
 
 Older raw-result files remain in the tree as historical records. Current paper
-tables should cite the 2026-07-19 result files listed below.
+tables should cite the current result files listed below.
 
 ## Current Claim Contract
 
@@ -52,13 +52,14 @@ supplemental material embedded in the main PDF. The length should be treated as
 MOPC-subject if accepted because it exceeds the 12-page regular-paper threshold;
 ORCID/account metadata remain human submission steps.
 
-## Current Results: 2026-07-19
+## Current Results
 
 - AST validation:
   `paper/tdsc/raw_results/ast_validation_20260719_162614.json` — 21 / 21.
 - Adversarial SQL:
-  `paper/tdsc/raw_results/adversarial_sql_20260719_162614.json` — 140 / 140;
-  130 blocked and 10 allowed/accounted.
+  `paper/tdsc/raw_results/adversarial_sql_20260720_141142.json` — 140 / 140;
+  130 blocked and 10 allowed/accounted under the fixed oracle, including
+  receipt and budget evidence for allowed cases.
 - Native hook/executor:
   `paper/tdsc/raw_results/sessionbound_guard_hook_20260719_230317.json` —
   19 / 19.

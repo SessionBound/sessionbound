@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import socket
 import subprocess
 import time
@@ -50,6 +51,7 @@ SCENARIO_CROSSWALK = {
     "query_budget_overflow": ("V23", "Query budget overflow"),
     "disclosure_budget_overflow": ("V24", "Disclosure budget overflow"),
 }
+CONTROL_PLANE_KEY = os.environ.get("TASKBOUND_CONTROL_PLANE_KEY", "tdsc-demo-control-plane-key")
 
 
 def paper_reference(scenario_name: str) -> dict[str, str]:
@@ -67,10 +69,13 @@ def git_commit() -> str:
 def post_json(base_url: str, path: str, body: dict[str, Any]) -> dict[str, Any]:
     last_error: str | None = None
     for attempt in range(1, 6):
+        headers = {"Content-Type": "application/json; charset=utf-8"}
+        if path.startswith(("/credentials", "/tasks", "/todos", "/admin/")):
+            headers["X-TaskBound-Control-Plane-Key"] = CONTROL_PLANE_KEY
         req = urllib.request.Request(
             base_url.rstrip("/") + path,
             data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-            headers={"Content-Type": "application/json; charset=utf-8"},
+            headers=headers,
             method="POST",
         )
         try:
@@ -235,12 +240,12 @@ def run_eval(base_url: str) -> dict[str, Any]:
         "allowed",
         "allowed",
         "WITH high AS (SELECT expense_id, amount FROM expenses WHERE amount > 1000) "
-        "SELECT count(*) AS high_count FROM high",
+        "SELECT expense_id, amount FROM high ORDER BY amount DESC LIMIT 3",
     )
     record_query(
         "group_by",
-        "allowed",
-        "allowed",
+        "blocked",
+        "denied",
         "SELECT department_name, COUNT(DISTINCT employee_id) AS employee_count, "
         "COUNT(*) AS n, SUM(amount) AS total "
         "FROM expenses WHERE department_id = 'dep_sales' "
@@ -248,8 +253,8 @@ def run_eval(base_url: str) -> dict[str, Any]:
     )
     record_query(
         "window_function",
-        "allowed",
-        "allowed",
+        "blocked",
+        "denied",
         "SELECT expense_id, department_name, amount, "
         "row_number() OVER (PARTITION BY department_name ORDER BY amount DESC) AS rn "
         "FROM expenses ORDER BY amount DESC LIMIT 5",

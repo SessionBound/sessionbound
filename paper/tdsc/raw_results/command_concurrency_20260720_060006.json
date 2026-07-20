@@ -1,0 +1,83 @@
+{
+  "run": {
+    "run_id": "20260720_060006",
+    "commit": "108f7ae",
+    "git": {
+      "commit": "108f7ae",
+      "full_commit": "108f7ae62b90b104fcf5327ef82bc9d9fc10610a",
+      "dirty": true,
+      "status_short": "M app/api.py\n M app/sql_ast_validator.py\n M app/task_registry.py\n M app/taskbound_demo.py\n M app/taskbound_sdk.py\n M db/001_schema.sql\n M db/003_runtime_core.sql\n M db/005_query_runtime.sql\n M db/006_commands_and_grants.sql\n M paper/tdsc/experiments/scripts/tdsc_credential_token_tests.py\n M paper/tdsc/scripts/adversarial_sql_eval.py\n M paper/tdsc/scripts/binding_lifecycle_eval.py\n M postgres/sessionbound_guard/sessionbound_guard.c\n?? paper/tdsc/raw_results/adversarial_sql_20260720_135718.json\n?? paper/tdsc/raw_results/adversarial_sql_20260720_135951.json\n?? paper/tdsc/raw_results/command_concurrency_20260720_053124.json\n?? paper/tdsc/raw_results/command_concurrency_20260720_055337.json\n?? paper/tdsc/raw_results/native_partial_budget_20260720_135151.json\n?? paper/tdsc/raw_results/receipt_crash_consistency_20260720_055322.json\n?? paper/tdsc/scripts/command_concurrency_eval.py\n?? paper/tdsc/scripts/evidence_metadata.py\n?? paper/tdsc/scripts/receipt_crash_consistency_eval.py",
+      "diff_hash": "6c4be345c160c8265ddc48c0c52263bc71c22983cadfeae7524606644359c6f8",
+      "diff_stat": "app/api.py                                         |  36 +-\n app/sql_ast_validator.py                           |  28 ++\n app/task_registry.py                               |   2 +\n app/taskbound_demo.py                              |   1 +\n app/taskbound_sdk.py                               |   5 +-\n db/001_schema.sql                                  |   3 +\n db/003_runtime_core.sql                            | 215 ++++++++-\n db/005_query_runtime.sql                           | 525 +++++++++++++++++----\n db/006_commands_and_grants.sql                     | 125 +++--\n .../scripts/tdsc_credential_token_tests.py         | 147 +++++-\n paper/tdsc/scripts/adversarial_sql_eval.py         | 108 ++++-\n paper/tdsc/scripts/binding_lifecycle_eval.py       |  55 ++-\n postgres/sessionbound_guard/sessionbound_guard.c   |  77 ++-\n 13 files changed, 1095 insertions(+), 232 deletions(-)"
+    },
+    "expense_id": "tdsc_cmd_race_20260720_060006",
+    "passed": true,
+    "expected": "exactly one concurrent pay_expense attempt has a business effect"
+  },
+  "attempts": [
+    {
+      "index": 0,
+      "elapsed_ms": 58.12098599926685,
+      "ok": false,
+      "result": {
+        "ok": false,
+        "used_dynamic_credential": "agent_tdsc_command_race_0_20260720_060006_9e148271",
+        "bound": {
+          "bound": true,
+          "purpose": "reimbursement_payment_readiness_audit",
+          "task_id": "tdsc_command_race_0_20260720_060006",
+          "binding_id": "b05e36f0-725c-4bda-8de3-9d3832e24a6f",
+          "fence_token": 2342,
+          "credential_id": "agent_tdsc_command_race_0_20260720_060006_9e148271",
+          "budget_account": "tdsc_command_race_0_20260720_060006",
+          "stale_recovered": false,
+          "advisory_lock_key": -1403672776437352968
+        },
+        "command_result": {
+          "ok": false,
+          "error": "SessionBoundDB denied command",
+          "command": "pay_expense"
+        },
+        "error": "SessionBoundDB denied command"
+      }
+    },
+    {
+      "index": 1,
+      "elapsed_ms": 55.43465500159073,
+      "ok": true,
+      "result": {
+        "ok": true,
+        "used_dynamic_credential": "agent_tdsc_command_race_1_20260720_060006_0c161718",
+        "bound": {
+          "bound": true,
+          "purpose": "reimbursement_payment_readiness_audit",
+          "task_id": "tdsc_command_race_1_20260720_060006",
+          "binding_id": "71343b99-3900-4989-bbf3-5b530151d893",
+          "fence_token": 2343,
+          "credential_id": "agent_tdsc_command_race_1_20260720_060006_0c161718",
+          "budget_account": "tdsc_command_race_1_20260720_060006",
+          "stale_recovered": false,
+          "advisory_lock_key": -3785078532390535478
+        },
+        "command_result": {
+          "ok": true,
+          "amount": 42.0,
+          "ledger": "travel_expense -> cash",
+          "command": "pay_expense",
+          "receipt": "payment ledger written in the same database transaction",
+          "expense_id": "tdsc_cmd_race_20260720_060006",
+          "new_status": "paid",
+          "receipt_id": "de983879-3c76-483a-9db0-26def52eb0c4",
+          "execution_id": "3f4cefa1-a324-4616-91ad-a1f8955855ac",
+          "receipt_hash": "e90385453ab41ef8ca2e7ae3661dc87aaabb2aa3d42f572a5d844d1df32306a2",
+          "receipt_sequence": 1
+        }
+      }
+    }
+  ],
+  "business_effect": {
+    "expense_status": "paid",
+    "ledger_count": 1,
+    "paid_event_count": 1
+  }
+}

@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -15,6 +16,12 @@ from typing import Any
 import psycopg
 
 
+REPO_ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(REPO_ROOT / "paper" / "tdsc" / "scripts"))
+
+from evidence_metadata import git_metadata  # noqa: E402
+
+
 BASE_URL = os.environ.get("TDSC_BASE_URL", "http://127.0.0.1:8000")
 OUT_DIR = Path(os.environ.get("TDSC_OUT_DIR", "paper/tdsc/experiments/raw_results"))
 DB_HOST = os.environ.get("TDSC_DB_HOST", "postgres")
@@ -22,13 +29,17 @@ DB_PORT = os.environ.get("TDSC_DB_PORT", "5432")
 DB_NAME = os.environ.get("TDSC_DB_NAME", "travel")
 ADMIN_DSN = f"postgresql://postgres:postgres@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 SECRET = os.environ.get("TASKBOUND_SECRET", "dev-secret-change-me").encode("utf-8")
+CONTROL_PLANE_KEY = os.environ.get("TASKBOUND_CONTROL_PLANE_KEY", "tdsc-demo-control-plane-key")
 
 
 def post_json(path: str, body: dict[str, Any]) -> dict[str, Any]:
     req = urllib.request.Request(
         BASE_URL.rstrip("/") + path,
         data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "X-TaskBound-Control-Plane-Key": CONTROL_PLANE_KEY,
+        },
         method="POST",
     )
     try:
@@ -126,6 +137,50 @@ def restore_safe_view_registry(version: int, view_name: str = "expenses") -> Non
         conn.commit()
 
 
+def persistent_rows_for_task(task_id: str) -> dict[str, int]:
+    with psycopg.connect(ADMIN_DSN) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT count(*)::int FROM taskbound.active_sessions WHERE task_id = %s", (task_id,))
+            active_sessions = cur.fetchone()[0]
+            cur.execute("SELECT count(*)::int FROM taskbound.task_execution_state WHERE task_id = %s", (task_id,))
+            task_execution_state = cur.fetchone()[0]
+    return {
+        "active_sessions": active_sessions,
+        "task_execution_state": task_execution_state,
+    }
+
+
+def direct_bind_attempt(
+    credential: dict[str, Any],
+    payload_text: str,
+    signature: str | None,
+    task_id: str,
+) -> dict[str, Any]:
+    dsn = f"postgresql://{credential['db_user']}:{credential['db_password']}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    result: dict[str, Any] = {"ok": False}
+    try:
+        with psycopg.connect(dsn, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT taskbound.bind_task(%s, %s)", (payload_text, signature))
+                bind_result = cur.fetchone()[0]
+                result["bind_result"] = bind_result
+                cur.execute("SELECT taskbound.current_payload()")
+                result["current_payload_is_set"] = cur.fetchone()[0] is not None
+                result["ok"] = (
+                    isinstance(bind_result, dict)
+                    and bind_result.get("bound") is True
+                    and result["current_payload_is_set"]
+                )
+    except Exception as exc:
+        result["error"] = str(exc).splitlines()[0]
+    result["persistent_rows"] = persistent_rows_for_task(task_id)
+    return result
+
+
+def cloned_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return json.loads(json.dumps(payload))
+
+
 def replace_safe_view_policy_version(policy_version: str, view_name: str = "expenses") -> str:
     with psycopg.connect(ADMIN_DSN) as conn:
         with conn.cursor() as cur:
@@ -207,6 +262,94 @@ def main() -> None:
         "expected_security_property": "Denied if token actor is bound to the credential actor/runtime principal.",
         "observed": "Allowed" if wrong_actor.get("ok") else "Denied",
         "result": wrong_actor,
+    })
+
+    forged_payload = cloned_payload(task_a["payload"])
+    forged_task_id = f"tdsc_forged_null_signature_{run_id}"
+    forged_payload["task_id"] = forged_task_id
+    forged_payload["delegator"] = "user:mallory"
+    forged_payload["operations"] = ["SELECT", "CONTROLLED_COMMAND"]
+    forged_payload["allowed_commands"] = ["pay_expense"]
+    forged_payload["budgets"] = {"max_queries": 999, "max_unique_expense_rows": 999999}
+    forged_payload["row_scope"] = {"expense_month": "2026-06", "department_id": "dep_finance"}
+    forged_null_signature = direct_bind_attempt(
+        cred_a,
+        canonical(forged_payload),
+        None,
+        forged_task_id,
+    )
+    tests.append({
+        "name": "forged_payload_null_signature",
+        "expected_security_property": "Denied before active binding or task state is written.",
+        "observed": "Allowed" if forged_null_signature.get("ok") else "Denied",
+        "result": forged_null_signature,
+    })
+
+    empty_sig_payload = cloned_payload(task_a["payload"])
+    empty_sig_task_id = f"tdsc_empty_signature_{run_id}"
+    empty_sig_payload["task_id"] = empty_sig_task_id
+    empty_signature = direct_bind_attempt(cred_a, canonical(empty_sig_payload), "", empty_sig_task_id)
+    tests.append({
+        "name": "empty_signature",
+        "expected_security_property": "Denied before active binding or task state is written.",
+        "observed": "Allowed" if empty_signature.get("ok") else "Denied",
+        "result": empty_signature,
+    })
+
+    malformed_sig_payload = cloned_payload(task_a["payload"])
+    malformed_sig_task_id = f"tdsc_malformed_signature_{run_id}"
+    malformed_sig_payload["task_id"] = malformed_sig_task_id
+    malformed_signature = direct_bind_attempt(cred_a, canonical(malformed_sig_payload), "not-hex", malformed_sig_task_id)
+    tests.append({
+        "name": "malformed_signature",
+        "expected_security_property": "Denied before active binding or task state is written.",
+        "observed": "Allowed" if malformed_signature.get("ok") else "Denied",
+        "result": malformed_signature,
+    })
+
+    wrong_sig_payload = cloned_payload(task_a["payload"])
+    wrong_sig_task_id = f"tdsc_wrong_signature_{run_id}"
+    wrong_sig_payload["task_id"] = wrong_sig_task_id
+    wrong_signature = direct_bind_attempt(cred_a, canonical(wrong_sig_payload), "0" * 64, wrong_sig_task_id)
+    tests.append({
+        "name": "wrong_signature",
+        "expected_security_property": "Denied before active binding or task state is written.",
+        "observed": "Allowed" if wrong_signature.get("ok") else "Denied",
+        "result": wrong_signature,
+    })
+
+    no_task_type_payload = cloned_payload(task_a["payload"])
+    no_task_type_task_id = f"tdsc_missing_task_type_{run_id}"
+    no_task_type_payload["task_id"] = no_task_type_task_id
+    no_task_type_payload.pop("task_type", None)
+    no_task_type = direct_bind_attempt(
+        cred_a,
+        canonical(no_task_type_payload),
+        sign(canonical(no_task_type_payload)),
+        no_task_type_task_id,
+    )
+    tests.append({
+        "name": "missing_task_type",
+        "expected_security_property": "Denied because task_type must be present and registered.",
+        "observed": "Allowed" if no_task_type.get("ok") else "Denied",
+        "result": no_task_type,
+    })
+
+    no_nonce_payload = cloned_payload(task_a["payload"])
+    no_nonce_task_id = f"tdsc_missing_nonce_{run_id}"
+    no_nonce_payload["task_id"] = no_nonce_task_id
+    no_nonce_payload.pop("nonce", None)
+    no_nonce = direct_bind_attempt(
+        cred_a,
+        canonical(no_nonce_payload),
+        sign(canonical(no_nonce_payload)),
+        no_nonce_task_id,
+    )
+    tests.append({
+        "name": "missing_nonce",
+        "expected_security_property": "Denied because token nonce is mandatory.",
+        "observed": "Allowed" if no_nonce.get("ok") else "Denied",
+        "result": no_nonce,
     })
 
     drift_task = issue_task(f"tdsc_schema_drift_{run_id}", cred_a["credential_id"])
@@ -295,7 +438,7 @@ def main() -> None:
         "result": direct,
     })
 
-    output = {"run_id": run_id, "tests": tests}
+    output = {"run_id": run_id, "git": git_metadata(REPO_ROOT), "tests": tests}
     path = OUT_DIR / f"credential_token_{run_id}.json"
     path.write_text(json.dumps(output, indent=2, default=str), encoding="utf-8")
     print(path)

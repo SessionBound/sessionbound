@@ -356,6 +356,8 @@ DECLARE
   v_requires_c_level boolean;
   v_next_status text;
   v_new_expense_id text;
+  v_transition_rows int;
+  v_ledger_id uuid;
   emp record;
   v_scope_month text;
   v_scope_department text;
@@ -485,7 +487,8 @@ BEGIN
     AND (
       v_scope_department IS NULL
       OR e.department_id = v_scope_department
-    );
+    )
+  FOR UPDATE OF e;
 
   IF exp.expense_id IS NULL THEN
     RAISE EXCEPTION 'SessionBoundDB denied command: expense is outside task scope';
@@ -523,7 +526,12 @@ BEGIN
     END IF;
     UPDATE app_data.expenses
     SET status = 'finance_review_requested'
-    WHERE expense_id = exp.expense_id;
+    WHERE expense_id = exp.expense_id
+      AND status IN ('submitted', 'resubmitted');
+    GET DIAGNOSTICS v_transition_rows = ROW_COUNT;
+    IF v_transition_rows <> 1 THEN
+      RAISE EXCEPTION 'SessionBoundDB denied command: request_finance_review lost the expense state transition';
+    END IF;
     INSERT INTO app_data.approval_events (
       tenant_id, expense_id, event_type, actor, agent_actor, supervisor_agent_id, comment, created_at
     )
@@ -557,7 +565,12 @@ BEGIN
 
     UPDATE app_data.expenses
     SET status = 'department_approval_requested'
-    WHERE expense_id = exp.expense_id;
+    WHERE expense_id = exp.expense_id
+      AND status IN ('submitted', 'resubmitted', 'finance_review_requested');
+    GET DIAGNOSTICS v_transition_rows = ROW_COUNT;
+    IF v_transition_rows <> 1 THEN
+      RAISE EXCEPTION 'SessionBoundDB denied command: finance_approve lost the expense state transition';
+    END IF;
 
     INSERT INTO app_data.approval_events (
       tenant_id, expense_id, event_type, actor, agent_actor, supervisor_agent_id, comment, created_at
@@ -593,7 +606,12 @@ BEGIN
 
     UPDATE app_data.expenses
     SET status = 'returned_for_more_info'
-    WHERE expense_id = exp.expense_id;
+    WHERE expense_id = exp.expense_id
+      AND status IN ('submitted', 'resubmitted', 'finance_review_requested');
+    GET DIAGNOSTICS v_transition_rows = ROW_COUNT;
+    IF v_transition_rows <> 1 THEN
+      RAISE EXCEPTION 'SessionBoundDB denied command: return_expense_for_more_info lost the expense state transition';
+    END IF;
 
     INSERT INTO app_data.approval_events (
       tenant_id, expense_id, event_type, actor, agent_actor, supervisor_agent_id, comment, created_at
@@ -626,7 +644,12 @@ BEGIN
 
     UPDATE app_data.expenses
     SET status = 'resubmitted'
-    WHERE expense_id = exp.expense_id;
+    WHERE expense_id = exp.expense_id
+      AND status = 'returned_for_more_info';
+    GET DIAGNOSTICS v_transition_rows = ROW_COUNT;
+    IF v_transition_rows <> 1 THEN
+      RAISE EXCEPTION 'SessionBoundDB denied command: resubmit_expense lost the expense state transition';
+    END IF;
 
     INSERT INTO app_data.approval_events (
       tenant_id, expense_id, event_type, actor, agent_actor, supervisor_agent_id, comment, created_at
@@ -664,7 +687,12 @@ BEGIN
 
     UPDATE app_data.expenses
     SET status = v_next_status
-    WHERE expense_id = exp.expense_id;
+    WHERE expense_id = exp.expense_id
+      AND status IN ('finance_compliant', 'department_approval_requested');
+    GET DIAGNOSTICS v_transition_rows = ROW_COUNT;
+    IF v_transition_rows <> 1 THEN
+      RAISE EXCEPTION 'SessionBoundDB denied command: department_approve lost the expense state transition';
+    END IF;
 
     INSERT INTO app_data.approval_events (
       tenant_id, expense_id, event_type, actor, agent_actor, supervisor_agent_id, comment, created_at
@@ -706,7 +734,12 @@ BEGIN
 
     UPDATE app_data.expenses
     SET status = 'c_level_approved'
-    WHERE expense_id = exp.expense_id;
+    WHERE expense_id = exp.expense_id
+      AND status = 'c_level_approval_requested';
+    GET DIAGNOSTICS v_transition_rows = ROW_COUNT;
+    IF v_transition_rows <> 1 THEN
+      RAISE EXCEPTION 'SessionBoundDB denied command: c_level_approve lost the expense state transition';
+    END IF;
 
     INSERT INTO app_data.approval_events (
       tenant_id, expense_id, event_type, actor, agent_actor, supervisor_agent_id, comment, created_at
@@ -739,8 +772,13 @@ BEGIN
     IF exp.status NOT IN ('payable', 'c_level_approved') THEN
       RAISE EXCEPTION 'SessionBoundDB denied command: payment requires payable or c_level_approved status';
     END IF;
-    IF EXISTS (SELECT 1 FROM app_data.ledger_entries l WHERE l.expense_id = exp.expense_id) THEN
-      RAISE EXCEPTION 'SessionBoundDB denied command: ledger entry already exists for this expense';
+    UPDATE app_data.expenses
+    SET status = 'paid'
+    WHERE expense_id = exp.expense_id
+      AND status IN ('payable', 'c_level_approved');
+    GET DIAGNOSTICS v_transition_rows = ROW_COUNT;
+    IF v_transition_rows <> 1 THEN
+      RAISE EXCEPTION 'SessionBoundDB denied command: pay_expense lost the expense state transition';
     END IF;
 
     INSERT INTO app_data.ledger_entries (
@@ -755,11 +793,12 @@ BEGIN
       COALESCE(args->>'memo', 'travel reimbursement payment'),
       v_delegator,
       v_command_created_at
-    );
-
-    UPDATE app_data.expenses
-    SET status = 'paid'
-    WHERE expense_id = exp.expense_id;
+    )
+    ON CONFLICT (expense_id) DO NOTHING
+    RETURNING ledger_id INTO v_ledger_id;
+    IF v_ledger_id IS NULL THEN
+      RAISE EXCEPTION 'SessionBoundDB denied command: ledger entry already exists for this expense';
+    END IF;
 
     INSERT INTO app_data.approval_events (
       tenant_id, expense_id, event_type, actor, agent_actor, supervisor_agent_id, comment, created_at
@@ -958,6 +997,13 @@ REVOKE EXECUTE ON FUNCTION taskbound.command_denied_receipt_for_binding(jsonb, t
 REVOKE EXECUTE ON FUNCTION taskbound.command_apply(jsonb, text, jsonb, uuid, bigint, bigint, int, timestamptz, timestamptz, name) FROM agent_runtime;
 DO $$
 BEGIN
+  IF to_regprocedure('taskbound.append_query_receipt_local(text,text,uuid,bigint,text,text,bigint,bigint,bigint,text,text,text[],uuid)') IS NOT NULL THEN
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION taskbound.append_query_receipt_local(text,text,uuid,bigint,text,text,bigint,bigint,bigint,text,text,text[],uuid) FROM PUBLIC';
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION taskbound.append_query_receipt_local(text,text,uuid,bigint,text,text,bigint,bigint,bigint,text,text,text[],uuid) FROM agent_runtime';
+  END IF;
+  IF to_regprocedure('taskbound.native_record_query_denial_status(text,text,text,text,integer,integer,boolean,boolean,uuid,bigint)') IS NOT NULL THEN
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION taskbound.native_record_query_denial_status(text,text,text,text,integer,integer,boolean,boolean,uuid,bigint) FROM PUBLIC';
+  END IF;
   IF to_regprocedure('taskbound.audit_append_receipt(text,text,uuid,bigint,text,text,bigint,bigint,bigint,text,boolean)') IS NOT NULL THEN
     EXECUTE 'REVOKE EXECUTE ON FUNCTION taskbound.audit_append_receipt(text,text,uuid,bigint,text,text,bigint,bigint,bigint,text,boolean) FROM agent_runtime';
   END IF;
@@ -993,3 +1039,10 @@ GRANT EXECUTE ON FUNCTION taskbound.run(text) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.command(text, jsonb) TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.inspect_task_state() TO agent_runtime;
 GRANT EXECUTE ON FUNCTION taskbound.receipts() TO agent_runtime;
+
+DO $$
+BEGIN
+  IF to_regprocedure('taskbound.native_record_query_denial_status(text,text,text,text,integer,integer,boolean,boolean,uuid,bigint)') IS NOT NULL THEN
+    EXECUTE 'GRANT EXECUTE ON FUNCTION taskbound.native_record_query_denial_status(text,text,text,text,integer,integer,boolean,boolean,uuid,bigint) TO agent_runtime';
+  END IF;
+END $$;

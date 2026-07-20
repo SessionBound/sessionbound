@@ -7,14 +7,20 @@ import argparse
 import json
 import os
 import socket
-import subprocess
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
 
+from evidence_metadata import git_metadata
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
+CONTROL_PLANE_KEY = os.environ.get(
+    "TASKBOUND_CONTROL_PLANE_KEY",
+    "tdsc-demo-control-plane-key",
+)
+INFRA_HTTP_STATUS = {408, 429, 500, 502, 503, 504}
 
 
 ATTACKS: list[dict[str, Any]] = [
@@ -217,24 +223,14 @@ ATTACKS.extend([
 ])
 
 
-def git_commit() -> str:
-    if os.environ.get("GIT_COMMIT"):
-        return os.environ["GIT_COMMIT"]
-    try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=REPO_ROOT,
-            text=True,
-        ).strip()
-    except Exception:
-        return "unknown"
-
-
 def post_json(base_url: str, path: str, body: dict[str, Any]) -> dict[str, Any]:
+    headers = {"Content-Type": "application/json; charset=utf-8"}
+    if path.startswith(("/credentials", "/tasks", "/todos", "/admin/")):
+        headers["X-TaskBound-Control-Plane-Key"] = CONTROL_PLANE_KEY
     request = urllib.request.Request(
         base_url.rstrip("/") + path,
         data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json; charset=utf-8"},
+        headers=headers,
         method="POST",
     )
     try:
@@ -247,7 +243,7 @@ def post_json(base_url: str, path: str, body: dict[str, Any]) -> dict[str, Any]:
             payload = {"detail": f"HTTP {exc.code}"}
         return {"ok": False, "http_error": exc.code, **payload}
     except (urllib.error.URLError, ConnectionResetError, socket.timeout) as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "transport_error": True, "error": str(exc)}
 
 
 def wait_for_api(base_url: str) -> None:
@@ -260,16 +256,58 @@ def wait_for_api(base_url: str) -> None:
     raise RuntimeError(f"API did not become ready at {base_url}")
 
 
-def classify(result: dict[str, Any], expected: str) -> str:
+def infra_error(result: dict[str, Any]) -> bool:
     if result.get("setup_error"):
+        return True
+    if result.get("transport_error"):
+        return True
+    return result.get("http_error") in INFRA_HTTP_STATUS
+
+
+def accounting_evidence(result: dict[str, Any]) -> dict[str, Any]:
+    rows = result.get("rows") or []
+    receipts = result.get("receipts") or []
+    state = result.get("state") or []
+    state_row = state[0] if state else {}
+    allowed_receipts = [receipt for receipt in receipts if receipt.get("decision") == "allowed"]
+    receipt = allowed_receipts[0] if len(allowed_receipts) == 1 else {}
+    row_count = len(rows) if isinstance(rows, list) else 0
+    receipt_rows = int(receipt.get("rows_returned") or 0) if receipt else None
+    state_query_count = state_row.get("query_count")
+    state_rows = state_row.get("returned_rows")
+    checks = {
+        "receipt_count": len(receipts),
+        "allowed_receipt_count": len(allowed_receipts),
+        "row_count": row_count,
+        "receipt_rows": receipt_rows,
+        "state_query_count": state_query_count,
+        "state_returned_rows": state_rows,
+        "exactly_one_allowed_receipt": len(receipts) == 1 and len(allowed_receipts) == 1,
+        "receipt_rows_match_result": receipt_rows == row_count,
+        "state_query_count_accounted": state_query_count == 1,
+        "state_returned_rows_match_result": state_rows == row_count,
+    }
+    checks["ok"] = all(
+        bool(checks[key])
+        for key in [
+            "exactly_one_allowed_receipt",
+            "receipt_rows_match_result",
+            "state_query_count_accounted",
+            "state_returned_rows_match_result",
+        ]
+    )
+    return checks
+
+
+def classify(result: dict[str, Any], expected: str) -> str:
+    if infra_error(result):
         return "Not testable"
     if not result.get("ok"):
         return "Blocked"
-    rows = result.get("rows")
-    if isinstance(rows, list) and not rows:
-        return "Filtered"
     if expected == "Known limitation":
         return "Known limitation"
+    if expected == "Allowed but accounted" and not accounting_evidence(result)["ok"]:
+        return "Allowed without accounting evidence"
     return "Allowed but accounted"
 
 
@@ -282,14 +320,30 @@ def bucket_for(record: dict[str, Any]) -> str:
         return "blocked_small_group_aggregate"
     if record["actual"] == "Blocked":
         return "blocked_direct_violations"
+    if record["actual"] == "Not testable":
+        return "inconclusive_infrastructure"
+    if record["actual"] == "Allowed without accounting evidence":
+        return "accounting_oracle_failure"
     if record["actual"] == "Known limitation":
         return "remaining_known_limitation"
     return "other"
 
 
-def run_eval(base_url: str) -> dict[str, Any]:
+def selected_attacks(case_ids: list[str], limit: int | None) -> list[dict[str, Any]]:
+    selected = ATTACKS
+    if case_ids:
+        wanted = {case_id.upper() for case_id in case_ids}
+        selected = [attack for attack in selected if attack["id"].upper() in wanted]
+    if limit is not None:
+        selected = selected[: max(limit, 0)]
+    return selected
+
+
+def run_eval(base_url: str, case_ids: list[str] | None = None, limit: int | None = None) -> dict[str, Any]:
     wait_for_api(base_url)
     run_id = str(int(time.time()))
+    attacks = selected_attacks(case_ids or [], limit)
+    metadata = git_metadata(REPO_ROOT)
     credential = post_json(
         base_url,
         "/credentials",
@@ -300,7 +354,7 @@ def run_eval(base_url: str) -> dict[str, Any]:
         },
     )
     records = []
-    for index, attack in enumerate(ATTACKS, start=1):
+    for index, attack in enumerate(attacks, start=1):
         safe_id = attack["id"].lower()
         task_request = {
             "task_id": f"task_adv_{run_id}_{index}_{safe_id}",
@@ -330,6 +384,7 @@ def run_eval(base_url: str) -> dict[str, Any]:
         actual = classify(result, attack["expected"])
         receipts = result.get("receipts") or []
         validation = result.get("ast_validation") or {}
+        evidence = accounting_evidence(result) if result.get("ok") else {}
         record = {
             **attack,
             "actual": actual,
@@ -338,6 +393,8 @@ def run_eval(base_url: str) -> dict[str, Any]:
             "error": str(result.get("error") or result.get("detail") or result.get("setup_error") or "").split("\n")[0],
             "ast_allowed": validation.get("allowed"),
             "ast_flags": validation.get("flags"),
+            "infra_error": infra_error(result),
+            "accounting_evidence": evidence,
             "receipt_decisions": [receipt.get("decision") for receipt in receipts],
         }
         record["bucket"] = bucket_for(record)
@@ -350,7 +407,8 @@ def run_eval(base_url: str) -> dict[str, Any]:
     return {
         "run": {
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "commit": git_commit(),
+            "commit": metadata["commit"],
+            "git": metadata,
             "base_url": base_url,
             "case_count": len(records),
             "passed": sum(1 for record in records if record["passed"]),
@@ -366,11 +424,13 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://localhost:8000")
     parser.add_argument("--output-dir", default=str(REPO_ROOT / "paper/tdsc/raw_results"))
+    parser.add_argument("--case-id", action="append", default=[], help="run only the named adversarial case id; may be repeated")
+    parser.add_argument("--limit", type=int, default=None, help="run only the first N selected cases")
     args = parser.parse_args()
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-    payload = run_eval(args.base_url)
+    payload = run_eval(args.base_url, case_ids=args.case_id, limit=args.limit)
     output_path = output_dir / f"adversarial_sql_{timestamp}.json"
     output_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     print(output_path)

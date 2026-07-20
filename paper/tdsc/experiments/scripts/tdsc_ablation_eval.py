@@ -20,6 +20,7 @@ DB_HOST = os.environ.get("TDSC_DB_HOST", "postgres")
 DB_NAME = os.environ.get("TDSC_DB_NAME", "travel")
 WARMUP = int(os.environ.get("TDSC_WARMUP", "10"))
 MEASURED = int(os.environ.get("TDSC_MEASURED", "80"))
+CONTROL_PLANE_KEY = os.environ.get("TASKBOUND_CONTROL_PLANE_KEY", "tdsc-demo-control-plane-key")
 
 
 @dataclass(frozen=True)
@@ -30,9 +31,6 @@ class Variant:
 
 VARIANTS = [
     Variant("Full SessionBound", {}),
-    Variant("Receipts off", {"receipts_enabled": False}),
-    Variant("Budget accounting off", {"budget_accounting_enabled": False}),
-    Variant("Receipts and budget off", {"receipts_enabled": False, "budget_accounting_enabled": False}),
 ]
 
 
@@ -44,10 +42,13 @@ PATTERNS = {
 
 
 def post_json(path: str, body: dict[str, Any]) -> dict[str, Any]:
+    headers = {"Content-Type": "application/json"}
+    if path.startswith(("/credentials", "/tasks", "/todos", "/admin/")):
+        headers["X-TaskBound-Control-Plane-Key"] = CONTROL_PLANE_KEY
     req = urllib.request.Request(
         BASE_URL.rstrip("/") + path,
         data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=60) as response:

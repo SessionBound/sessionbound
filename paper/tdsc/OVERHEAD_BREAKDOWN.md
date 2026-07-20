@@ -3,8 +3,8 @@
 ## Status
 
 - Script: `paper/tdsc/scripts/overhead_breakdown.py`
-- Latest raw JSON: `paper/tdsc/raw_results/overhead_breakdown_20260719_150951.json`
-- Latest raw CSV: `paper/tdsc/raw_results/overhead_breakdown_20260719_150951.csv`
+- Latest archived raw JSON: `paper/tdsc/raw_results/overhead_breakdown_20260719_150951.json`
+- Latest archived raw CSV: `paper/tdsc/raw_results/overhead_breakdown_20260719_150951.csv`
 - Hook-only microbenchmark script: `paper/tdsc/scripts/hook_microbenchmark.py`
 - Latest hook-only microbenchmark:
   `paper/tdsc/raw_results/hook_microbenchmark_20260719_150550.json`
@@ -29,24 +29,25 @@ excluded from this overhead breakdown.
 - M3 RLS + Safe View + Short Credential + Audit: PostgreSQL RLS policies,
   field-limited safe views, a constrained short-lived credential, read-only
   grants, and per-query audit insert.
-- M4 SessionBound without receipts: `taskbound.run(...)` with
-  `receipts_enabled=false`.
-- M5 SessionBound without budget updates: `taskbound.run(...)` with
-  `budget_accounting_enabled=false`.
-- M6 SessionBound full: default wrapper reference path with receipts and budget
+- M4 SessionBound full: default wrapper reference path with receipts and budget
   accounting enabled.
+
+The archived 2026-07-19 raw file also contained no-receipt and no-budget
+SessionBound ablations. Those modes are no longer run by the current script:
+the hardened token validator rejects attempts to disable receipts or budget
+accounting.
 
 ## p50 Latency Table
 
 Values are p50 latency in milliseconds.
 
-| Pattern | Raw | Role-only | Safe-view | RLS+SV+Audit | SB no-receipt | SB no-budget | SB full |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Q1 SELECT | 0.236 | 0.267 | 0.431 | 1.280 | 153.960 | 152.948 | 152.923 |
-| Q2 JOIN | 0.179 | 0.171 | 0.212 | 0.969 | 150.880 | 156.085 | 158.980 |
-| Q3 GROUP BY | 0.225 | 0.206 | 0.260 | 1.110 | -- | -- | -- |
-| Q4 CTE detail | 0.204 | 0.180 | 0.214 | 0.910 | 155.381 | 157.473 | 151.161 |
-| Q5 window function | 0.232 | 0.265 | 0.270 | 0.987 | -- | -- | -- |
+| Pattern | Raw | Role-only | Safe-view | RLS+SV+Audit | SB full |
+|---|---:|---:|---:|---:|---:|
+| Q1 SELECT | 0.236 | 0.267 | 0.431 | 1.280 | 152.923 |
+| Q2 JOIN | 0.179 | 0.171 | 0.212 | 0.969 | 158.980 |
+| Q3 GROUP BY | 0.225 | 0.206 | 0.260 | 1.110 | -- |
+| Q4 CTE detail | 0.204 | 0.180 | 0.214 | 0.910 | 151.161 |
+| Q5 window function | 0.232 | 0.265 | 0.270 | 0.987 | -- |
 
 ## Required Analysis
 
@@ -70,16 +71,18 @@ variation by query shape.
 
 Does receipt writing dominate?
 
-No. Disabling receipts does not consistently reduce latency. For example,
-Q1 full is 152.923 ms p50 and no-receipt is 153.960 ms; Q4 CTE detail full is
-151.161 ms and no-receipt is 155.381 ms. The deltas are small relative to the wrapper jump and
-remain noisy.
+The archived pre-hardening ablation did not show a stable receipt-only
+latency attribution. For example, Q1 full was 152.923 ms p50 and no-receipt was
+153.960 ms; Q4 CTE detail full was 151.161 ms and no-receipt was 155.381 ms.
+These retired-mode deltas are small relative to the wrapper jump and remain
+noisy.
 
 Does budget update dominate?
 
-No. Disabling budget accounting produces p50 values close to full SessionBound.
-Q1 no-budget is 152.948 ms versus 152.923 ms full; Q4 CTE detail no-budget is
-157.473 ms versus 151.161 ms full.
+The archived pre-hardening no-budget values were close to full SessionBound:
+Q1 no-budget was 152.948 ms versus 152.923 ms full; Q4 CTE detail no-budget was
+157.473 ms versus 151.161 ms full. Current secure tokens no longer allow this
+mode.
 
 Which parts are prototype artifacts?
 

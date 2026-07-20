@@ -351,23 +351,7 @@ def run_mode(pattern_name: str, mode: str, query: dict[str, str]) -> dict[str, A
             "search_path": "tdsc_rls_safe_view",
             "audit": True,
         },
-        "M4 SessionBound without receipts": {
-            "dsn": APP_DSN,
-            "sql": query["safe"],
-            "bind_task": True,
-            "runtime_options": {"receipts_enabled": False},
-            "search_path": None,
-            "audit": False,
-        },
-        "M5 SessionBound without budget updates": {
-            "dsn": APP_DSN,
-            "sql": query["safe"],
-            "bind_task": True,
-            "runtime_options": {"budget_accounting_enabled": False},
-            "search_path": None,
-            "audit": False,
-        },
-        "M6 SessionBound full": {
+        "M4 SessionBound full": {
             "dsn": APP_DSN,
             "sql": query["safe"],
             "bind_task": True,
@@ -444,9 +428,7 @@ def main() -> int:
         "M1 Role-only read-only credential",
         "M2 Safe-view-only",
         "M3 RLS + Safe View + Short Credential + Audit",
-        "M4 SessionBound without receipts",
-        "M5 SessionBound without budget updates",
-        "M6 SessionBound full",
+        "M4 SessionBound full",
     ]
     records = []
     for pattern_name, query in PATTERNS.items():
@@ -464,6 +446,7 @@ def main() -> int:
                 "Measurements use direct PostgreSQL connections from the compose network.",
                 "HTTP, model calls, and API-layer AST parsing are excluded from this overhead breakdown.",
                 "M3 applies PostgreSQL RLS over raw tables, field-limited safe views, a short-lived read-only role, and a basic query audit insert.",
+                "SessionBound no-receipt/no-budget ablations are intentionally not run: current task-token validation rejects disabling receipts or budget accounting.",
             ],
         },
         "records": records,

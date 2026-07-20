@@ -35,11 +35,13 @@ Full SessionBound p50 measured 128.4--136.1 ms across the five query
 patterns because the wrapper reference path includes runtime dispatch, policy
 checks, autonomous budget/receipt accounting, and result materialization.
 
-Receipt/budget ablation was measured in
+Receipt/budget ablation was measured in the archived pre-hardening run
 `../raw_results/overhead_breakdown_20260710_103837.json`. Receipt-disabled
 variants emitted no receipts, budget-disabled variants left budget counters
 unchanged, and small-dataset p50 deltas were noisy rather than a stable
-attribution to a single component.
+attribution to a single component. Current task-token validation rejects
+disabling receipts or budget accounting, so these ablations are no longer
+current reproducible modes.
 
 A synthetic 1k/10k/100k scoped-row scale sweep was measured in
 `../raw_results/scale_1783515366.json`. At 100k scoped rows, raw PostgreSQL

@@ -258,6 +258,7 @@ def validate_sql_structure(
         "catalog_access": False,
         "operation_types": [],
         "set_operations": [],
+        "container_expressions": [],
         "parser_available": sqlglot is not None,
     }
 
@@ -421,6 +422,22 @@ def validate_sql_structure(
                 reasons.append(f"alias {alias_name} matches a denied field")
                 flags.append("denied_column_alias")
 
+        for subquery in root.find_all(exp.Subquery):
+            parent = getattr(subquery, "parent", None)
+            if not isinstance(parent, (exp.From, exp.Join)):
+                reasons.append("subquery expressions are not allowed")
+                flags.append("subquery_expression")
+
+        for array_expr in root.find_all(exp.Array):
+            metadata["container_expressions"].append(array_expr.sql(dialect="postgres"))
+            reasons.append("ARRAY constructors are not allowed")
+            flags.append("container_expression")
+
+        for tuple_expr in root.find_all(exp.Tuple):
+            metadata["container_expressions"].append(tuple_expr.sql(dialect="postgres"))
+            reasons.append("ROW constructors are not allowed")
+            flags.append("container_expression")
+
         for func in root.find_all(exp.Func):
             function_name = _function_name(func)
             if not function_name:
@@ -429,6 +446,16 @@ def validate_sql_structure(
             if function_name in PAYLOAD_AGGREGATION_FUNCTIONS or function_name in SQLGLOT_PAYLOAD_AGGREGATION_ALIASES:
                 reasons.append(f"payload aggregation function {function_name} is not allowed")
                 flags.append("payload_aggregation")
+            elif function_name == "row":
+                metadata["container_expressions"].append(func.sql(dialect="postgres"))
+                reasons.append("ROW constructors are not allowed")
+                flags.append("container_expression")
+            elif function_name == "array":
+                continue
+            elif function_name.startswith("json") or function_name.startswith("xml"):
+                metadata["container_expressions"].append(func.sql(dialect="postgres"))
+                reasons.append("SQL/JSON and XML constructors are not allowed")
+                flags.append("container_expression")
             elif function_name not in ALLOWED_FUNCTIONS:
                 reasons.append(f"unknown function {function_name} is not allowed")
                 flags.append("unknown_function")
@@ -449,6 +476,7 @@ def validate_sql_structure(
     metadata["ctes"] = _dedupe(ctes)
     metadata["operation_types"] = _dedupe(statement_kinds)
     metadata["set_operations"] = _dedupe(metadata["set_operations"])
+    metadata["container_expressions"] = _dedupe(metadata["container_expressions"])
 
     return SQLValidationResult(
         allowed=not reasons,

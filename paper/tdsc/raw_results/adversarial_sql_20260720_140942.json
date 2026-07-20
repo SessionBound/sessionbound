@@ -1,0 +1,79 @@
+{
+  "records": [
+    {
+      "accounting_evidence": {},
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "aggregate_template_required",
+        "payload_aggregation"
+      ],
+      "bucket": "blocked_payload_aggregation",
+      "category": "Payload aggregation / compression",
+      "error": "AST preflight denied query: aggregate release requires an approved aggregate template; payload aggregation function j_s_o_n_array_agg is not allowed; payload aggregation function json_agg is not allowed",
+      "expected": "Blocked",
+      "id": "C01",
+      "infra_error": false,
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT json_agg(e) FROM expenses e;"
+    },
+    {
+      "accounting_evidence": {
+        "allowed_receipt_count": 1,
+        "exactly_one_allowed_receipt": true,
+        "ok": true,
+        "receipt_count": 1,
+        "receipt_rows": 347,
+        "receipt_rows_match_result": true,
+        "row_count": 347,
+        "state_query_count": 1,
+        "state_query_count_accounted": true,
+        "state_returned_rows": 347,
+        "state_returned_rows_match_result": true
+      },
+      "actual": "Allowed but accounted",
+      "ast_allowed": true,
+      "ast_flags": [],
+      "bucket": "allowed_safe_view_analytical_cases",
+      "category": "Obfuscation and aliases",
+      "error": "",
+      "expected": "Allowed but accounted",
+      "id": "D03",
+      "infra_error": false,
+      "passed": true,
+      "receipt_decisions": [
+        "allowed"
+      ],
+      "row_count": 347,
+      "sql": "SELECT e.amount + 0 AS amount2 FROM expenses e;"
+    }
+  ],
+  "run": {
+    "base_url": "http://localhost:8000",
+    "bucket_counts": {
+      "allowed_safe_view_analytical_cases": 1,
+      "blocked_payload_aggregation": 1
+    },
+    "case_count": 2,
+    "classification_counts": {
+      "Allowed but accounted": 1,
+      "Blocked": 1
+    },
+    "commit": "108f7ae",
+    "failed": 0,
+    "git": {
+      "commit": "108f7ae",
+      "diff_hash": "f6ae83b1397bbc162f6eefce0c4e69a9ffd1480415720c8359c5427487d84dda",
+      "diff_stat": "app/api.py                                         |  36 +-\n app/sql_ast_validator.py                           |  28 ++\n app/task_registry.py                               |   2 +\n app/taskbound_demo.py                              |   1 +\n app/taskbound_sdk.py                               |   5 +-\n db/001_schema.sql                                  |   3 +\n db/003_runtime_core.sql                            | 215 ++++++++-\n db/005_query_runtime.sql                           | 525 +++++++++++++++++----\n db/006_commands_and_grants.sql                     | 125 +++--\n paper/tdsc/OVERHEAD_BREAKDOWN.md                   |  45 +-\n paper/tdsc/POSTGRES_HOOK_ENFORCEMENT.md            |   8 +-\n paper/tdsc/STATIC_REVIEW_CLOSURE_AUDIT.md          |   2 +-\n paper/tdsc/experiments/FINAL_EXPERIMENT_REPORT.md  |   6 +-\n paper/tdsc/experiments/RECEIPT_OVERHEAD_RESULTS.md |  21 +-\n .../tdsc/experiments/scripts/tdsc_ablation_eval.py |   9 +-\n .../scripts/tdsc_credential_token_tests.py         | 147 +++++-\n paper/tdsc/scripts/adversarial_sql_eval.py         | 108 ++++-\n paper/tdsc/scripts/binding_lifecycle_eval.py       |  55 ++-\n paper/tdsc/scripts/overhead_breakdown.py           |  23 +-\n paper/tdsc/sessionbound-tdsc.tex                   |  71 +--\n postgres/sessionbound_guard/sessionbound_guard.c   |  77 ++-\n scripts/sessionbound_agent_eval.py                 |  17 +-\n 22 files changed, 1199 insertions(+), 330 deletions(-)",
+      "dirty": true,
+      "full_commit": "108f7ae62b90b104fcf5327ef82bc9d9fc10610a",
+      "status_short": "M app/api.py\n M app/sql_ast_validator.py\n M app/task_registry.py\n M app/taskbound_demo.py\n M app/taskbound_sdk.py\n M db/001_schema.sql\n M db/003_runtime_core.sql\n M db/005_query_runtime.sql\n M db/006_commands_and_grants.sql\n M paper/tdsc/OVERHEAD_BREAKDOWN.md\n M paper/tdsc/POSTGRES_HOOK_ENFORCEMENT.md\n M paper/tdsc/STATIC_REVIEW_CLOSURE_AUDIT.md\n M paper/tdsc/experiments/FINAL_EXPERIMENT_REPORT.md\n M paper/tdsc/experiments/RECEIPT_OVERHEAD_RESULTS.md\n M paper/tdsc/experiments/scripts/tdsc_ablation_eval.py\n M paper/tdsc/experiments/scripts/tdsc_credential_token_tests.py\n M paper/tdsc/scripts/adversarial_sql_eval.py\n M paper/tdsc/scripts/binding_lifecycle_eval.py\n M paper/tdsc/scripts/overhead_breakdown.py\n M paper/tdsc/sessionbound-tdsc.tex\n M postgres/sessionbound_guard/sessionbound_guard.c\n M scripts/sessionbound_agent_eval.py\n?? paper/tdsc/raw_results/adversarial_sql_20260720_135718.json\n?? paper/tdsc/raw_results/adversarial_sql_20260720_135951.json\n?? paper/tdsc/raw_results/adversarial_sql_20260720_140327.json\n?? paper/tdsc/raw_results/command_concurrency_20260720_053124.json\n?? paper/tdsc/raw_results/command_concurrency_20260720_055337.json\n?? paper/tdsc/raw_results/command_concurrency_20260720_060006.json\n?? paper/tdsc/raw_results/command_concurrency_20260720_060341.json\n?? paper/tdsc/raw_results/native_partial_budget_20260720_135151.json\n?? paper/tdsc/raw_results/receipt_crash_consistency_20260720_055322.json\n?? paper/tdsc/raw_results/receipt_crash_consistency_20260720_060022.json\n?? paper/tdsc/raw_results/receipt_crash_consistency_20260720_060357.json\n?? paper/tdsc/scripts/command_concurrency_eval.py\n?? paper/tdsc/scripts/evidence_metadata.py\n?? paper/tdsc/scripts/receipt_crash_consistency_eval.py"
+    },
+    "passed": 2,
+    "timestamp": "2026-07-20T06:09:46Z"
+  }
+}

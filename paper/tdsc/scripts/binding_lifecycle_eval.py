@@ -23,10 +23,10 @@ from typing import Any, Callable
 import psycopg
 from psycopg.rows import dict_row
 
+from evidence_metadata import git_metadata
 from path_consistency_eval import (
     IssuedTask,
     credential_dsn,
-    git_commit,
     post_json_retry,
     wait_for_api,
 )
@@ -203,6 +203,54 @@ def snapshot_contract_metadata_present() -> dict[str, Any]:
     }
 
 
+def helper_function_dependency_hash_changes() -> dict[str, Any]:
+    restore_sql = ""
+    before_hash = ""
+    drift_hash = ""
+    restored_hash = ""
+    error = ""
+    try:
+        with psycopg.connect(ADMIN_DSN, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT pg_catalog.pg_get_functiondef('taskbound.claim(text[])'::regprocedure)")
+                restore_sql = cur.fetchone()[0]
+                cur.execute("SELECT taskbound.safe_view_registry_snapshot(ARRAY['expenses'])->>'view_dependency_hash'")
+                before_hash = cur.fetchone()[0]
+                cur.execute(
+                    """
+                    CREATE OR REPLACE FUNCTION taskbound.claim(path text[])
+                    RETURNS text
+                    LANGUAGE sql
+                    SECURITY DEFINER
+                    SET search_path = taskbound, pg_temp
+                    AS $$
+                      SELECT (taskbound.require_payload() #>> path) || ''
+                    $$;
+                    """
+                )
+                cur.execute("SELECT taskbound.safe_view_registry_snapshot(ARRAY['expenses'])->>'view_dependency_hash'")
+                drift_hash = cur.fetchone()[0]
+    except Exception as exc:
+        error = str(exc).splitlines()[0]
+    finally:
+        if restore_sql:
+            with psycopg.connect(ADMIN_DSN, autocommit=True) as restore_conn:
+                with restore_conn.cursor() as restore_cur:
+                    restore_cur.execute(restore_sql)
+                    restore_cur.execute("SELECT taskbound.safe_view_registry_snapshot(ARRAY['expenses'])->>'view_dependency_hash'")
+                    restored_hash = restore_cur.fetchone()[0]
+
+    passed = bool(before_hash and drift_hash and restored_hash) and before_hash != drift_hash and before_hash == restored_hash
+    return {
+        "name": "helper_function_dependency_hash_changes",
+        "passed": passed,
+        "error": error,
+        "before_hash": before_hash,
+        "drift_hash": drift_hash,
+        "restored_hash": restored_hash,
+    }
+
+
 def release_case(
     base_url: str,
     run_id: str,
@@ -335,9 +383,11 @@ def drift_view_option(binding: dict[str, Any]) -> Callable[[], None]:
 def evaluate(base_url: str) -> dict[str, Any]:
     wait_for_api(base_url)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    metadata = git_metadata(REPO_ROOT)
     records: list[dict[str, Any]] = []
 
     records.append(snapshot_contract_metadata_present())
+    records.append(helper_function_dependency_hash_changes())
 
     records.append(
         release_case(
@@ -382,7 +432,8 @@ def evaluate(base_url: str) -> dict[str, Any]:
     return {
         "run": {
             "timestamp": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-            "commit": git_commit(),
+            "commit": metadata["commit"],
+            "git": metadata,
             "base_url": base_url,
             "case_count": len(records),
             "passed": sum(1 for record in records if record["passed"]),

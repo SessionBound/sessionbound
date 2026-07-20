@@ -43,6 +43,75 @@ ON CONFLICT (task_type) DO UPDATE
 SET policy_version = EXCLUDED.policy_version,
     updated_at = clock_timestamp();
 
+CREATE OR REPLACE FUNCTION taskbound.sha256_hex_equals(expected_hex text, supplied_hex text)
+RETURNS boolean
+LANGUAGE plpgsql
+IMMUTABLE
+STRICT
+SET search_path = taskbound, pg_temp
+AS $$
+DECLARE
+  diff int := 0;
+  i int;
+BEGIN
+  IF length(expected_hex) <> 64 OR length(supplied_hex) <> 64 THEN
+    RETURN false;
+  END IF;
+  IF expected_hex !~ '^[0-9a-f]{64}$' OR supplied_hex !~ '^[0-9A-Fa-f]{64}$' THEN
+    RETURN false;
+  END IF;
+  supplied_hex := lower(supplied_hex);
+  FOR i IN 1..64 LOOP
+    diff := diff | (
+      (position(substr(expected_hex, i, 1) in '0123456789abcdef') - 1)
+      # (position(substr(supplied_hex, i, 1) in '0123456789abcdef') - 1)
+    );
+  END LOOP;
+  RETURN diff = 0;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.validate_task_policy_claims(v_payload jsonb)
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = taskbound, pg_temp
+AS $$
+DECLARE
+  v_task_type text := NULLIF(v_payload->>'task_type', '');
+  v_token_policy_version text := NULLIF(v_payload->>'policy_version', '');
+  v_expected_policy_version text;
+BEGIN
+  IF jsonb_typeof(v_payload) IS DISTINCT FROM 'object' THEN
+    RAISE EXCEPTION 'task token payload must be a JSON object'
+      USING ERRCODE = '42501';
+  END IF;
+  IF v_task_type IS NULL THEN
+    RAISE EXCEPTION 'task token task_type claim is required'
+      USING ERRCODE = '42501';
+  END IF;
+  IF v_token_policy_version IS NULL THEN
+    RAISE EXCEPTION 'task token policy_version claim is required'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT policy_version
+  INTO v_expected_policy_version
+  FROM taskbound.task_policy_registry
+  WHERE task_type = v_task_type;
+
+  IF v_expected_policy_version IS NULL THEN
+    RAISE EXCEPTION 'task token task_type is not in the authoritative policy registry'
+      USING ERRCODE = '42501';
+  END IF;
+  IF v_token_policy_version <> v_expected_policy_version THEN
+    RAISE EXCEPTION 'task token policy_version is stale; re-approval is required'
+      USING ERRCODE = '42501';
+  END IF;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION taskbound.current_database_oid()
 RETURNS oid
 LANGUAGE sql
@@ -560,6 +629,8 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
+  PERFORM taskbound.validate_task_policy_claims(active.payload);
+
   IF jsonb_typeof(active.payload->'allowed_views') IS DISTINCT FROM 'array'
      OR NOT (active.payload ? 'safe_view_registry')
      OR NOT (active.payload ? 'database_oid')
@@ -694,6 +765,8 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
+  PERFORM taskbound.validate_task_policy_claims(active.payload);
+
   IF jsonb_typeof(active.payload->'allowed_views') IS DISTINCT FROM 'array'
      OR NOT (active.payload ? 'safe_view_registry')
      OR NOT (active.payload ? 'database_oid')
@@ -780,6 +853,7 @@ $$;
 CREATE OR REPLACE FUNCTION taskbound.bind_task(payload_text text, signature_hex text)
 RETURNS jsonb
 LANGUAGE plpgsql
+STRICT
 SECURITY DEFINER
 SET search_path = taskbound, pg_temp
 AS $$
@@ -812,7 +886,6 @@ DECLARE
   v_expected_view_count int;
   v_actual_view_count int;
   v_policy_violation text;
-  v_expected_policy_version text;
   v_binding_id uuid := gen_random_uuid();
   v_fence_token bigint;
   v_advisory_lock_key bigint;
@@ -825,7 +898,20 @@ DECLARE
   v_lock_acquired boolean := false;
   v_lock_backend_pid int;
 BEGIN
+  IF btrim(payload_text) = '' THEN
+    RAISE EXCEPTION 'task token payload is required';
+  END IF;
+  IF btrim(signature_hex) = '' THEN
+    RAISE EXCEPTION 'task token signature is required';
+  END IF;
+  IF signature_hex !~ '^[0-9A-Fa-f]{64}$' THEN
+    RAISE EXCEPTION 'task token signature must be 64 hex characters';
+  END IF;
+
   p := payload_text::jsonb;
+  IF jsonb_typeof(p) IS DISTINCT FROM 'object' THEN
+    RAISE EXCEPTION 'task token payload must be a JSON object';
+  END IF;
   SELECT signing_keys.secret INTO secret
   FROM taskbound.signing_keys
   WHERE key_id = COALESCE(p->>'key_id', 'dev');
@@ -835,7 +921,7 @@ BEGIN
   END IF;
 
   expected := encode(public.hmac(convert_to(payload_text, 'utf8'), convert_to(secret, 'utf8'), 'sha256'), 'hex');
-  IF expected <> signature_hex THEN
+  IF NOT taskbound.sha256_hex_equals(expected, signature_hex) THEN
     RAISE EXCEPTION 'invalid task token signature';
   END IF;
 
@@ -848,6 +934,9 @@ BEGIN
   v_credential_id := COALESCE(p->>'credential_id', '');
   v_token_digest := encode(public.digest(payload_text, 'sha256'), 'hex');
   v_token_nonce := COALESCE(p->>'nonce', p #>> ARRAY['token', 'nonce'], '');
+  IF COALESCE(v_token_nonce, '') = '' THEN
+    RAISE EXCEPTION 'task token nonce claim is required';
+  END IF;
   IF COALESCE((p #>> ARRAY['runtime_options', 'receipts_enabled'])::boolean, true) IS NOT TRUE THEN
     RAISE EXCEPTION 'task token runtime_options may not disable receipts';
   END IF;
@@ -902,19 +991,7 @@ BEGIN
   IF COALESCE(v_task_id, '') = '' THEN
     RAISE EXCEPTION 'task token task_id claim is required';
   END IF;
-  IF COALESCE(p->>'task_type', '') <> '' THEN
-    SELECT policy_version
-    INTO v_expected_policy_version
-    FROM taskbound.task_policy_registry
-    WHERE task_type = p->>'task_type';
-
-    IF v_expected_policy_version IS NULL THEN
-      RAISE EXCEPTION 'task token task_type is not in the authoritative policy registry';
-    END IF;
-    IF COALESCE(p->>'policy_version', '') <> v_expected_policy_version THEN
-      RAISE EXCEPTION 'task token policy_version is stale; re-approval is required';
-    END IF;
-  END IF;
+  PERFORM taskbound.validate_task_policy_claims(p);
   IF COALESCE(p->>'tenant_id', '') = '' THEN
     RAISE EXCEPTION 'task token tenant_id claim is required';
   END IF;
@@ -1388,6 +1465,7 @@ BEGIN
           public.digest(
             COALESCE(
               string_agg(
+                dep.depth::text || ':' ||
                 dep.refclassid::regclass::text || ':' ||
                 dep.refobjid::text || ':' ||
                 dep.refobjsubid::text || ':' ||
@@ -1408,10 +1486,21 @@ BEGIN
                     COALESCE(proc.probin, '') || ':' ||
                     COALESCE(proc.prosqlbody::text, '') || ':' ||
                     COALESCE(proc.prosrc, '')
+                  WHEN dep.refclassid = 'pg_class'::regclass THEN
+                    rel.relnamespace::regnamespace::text || ':' ||
+                    rel.relname || ':' ||
+                    rel.relkind::text || ':' ||
+                    rel.relowner::regrole::text || ':' ||
+                    rel.relrowsecurity::text || ':' ||
+                    rel.relforcerowsecurity::text || ':' ||
+                    COALESCE(rel.relacl::text, '') || ':' ||
+                    COALESCE(rel.reloptions::text, '') || ':' ||
+                    COALESCE(pg_catalog.pg_get_viewdef(rel.oid, true), '') || ':' ||
+                    COALESCE(policy.policy_text, '')
                   END,
                   ''
                 ),
-                '|' ORDER BY dep.refclassid::regclass::text, dep.refobjid, dep.refobjsubid, dep.deptype
+                '|' ORDER BY dep.depth, dep.refclassid::regclass::text, dep.refobjid, dep.refobjsubid, dep.deptype
               ),
               ''
             ),
@@ -1422,6 +1511,7 @@ BEGIN
         COALESCE(
           jsonb_agg(
             jsonb_build_object(
+              'depth', dep.depth,
               'refclass', dep.refclassid::regclass::text,
               'refobjid', dep.refobjid::text,
               'refobjsubid', dep.refobjsubid,
@@ -1432,19 +1522,92 @@ BEGIN
           ) FILTER (WHERE dep.refobjid IS NOT NULL),
           '[]'::jsonb
         ) AS dependencies
-      FROM pg_catalog.pg_rewrite rw
-      JOIN pg_catalog.pg_depend dep
-        ON dep.classid = 'pg_rewrite'::regclass
-       AND dep.objid = rw.oid
-       AND dep.deptype IN ('n', 'a')
+      FROM (
+        WITH RECURSIVE dependency_edges AS (
+          SELECT
+            1 AS depth,
+            dep.refclassid,
+            dep.refobjid,
+            dep.refobjsubid,
+            dep.deptype,
+            ARRAY[
+              dep.refclassid::oid::text || ':' || dep.refobjid::text || ':' || dep.refobjsubid::text
+            ] AS path
+          FROM pg_catalog.pg_rewrite rw
+          JOIN pg_catalog.pg_depend dep
+            ON dep.classid = 'pg_rewrite'::regclass
+           AND dep.objid = rw.oid
+           AND dep.deptype IN ('n', 'a')
+          WHERE rw.ev_class = c.oid
+            AND NOT (
+              dep.refclassid = 'pg_class'::regclass
+              AND dep.refobjid = c.oid
+            )
+
+          UNION ALL
+
+          SELECT
+            edge.depth + 1,
+            next_dep.refclassid,
+            next_dep.refobjid,
+            next_dep.refobjsubid,
+            next_dep.deptype,
+            edge.path || (
+              next_dep.refclassid::oid::text || ':' || next_dep.refobjid::text || ':' || next_dep.refobjsubid::text
+            )
+          FROM dependency_edges edge
+          JOIN LATERAL (
+            SELECT dep.refclassid, dep.refobjid, dep.refobjsubid, dep.deptype
+            FROM pg_catalog.pg_depend dep
+            WHERE dep.classid = edge.refclassid
+              AND dep.objid = edge.refobjid
+              AND dep.deptype IN ('n', 'a')
+
+            UNION ALL
+
+            SELECT dep.refclassid, dep.refobjid, dep.refobjsubid, dep.deptype
+            FROM pg_catalog.pg_rewrite rw
+            JOIN pg_catalog.pg_depend dep
+              ON dep.classid = 'pg_rewrite'::regclass
+             AND dep.objid = rw.oid
+             AND dep.deptype IN ('n', 'a')
+            WHERE edge.refclassid = 'pg_class'::regclass
+              AND rw.ev_class = edge.refobjid
+          ) next_dep ON true
+          WHERE edge.depth < 8
+            AND NOT (
+              next_dep.refclassid = 'pg_class'::regclass
+              AND next_dep.refobjid = c.oid
+            )
+            AND NOT (
+              next_dep.refclassid::oid::text || ':' || next_dep.refobjid::text || ':' || next_dep.refobjsubid::text
+            ) = ANY(edge.path)
+        )
+        SELECT DISTINCT ON (refclassid, refobjid, refobjsubid, deptype)
+          depth, refclassid, refobjid, refobjsubid, deptype
+        FROM dependency_edges
+        ORDER BY refclassid, refobjid, refobjsubid, deptype, depth
+      ) dep
       LEFT JOIN pg_catalog.pg_proc proc
         ON dep.refclassid = 'pg_proc'::regclass
        AND proc.oid = dep.refobjid
-      WHERE rw.ev_class = c.oid
-        AND NOT (
-          dep.refclassid = 'pg_class'::regclass
-          AND dep.refobjid = c.oid
-        )
+      LEFT JOIN pg_catalog.pg_class rel
+        ON dep.refclassid = 'pg_class'::regclass
+       AND rel.oid = dep.refobjid
+      LEFT JOIN LATERAL (
+        SELECT string_agg(
+          pol.polname || ':' ||
+          pol.polcmd::text || ':' ||
+          pol.polpermissive::text || ':' ||
+          COALESCE(pol.polroles::text, '') || ':' ||
+          COALESCE(pg_catalog.pg_get_expr(pol.polqual, pol.polrelid), '') || ':' ||
+          COALESCE(pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid), ''),
+          '|' ORDER BY pol.polname
+        ) AS policy_text
+        FROM pg_catalog.pg_policy pol
+        WHERE rel.oid IS NOT NULL
+          AND pol.polrelid = rel.oid
+      ) policy ON true
     ) deps ON true
     WHERE r.view_name = ANY(COALESCE(view_names, ARRAY[]::text[]))
   ),

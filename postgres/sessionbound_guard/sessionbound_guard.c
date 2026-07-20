@@ -213,32 +213,30 @@ valid_guard_binding_identity(void)
 }
 
 static char *
-text_arg_to_top_cstring(PG_FUNCTION_ARGS, int argno)
+text_arg_to_cstring(PG_FUNCTION_ARGS, int argno)
 {
 	text *value;
-	char *cstring;
-	MemoryContext old_context;
-	char *result;
 
 	if (PG_ARGISNULL(argno))
 		return "";
 
 	value = PG_GETARG_TEXT_PP(argno);
-	cstring = text_to_cstring(value);
-	old_context = MemoryContextSwitchTo(TopMemoryContext);
-	result = pstrdup(cstring);
-	MemoryContextSwitchTo(old_context);
-	return result;
+	return text_to_cstring(value);
 }
 
 static void
 assign_top_string(char **target, const char *value)
 {
 	MemoryContext old_context;
+	char *old_value = *target;
+	char *new_value;
 
 	old_context = MemoryContextSwitchTo(TopMemoryContext);
-	*target = pstrdup(value != NULL ? value : "");
+	new_value = pstrdup(value != NULL ? value : "");
 	MemoryContextSwitchTo(old_context);
+	*target = new_value;
+	if (old_value != NULL)
+		pfree(old_value);
 }
 
 static void
@@ -1262,6 +1260,27 @@ guard_expr_walker(Node *node, void *context)
 		if (!tle->resjunk && name_is_sensitive(tle->resname))
 			guard_deny("sensitive output alias is outside this task capability");
 	}
+	else if (IsA(node, SubLink))
+	{
+		guard_deny("subquery expressions are not allowed in task SQL");
+	}
+	else if (IsA(node, ArrayExpr))
+	{
+		guard_deny("array constructors are not allowed in task SQL");
+	}
+	else if (IsA(node, RowExpr))
+	{
+		guard_deny("row constructors are not allowed in task SQL");
+	}
+	else if (IsA(node, XmlExpr))
+	{
+		guard_deny("XML constructors are not allowed in task SQL");
+	}
+	else if (IsA(node, JsonConstructorExpr) ||
+			 IsA(node, JsonIsPredicate))
+	{
+		guard_deny("SQL/JSON constructors are not allowed in task SQL");
+	}
 	else if (IsA(node, FuncExpr))
 	{
 		guard_check_function(((FuncExpr *) node)->funcid, (GuardContext *) context);
@@ -2282,9 +2301,10 @@ native_finish_query(NativeQueryState *state)
 static void
 native_record_state_denial(NativeQueryState *state, const char *reason)
 {
-	Oid argtypes[7] = {TEXTOID, TEXTOID, TEXTOID, TEXTOID, BOOLOID, TEXTOID, INT8OID};
-	Datum values[7];
-	char nulls[7] = {' ', ' ', ' ', ' ', ' ', ' ', ' '};
+	Oid argtypes[10] = {TEXTOID, TEXTOID, TEXTOID, TEXTOID, INT4OID, INT4OID, BOOLOID, BOOLOID, TEXTOID, INT8OID};
+	Datum values[10];
+	char nulls[10] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
+	char *status;
 
 	if (state == NULL || state->denied_recorded)
 		return;
@@ -2296,16 +2316,21 @@ native_record_state_denial(NativeQueryState *state, const char *reason)
 	values[1] = CStringGetTextDatum(state->budget_account);
 	values[2] = CStringGetTextDatum(state->source_text != NULL ? state->source_text : "");
 	values[3] = CStringGetTextDatum(reason != NULL ? reason : "query denied");
-	values[4] = BoolGetDatum(state->receipts_enabled);
-	values[5] = CStringGetTextDatum(state->binding_id);
-	values[6] = Int64GetDatum(state->fence_token);
+	values[4] = Int32GetDatum(guard_max_queries);
+	values[5] = Int32GetDatum(state->max_unique_expense_rows);
+	values[6] = BoolGetDatum(state->budget_accounting_enabled);
+	values[7] = BoolGetDatum(state->receipts_enabled);
+	values[8] = CStringGetTextDatum(state->binding_id);
+	values[9] = Int64GetDatum(state->fence_token);
 
-	spi_call_void(
-		"SELECT taskbound.native_denied_receipt($1, $2, $3, $4, $5, $6::uuid, $7)",
-		7,
+	status = spi_call_text(
+		"SELECT taskbound.native_record_query_denial_status($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid, $10)",
+		10,
 		argtypes,
 		values,
 		nulls);
+	if (status != NULL)
+		pfree(status);
 	state->denied_recorded = true;
 }
 
@@ -2845,20 +2870,20 @@ sessionbound_guard_install_binding(PG_FUNCTION_ARGS)
 				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 				 errmsg("SessionBound guard denied binding: SET ROLE or SET SESSION AUTHORIZATION is active")));
 
-	assign_top_string(&guard_task_id, text_arg_to_top_cstring(fcinfo, 0));
-	assign_top_string(&guard_budget_account, text_arg_to_top_cstring(fcinfo, 1));
-	assign_top_string(&guard_allowed_view_oids, text_arg_to_top_cstring(fcinfo, 2));
-	assign_top_string(&guard_denied_columns, text_arg_to_top_cstring(fcinfo, 3));
+	assign_top_string(&guard_task_id, text_arg_to_cstring(fcinfo, 0));
+	assign_top_string(&guard_budget_account, text_arg_to_cstring(fcinfo, 1));
+	assign_top_string(&guard_allowed_view_oids, text_arg_to_cstring(fcinfo, 2));
+	assign_top_string(&guard_denied_columns, text_arg_to_cstring(fcinfo, 3));
 	guard_max_queries = PG_GETARG_INT32(4);
 	guard_max_unique_expense_rows = PG_GETARG_INT32(5);
 	guard_min_group_size = PG_GETARG_INT32(6);
 	guard_receipts_enabled = PG_GETARG_BOOL(7);
 	guard_budget_accounting_enabled = PG_GETARG_BOOL(8);
-	assign_top_string(&guard_binding_id, text_arg_to_top_cstring(fcinfo, 9));
+	assign_top_string(&guard_binding_id, text_arg_to_cstring(fcinfo, 9));
 	guard_fence_token = PG_GETARG_INT64(10);
 	guard_advisory_lock_key = PG_GETARG_INT64(11);
-	assign_top_string(&guard_token_digest, text_arg_to_top_cstring(fcinfo, 12));
-	assign_top_string(&guard_credential_id, text_arg_to_top_cstring(fcinfo, 13));
+	assign_top_string(&guard_token_digest, text_arg_to_cstring(fcinfo, 12));
+	assign_top_string(&guard_credential_id, text_arg_to_cstring(fcinfo, 13));
 	guard_bound_session_user_oid = GetSessionUserId();
 	guard_task_bound = true;
 	guard_enabled = false;

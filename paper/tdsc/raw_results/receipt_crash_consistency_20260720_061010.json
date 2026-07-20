@@ -1,0 +1,83 @@
+{
+  "checks": {
+    "preflight_read_only": true,
+    "recovery_preserved_state": true,
+    "release_linearized": true
+  },
+  "evidence": {
+    "first_bind": {
+      "advisory_lock_key": -8610131962407926279,
+      "binding_id": "a143833f-c3f8-4694-9dd4-bbdd4860c8c8",
+      "bound": true,
+      "budget_account": "task_receipt_crash_20260720_061005",
+      "credential_id": "demo-agent-app",
+      "fence_token": 2356,
+      "purpose": "monthly_travel_expense_anomaly_review",
+      "stale_recovered": false,
+      "task_id": "task_receipt_crash_20260720_061005"
+    },
+    "preflight_status": "ok",
+    "recovered_bind": {
+      "advisory_lock_key": -8610131962407926279,
+      "binding_id": "f992199a-f37b-426e-addc-b7ef83e5f7e4",
+      "bound": true,
+      "budget_account": "task_receipt_crash_20260720_061005",
+      "credential_id": "demo-agent-app",
+      "fence_token": 2357,
+      "purpose": "monthly_travel_expense_anomaly_review",
+      "stale_recovered": true,
+      "task_id": "task_receipt_crash_20260720_061005"
+    },
+    "state_after_preflight": {
+      "budget_account": "task_receipt_crash_20260720_061005",
+      "query_count": 0,
+      "receipt_count": 0,
+      "returned_rows": 0,
+      "revoked": false,
+      "task_id": "task_receipt_crash_20260720_061005",
+      "unique_expense_rows": 0
+    },
+    "state_after_recovery": {
+      "budget_account": "task_receipt_crash_20260720_061005",
+      "query_count": 0,
+      "receipt_count": 0,
+      "returned_rows": 0,
+      "revoked": false,
+      "task_id": "task_receipt_crash_20260720_061005",
+      "unique_expense_rows": 0
+    },
+    "state_after_release": {
+      "budget_account": "task_receipt_crash_20260720_061005",
+      "query_count": 1,
+      "receipt_count": 1,
+      "returned_rows": 1,
+      "revoked": false,
+      "task_id": "task_receipt_crash_20260720_061005",
+      "unique_expense_rows": 1
+    },
+    "state_before": {
+      "budget_account": "task_receipt_crash_20260720_061005",
+      "query_count": 0,
+      "receipt_count": 0,
+      "returned_rows": 0,
+      "revoked": false,
+      "task_id": "task_receipt_crash_20260720_061005",
+      "unique_expense_rows": 0
+    },
+    "terminated_owner_backend": true
+  },
+  "run": {
+    "git": {
+      "commit": "108f7ae",
+      "diff_hash": "f6ae83b1397bbc162f6eefce0c4e69a9ffd1480415720c8359c5427487d84dda",
+      "diff_stat": "app/api.py                                         |  36 +-\n app/sql_ast_validator.py                           |  28 ++\n app/task_registry.py                               |   2 +\n app/taskbound_demo.py                              |   1 +\n app/taskbound_sdk.py                               |   5 +-\n db/001_schema.sql                                  |   3 +\n db/003_runtime_core.sql                            | 215 ++++++++-\n db/005_query_runtime.sql                           | 525 +++++++++++++++++----\n db/006_commands_and_grants.sql                     | 125 +++--\n paper/tdsc/OVERHEAD_BREAKDOWN.md                   |  45 +-\n paper/tdsc/POSTGRES_HOOK_ENFORCEMENT.md            |   8 +-\n paper/tdsc/STATIC_REVIEW_CLOSURE_AUDIT.md          |   2 +-\n paper/tdsc/experiments/FINAL_EXPERIMENT_REPORT.md  |   6 +-\n paper/tdsc/experiments/RECEIPT_OVERHEAD_RESULTS.md |  21 +-\n .../tdsc/experiments/scripts/tdsc_ablation_eval.py |   9 +-\n .../scripts/tdsc_credential_token_tests.py         | 147 +++++-\n paper/tdsc/scripts/adversarial_sql_eval.py         | 108 ++++-\n paper/tdsc/scripts/binding_lifecycle_eval.py       |  55 ++-\n paper/tdsc/scripts/overhead_breakdown.py           |  23 +-\n paper/tdsc/sessionbound-tdsc.tex                   |  71 +--\n postgres/sessionbound_guard/sessionbound_guard.c   |  77 ++-\n scripts/sessionbound_agent_eval.py                 |  17 +-\n 22 files changed, 1199 insertions(+), 330 deletions(-)",
+      "dirty": true,
+      "full_commit": "108f7ae62b90b104fcf5327ef82bc9d9fc10610a",
+      "status_short": "M app/api.py\n M app/sql_ast_validator.py\n M app/task_registry.py\n M app/taskbound_demo.py\n M app/taskbound_sdk.py\n M db/001_schema.sql\n M db/003_runtime_core.sql\n M db/005_query_runtime.sql\n M db/006_commands_and_grants.sql\n M paper/tdsc/OVERHEAD_BREAKDOWN.md\n M paper/tdsc/POSTGRES_HOOK_ENFORCEMENT.md\n M paper/tdsc/STATIC_REVIEW_CLOSURE_AUDIT.md\n M paper/tdsc/experiments/FINAL_EXPERIMENT_REPORT.md\n M paper/tdsc/experiments/RECEIPT_OVERHEAD_RESULTS.md\n M paper/tdsc/experiments/scripts/tdsc_ablation_eval.py\n M paper/tdsc/experiments/scripts/tdsc_credential_token_tests.py\n M paper/tdsc/scripts/adversarial_sql_eval.py\n M paper/tdsc/scripts/binding_lifecycle_eval.py\n M paper/tdsc/scripts/overhead_breakdown.py\n M paper/tdsc/sessionbound-tdsc.tex\n M postgres/sessionbound_guard/sessionbound_guard.c\n M scripts/sessionbound_agent_eval.py\n?? paper/tdsc/raw_results/adversarial_sql_20260720_135718.json\n?? paper/tdsc/raw_results/adversarial_sql_20260720_135951.json\n?? paper/tdsc/raw_results/adversarial_sql_20260720_140327.json\n?? paper/tdsc/raw_results/adversarial_sql_20260720_140942.json\n?? paper/tdsc/raw_results/command_concurrency_20260720_053124.json\n?? paper/tdsc/raw_results/command_concurrency_20260720_055337.json\n?? paper/tdsc/raw_results/command_concurrency_20260720_060006.json\n?? paper/tdsc/raw_results/command_concurrency_20260720_060341.json\n?? paper/tdsc/raw_results/command_concurrency_20260720_060955.json\n?? paper/tdsc/raw_results/native_partial_budget_20260720_135151.json\n?? paper/tdsc/raw_results/receipt_crash_consistency_20260720_055322.json\n?? paper/tdsc/raw_results/receipt_crash_consistency_20260720_060022.json\n?? paper/tdsc/raw_results/receipt_crash_consistency_20260720_060357.json\n?? paper/tdsc/scripts/command_concurrency_eval.py\n?? paper/tdsc/scripts/evidence_metadata.py\n?? paper/tdsc/scripts/receipt_crash_consistency_eval.py"
+    },
+    "git_commit": "108f7ae",
+    "passed": true,
+    "task_id": "task_receipt_crash_20260720_061005",
+    "timestamp": "2026-07-20T06:10:10.393040Z"
+  }
+}

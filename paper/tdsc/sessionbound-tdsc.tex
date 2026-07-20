@@ -739,11 +739,14 @@ Output: Allowed result with receipt, or covered denial receipt.
 \item Enforce row scope predicates for the bound task.
 \item Reject disallowed operation types, including mutations, DDL, and
 unsafe utility commands.
-\item Reserve query budget before execution.
+\item Preflight the query budget before execution; do not mutate the
+  durable query counter until a release or post-execution denial is
+  recorded.
 \item Execute only after the structural checks pass.
 \item Account every candidate output tuple before wrapper release or
-before native forwarding; aliases and aggregates use the same conservative
-output-tuple charge.
+before native forwarding; aliases use the same conservative output-tuple
+charge, while direct aggregate/window release is denied pending approved
+templates.
 \item Emit an allow receipt for a covered release; otherwise reject the
 attempt and emit a denial receipt for denials produced by the
 SessionBound admission or release barrier.
@@ -961,12 +964,14 @@ denied pending approved templates and semantic leakage from hidden source
 entities remains outside this guarantee.
 
 \emph{Argument.} The runtime treats budget dimensions as nonnegative
-counters. After structural admission, both paths reserve the execution attempt
-through a fenced query-count transition before running the statement. They then
-stage the candidate result, check aggregate-shape and tuple-budget policy, and
-execute one fenced release-barrier transition that debits released output
-tuples and appends the decision receipt before release. Both paths subtract
-only nonnegative charges and record the resulting state in a receipt.
+counters. After structural admission, both paths preflight the query budget
+without committing a durable budget transition. They then stage the candidate
+result, check aggregate-shape and tuple-budget policy, and execute one fenced
+release-barrier transition that debits the query attempt, debits released
+output tuples for allowed releases or zero tuples for covered denials, and
+appends the decision receipt before release. Both paths subtract only
+nonnegative charges and record durable state changes in the same transaction as
+the receipt.
 Therefore the remaining budget cannot increase across an allowed transition;
 an over-budget transition reaches a denial state before any candidate tuple is
 released.
@@ -1013,9 +1018,11 @@ terminated, PostgreSQL releases the session lock; a new backend may
 recover the stale row only after acquiring the lock and verifying that
 the recorded old owner no longer appears with the same PID, backend
 start, postmaster start, and database OID. Budget, receipt, cleanup, and
-unbind mutations are fenced by \texttt{binding\_id}/\texttt{fence\_token},
-so delayed operations from an old owner cannot mutate a replacement
-owner. A 64-bit lock-key hash collision can conservatively reject an
+unbind mutations are fenced by \texttt{binding\_id}/\texttt{fence\_token};
+accepted mutations lock the matching active row and re-check that the recorded
+owner and advisory lock remain live in the same database transaction. A stale
+or delayed operation from an old fence therefore cannot commit a budget,
+receipt, or business-state mutation against a replacement owner. A 64-bit lock-key hash collision can conservatively reject an
 otherwise independent binding, but it does not permit two simultaneous
 owners of the same advisory lock. This is not a distributed consensus
 claim and does not address PostgreSQL HA split brain.
@@ -1166,7 +1173,7 @@ theoretic leakage.
 \toprule
 Budget dimension & Prototype charge \\
 \midrule
-\texttt{query\_count} & Wrapper and native paths: one debit in a fenced admission transition after structural admission and before execution. This charges execution attempts that later fail or are denied at release. Preflight and structural denials before admission emit denial receipts without result/entity debit in the current prototype. \\
+\texttt{query\_count} & Wrapper and native paths: admission performs a fenced read-only query-budget preflight. The durable query-count debit occurs in the same fenced transition as the allow receipt or a post-execution/release-barrier denial receipt. A crash before release leaves no query-count-only orphan transition. Structural denials before execution emit denial receipts without a query or result/entity debit in the current prototype. \\
 \texttt{result\_rows} & Number of staged output tuples authorized by the fenced release barrier and recorded in state/receipts. Join multiplicity is visible here, so duplicate output tuples increase this counter. The prototype's legacy \texttt{rows\_returned} receipt field is not a proof that the network/client consumed every tuple after authorization. \\
 \texttt{disclosure\_tuples} & Every candidate result tuple consumes one unit, independent of projected names, aliases, joins, or whether an identifier column is present. This is conservative and does not claim to count hidden source entities in aggregate results. \\
 \texttt{aggregate\_group} & Direct aggregate release is denied unless a future approved aggregate template supplies trusted provenance/cardinality logic. This includes ungrouped aggregates, ad-hoc \texttt{GROUP\ BY}, \texttt{HAVING}, filtered aggregate release, and window-function release. \\
@@ -1664,18 +1671,18 @@ leakage, prepared-statement and cursor lifecycles, \texttt{COPY} and
 \texttt{VALUES}/\texttt{LATERAL}/\texttt{DISTINCT ON}/table sampling,
 DDL/DML/utility commands, aggregate-inference probes, pagination and
 budget scraping, revocation/expiry/rebind attempts, schema drift, and
-rollback/audit-survival cases. The 2026-07-19 rerun passed all expected
-classifications: 130 cases were blocked and 10 safe-view detail-query
-cases were allowed and accounted for. Direct aggregate and window
-release cases are classified as blocked pending approved aggregate
-templates.
+rollback/audit-survival cases. The 2026-07-20 rerun with the fixed
+oracle passed all expected classifications: 130 cases were blocked and
+10 safe-view detail-query cases were allowed and accounted for with
+receipt and budget evidence. Direct aggregate and window release cases
+are classified as blocked pending approved aggregate templates.
 
 \begin{table*}[!t]
 \centering
 \scriptsize
 \setlength{\tabcolsep}{3pt}
 \caption{Current adversarial SQL evaluation summary from
-\texttt{adversarial\_sql\_20260719\_162614.json}. Direct aggregate and
+\texttt{adversarial\_sql\_20260720\_141142.json}. Direct aggregate and
 window release is denied pending approved aggregate templates.}
 \label{tab:adversarial-sql}
 \begin{tabular}{@{}
@@ -1690,7 +1697,7 @@ Blocked direct violations & denied columns, raw schema, catalogs, GUC/session ta
 Blocked payload aggregation & \texttt{json\_agg}, \texttt{array\_agg}, \texttt{string\_agg}, XML/JSON builders, row/composite packing & 6 blocked / 6 & high-risk one-row payload compression denied by default \\
 Blocked aggregate/window release & direct entity grouping, \texttt{HAVING} probes, filtered aggregate release, high configured \(k\), ungrouped aggregate, and window release & 7 blocked / 7 & direct aggregate/window release requires future approved templates \\
 Allowed safe-view detail queries & ordinary safe-view projection, join, bounded pagination, harmless aliasing, and non-aggregate CTE/detail access & 10 allowed / 10 & allowed answers were accounted and receipted \\
-Total & all adversarial cases in \texttt{adversarial\_sql\_20260719\_162614.json} & 140 passed / 140 & 130 blocked, 10 allowed and accounted \\
+Total & all adversarial cases in \texttt{adversarial\_sql\_20260720\_141142.json} & 140 passed / 140 & 130 blocked, 10 allowed and accounted \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -1814,10 +1821,12 @@ ablation}\label{performance-overhead-and-ablation}}
 The latest overhead breakdown measures five query patterns: simple
 \texttt{SELECT}, \texttt{JOIN}, \texttt{GROUP\ BY}, non-aggregate CTE
 detail query, and window function. Each supported pattern uses 10
-warmup iterations and 100 measured iterations per mode. The run compares
-raw PostgreSQL, role-only, safe-view-only, the
-RLS+safe-view+short-credential+audit baseline, SessionBound without
-receipts, SessionBound without budget updates, and full SessionBound.
+warmup iterations and 100 measured iterations per mode. The current
+reproducible modes compare raw PostgreSQL, role-only, safe-view-only, the
+RLS+safe-view+short-credential+audit baseline, and full SessionBound.
+Earlier no-receipt/no-budget ablations are treated as historical because the
+hardened token validator now rejects attempts to disable receipts or budget
+accounting.
 Table~\ref{tab:performance} reports p50 latency in milliseconds. The
 SessionBound aggregate/window rows are marked unsupported because the
 current policy denies direct aggregate/window release pending approved
@@ -1832,15 +1841,15 @@ templates; all measured rows completed with zero query errors.
 pattern/mode used 10 warmup and 100 measured iterations; ``--'' means
 the current SessionBound policy denies that release shape.}
 \label{tab:performance}
-\begin{tabular}{@{}lrrrrrrr@{}}
+\begin{tabular}{@{}lrrrrr@{}}
 \toprule
-Pattern & Raw & Role & Safe view & RLS+SV+Audit & SB no receipt & SB no budget & SB full \\
+Pattern & Raw & Role & Safe view & RLS+SV+Audit & SB full \\
 \midrule
-SELECT & 0.236 & 0.267 & 0.431 & 1.280 & 153.960 & 152.948 & 152.923 \\
-JOIN & 0.179 & 0.171 & 0.212 & 0.969 & 150.880 & 156.085 & 158.980 \\
-GROUP BY & 0.225 & 0.206 & 0.260 & 1.110 & -- & -- & -- \\
-CTE detail & 0.204 & 0.180 & 0.214 & 0.910 & 155.381 & 157.473 & 151.161 \\
-Window & 0.232 & 0.265 & 0.270 & 0.987 & -- & -- & -- \\
+SELECT & 0.236 & 0.267 & 0.431 & 1.280 & 152.923 \\
+JOIN & 0.179 & 0.171 & 0.212 & 0.969 & 158.980 \\
+GROUP BY & 0.225 & 0.206 & 0.260 & 1.110 & -- \\
+CTE detail & 0.204 & 0.180 & 0.214 & 0.910 & 151.161 \\
+Window & 0.232 & 0.265 & 0.270 & 0.987 & -- \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -1851,11 +1860,10 @@ adds a basic audit insert and measures 0.91--1.28 ms p50. Full
 SessionBound measures 151.2--159.0 ms p50 across the supported
 detail-query patterns after statement-start global-owner validation and
 fenced mutation checks.
-Disabling receipts or budget accounting does not consistently reduce
-latency, so receipt insertion and budget updates do not dominate this
-small-dataset benchmark. The remaining cost is primarily repeated
-session-control validation, wrapper runtime checks, and PL/pgSQL
-materialization.
+Because current secure tokens cannot disable receipts or budget accounting,
+this revision does not claim a current no-receipt/no-budget ablation. The
+remaining measured cost is primarily repeated session-control validation,
+wrapper runtime checks, and PL/pgSQL materialization.
 
 \hypertarget{performance-diagnosis}{%
 \subsubsection{Performance diagnosis}\label{performance-diagnosis}}
@@ -1877,8 +1885,9 @@ Third, safe views add predicate and view-expansion cost even before
 SessionBound receipt or budget logic runs. Fourth, the wrapper path
 materializes result rows so that the runtime can account for returned
 business identifiers. Fifth, receipt insertion and budget accounting add
-state updates, but the no-receipt and no-budget ablations show that
-these updates are not the dominant source on the small default dataset.
+state updates. Archived pre-hardening no-receipt/no-budget ablations did not
+attribute the small-dataset overhead dominantly to those updates, but current
+secure tokens no longer allow disabling them.
 
 To separate structural enforcement from wrapper-era execution cost, we
 also ran a hook-only microbenchmark over the native

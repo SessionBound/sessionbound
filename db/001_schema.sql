@@ -65,6 +65,9 @@ CREATE TABLE app_data.ledger_entries (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS ledger_entries_expense_id_key
+  ON app_data.ledger_entries (expense_id);
+
 CREATE TABLE taskbound.signing_keys (
   key_id text PRIMARY KEY,
   secret text NOT NULL

@@ -4,6 +4,7 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from uuid import uuid4
 
 
 SECRET = os.environ.get("TASKBOUND_SECRET", "dev-secret-change-me")
@@ -624,6 +625,7 @@ def build_task_from_template(
         "expires_at": expires_at,
         "audience": "sessionbounddb",
         "policy_version": template.get("policy_version", "template-v1"),
+        "nonce": uuid4().hex,
     }
     if runtime_claims:
         payload.update(runtime_claims)

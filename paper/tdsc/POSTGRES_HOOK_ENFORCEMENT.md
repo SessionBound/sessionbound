@@ -52,10 +52,10 @@ After `taskbound.bind_task(...)`, agents may issue native safe-view `SELECT`
 statements directly. The parse/analyze hook validates relation OIDs, SQL shape,
 and function use. The utility hook covers prepared statement revalidation and
 `COPY (SELECT) TO STDOUT`; cursor/FETCH and `EXPLAIN` output are denied until
-they have a reviewed release barrier. Executor hooks reserve
-query budget, wrap the destination receiver, stage the complete result in a
-private tuplestore, charge every supported detail output tuple, and emit
-receipts before releasing any tuple. Direct aggregate/window release is denied
+they have a reviewed release barrier. Executor hooks preflight query budget,
+wrap the destination receiver, stage the complete result in a private
+tuplestore, and commit query-count, detail-tuple charges, and receipts together
+before releasing any tuple. Direct aggregate/window release is denied
 pending approved templates.
 Receipt and budget updates use an autonomous same-database audit channel, so
 receipts for evaluated allowed executions and hook/API denials survive rollback

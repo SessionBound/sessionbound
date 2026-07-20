@@ -170,6 +170,100 @@ AS $$
   )
 $$;
 
+CREATE OR REPLACE FUNCTION taskbound.append_query_receipt_local(
+  v_task_id text,
+  v_budget_account text,
+  v_binding_id uuid,
+  v_fence_token bigint,
+  v_query_digest text,
+  v_decision text,
+  v_rows_returned bigint DEFAULT 0,
+  v_unique_rows_added bigint DEFAULT 0,
+  v_remaining_unique_row_budget bigint DEFAULT NULL,
+  v_reason text DEFAULT NULL,
+  v_actor text DEFAULT NULL,
+  v_touched_views text[] DEFAULT ARRAY[]::text[],
+  v_execution_id uuid DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+DECLARE
+  v_receipt_id uuid := gen_random_uuid();
+  v_effective_execution_id uuid := COALESCE(v_execution_id, gen_random_uuid());
+  v_previous_sequence bigint;
+  v_receipt_sequence bigint;
+  v_previous_hash text;
+  v_receipt_hash text;
+  v_created_at timestamptz := clock_timestamp();
+BEGIN
+  IF COALESCE(v_task_id, '') = '' THEN
+    RETURN NULL;
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtextextended(v_task_id, 0));
+
+  INSERT INTO taskbound.task_receipt_chain_heads (
+    task_id, last_sequence, last_receipt_hash
+  )
+  VALUES (v_task_id, 0, '')
+  ON CONFLICT (task_id) DO UPDATE
+    SET last_sequence = taskbound.task_receipt_chain_heads.last_sequence
+  RETURNING last_sequence, last_receipt_hash
+  INTO v_previous_sequence, v_previous_hash;
+
+  v_receipt_sequence := COALESCE(v_previous_sequence, 0) + 1;
+  v_previous_hash := COALESCE(v_previous_hash, '');
+  v_touched_views := COALESCE(v_touched_views, ARRAY[]::text[]);
+  v_receipt_hash := taskbound.receipt_hash(
+    v_receipt_id,
+    v_effective_execution_id,
+    v_receipt_sequence,
+    v_task_id,
+    COALESCE(v_budget_account, v_task_id),
+    v_binding_id,
+    v_fence_token,
+    COALESCE(v_query_digest, ''),
+    COALESCE(v_decision, ''),
+    GREATEST(COALESCE(v_rows_returned, 0), 0),
+    GREATEST(COALESCE(v_unique_rows_added, 0), 0),
+    v_remaining_unique_row_budget,
+    COALESCE(v_reason, ''),
+    COALESCE(v_actor, ''),
+    v_touched_views,
+    v_created_at,
+    v_previous_hash
+  );
+
+  INSERT INTO taskbound.task_query_receipts (
+    receipt_id, execution_id, receipt_sequence, task_id, budget_account, binding_id,
+    fence_token, query_digest, decision, rows_returned, unique_rows_added,
+    remaining_unique_row_budget, reason, actor, touched_views,
+    previous_receipt_hash, receipt_hash, created_at
+  )
+  VALUES (
+    v_receipt_id, v_effective_execution_id, v_receipt_sequence, v_task_id,
+    COALESCE(v_budget_account, v_task_id), v_binding_id, v_fence_token,
+    COALESCE(v_query_digest, ''), COALESCE(v_decision, ''),
+    GREATEST(COALESCE(v_rows_returned, 0), 0),
+    GREATEST(COALESCE(v_unique_rows_added, 0), 0),
+    v_remaining_unique_row_budget, COALESCE(v_reason, ''),
+    COALESCE(v_actor, ''), v_touched_views,
+    v_previous_hash, v_receipt_hash, v_created_at
+  );
+
+  UPDATE taskbound.task_receipt_chain_heads
+  SET last_sequence = v_receipt_sequence,
+      last_receipt_hash = v_receipt_hash,
+      updated_at = clock_timestamp()
+  WHERE task_id = v_task_id;
+
+  RETURN v_receipt_id;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION taskbound.extract_touched_views(
   sql_text text,
   allowed_view_names text[] DEFAULT NULL
@@ -446,31 +540,49 @@ SECURITY DEFINER
 SET search_path = taskbound, pg_temp
 AS $$
 DECLARE
-  ok boolean;
+  active record;
+  v_reason text;
+  v_has_active boolean := false;
 BEGIN
-  SELECT EXISTS (
-    SELECT 1
-    FROM taskbound.active_sessions a
-    WHERE a.task_id = v_task_id
-      AND a.binding_id = v_binding_id
-      AND a.fence_token = v_fence_token
-  ) INTO ok;
+  SELECT *
+  INTO active
+  FROM taskbound.active_sessions a
+  WHERE a.task_id = v_task_id
+    AND a.binding_id = v_binding_id
+    AND a.fence_token = v_fence_token
+  FOR UPDATE;
+  v_has_active := FOUND;
 
-  IF NOT ok THEN
+  IF NOT v_has_active THEN
+    v_reason := 'budget or receipt mutation rejected by binding_id/fence_token mismatch';
+  ELSIF NOT taskbound.owner_is_live(
+    active.database_oid,
+    active.owner_backend_pid,
+    active.owner_backend_start,
+    active.owner_postmaster_start
+  ) THEN
+    v_reason := 'budget or receipt mutation rejected because binding owner is no longer live';
+  ELSIF NOT taskbound.advisory_lock_held_by_backend(active.advisory_lock_key, active.lock_backend_pid) THEN
+    v_reason := 'budget or receipt mutation rejected because binding advisory lock is no longer held';
+  ELSE
+    RETURN true;
+  END IF;
+
+  IF v_reason IS NOT NULL THEN
     PERFORM taskbound.log_binding_event_local(
       'BINDING_FENCED',
       v_task_id,
-      NULL,
-      NULL,
+      CASE WHEN v_has_active THEN active.token_digest ELSE NULL END,
+      CASE WHEN v_has_active THEN active.credential_id ELSE NULL END,
       v_binding_id,
       v_fence_token,
-      NULL,
-      NULL,
-      'budget or receipt mutation rejected by binding_id/fence_token mismatch'
+      CASE WHEN v_has_active THEN active.advisory_lock_key ELSE NULL END,
+      CASE WHEN v_has_active THEN active.owner_backend_pid ELSE NULL END,
+      v_reason
     );
   END IF;
 
-  RETURN ok;
+  RETURN false;
 END;
 $$;
 
@@ -605,45 +717,30 @@ BEGIN
       $sql$
       WITH owner AS (
         SELECT taskbound.mutation_fence_ok(%L, %L::uuid, %s) AS ok
-      ),
-      existing AS (
-        SELECT query_count, revoked
-        FROM taskbound.task_execution_state
-        WHERE task_id = %L
-        FOR UPDATE
-      ),
-      decision AS (
-        SELECT CASE
-          WHEN NOT (SELECT ok FROM owner) THEN 'BINDING_FENCED'
-          WHEN EXISTS (SELECT 1 FROM existing WHERE revoked) THEN 'task is revoked'
-          WHEN EXISTS (SELECT 1 FROM existing WHERE query_count >= %s) THEN 'query budget exhausted'
-          WHEN EXISTS (SELECT 1 FROM existing) THEN 'ok'
-          ELSE 'task execution state is missing'
-        END AS status
-      ),
-      updated AS (
-        UPDATE taskbound.task_execution_state s
-        SET query_count = s.query_count + 1
-        WHERE s.task_id = %L
-          AND (SELECT status FROM decision) = 'ok'
-          AND (SELECT ok FROM owner)
-        RETURNING 1
-      )
-      SELECT CASE
-        WHEN (SELECT status FROM decision) = 'ok'
-          AND NOT EXISTS (SELECT 1 FROM updated)
-          THEN 'task execution state is missing'
-        ELSE (SELECT status FROM decision)
-      END AS status
-      $sql$,
-      v_task_id,
-      v_binding_id,
-      v_fence_token,
-      v_task_id,
-      GREATEST(COALESCE(v_max_queries, 0), 0),
-      v_task_id
-    )
-  ) AS t(status text);
+	      ),
+	      existing AS (
+	        SELECT query_count, revoked
+	        FROM taskbound.task_execution_state
+	        WHERE task_id = %L
+	      ),
+	      decision AS (
+	        SELECT CASE
+	          WHEN NOT (SELECT ok FROM owner) THEN 'BINDING_FENCED'
+	          WHEN EXISTS (SELECT 1 FROM existing WHERE revoked) THEN 'task is revoked'
+	          WHEN EXISTS (SELECT 1 FROM existing WHERE query_count >= %s) THEN 'query budget exhausted'
+	          WHEN EXISTS (SELECT 1 FROM existing) THEN 'ok'
+	          ELSE 'task execution state is missing'
+	        END AS status
+	      )
+	      SELECT (SELECT status FROM decision) AS status
+	      $sql$,
+	      v_task_id,
+	      v_binding_id,
+	      v_fence_token,
+	      v_task_id,
+	      GREATEST(COALESCE(v_max_queries, 0), 0)
+	    )
+	  ) AS t(status text);
 
   IF v_status <> 'ok' THEN
     PERFORM taskbound.native_denied_receipt(
@@ -765,8 +862,8 @@ BEGIN
    *
    * This single remote statement is the release-barrier transition: it takes
    * the per-task receipt-chain lock, validates the binding fence, checks
-   * revocation and budgets, applies the counter update for allowed releases,
-   * appends exactly one receipt for the release decision, and returns the
+   * revocation and budgets, applies the query/disclosure counter update at the
+   * release decision, appends exactly one receipt, and returns the
    * resulting status to the caller. No result tuple is forwarded by wrapper or
    * native code until this statement reports ok. The persisted rows_returned
    * field is therefore a release-barrier authorization count, not proof of
@@ -853,35 +950,57 @@ BEGIN
                  OR ab.payload->>'exposed_column_hash' <> s.snapshot->>'exposed_column_hash'
                  OR ab.payload->>'view_dependency_hash' <> s.snapshot->>'view_dependency_hash'
                  OR ab.payload->>'view_option_hash' <> s.snapshot->>'view_option_hash'
-            ) THEN 'task token safe-view registry snapshot is stale; re-approval is required'
-            WHEN %L::boolean
-              AND EXISTS (
-                SELECT 1
-                FROM existing
-                WHERE unique_expense_rows + %s > %s
+	            ) THEN 'task token safe-view registry snapshot is stale; re-approval is required'
+	            WHEN %L::boolean
+	              AND EXISTS (
+	                SELECT 1
+	                FROM existing
+	                WHERE query_count >= %s
+	              )
+	              THEN 'query budget exhausted'
+	            WHEN %L::boolean
+	              AND EXISTS (
+	                SELECT 1
+	                FROM existing
+	                WHERE unique_expense_rows + %s > %s
               )
               THEN 'result tuple budget exceeded'
             ELSE 'ok'
           END AS status
-      ),
-      updated AS (
-        UPDATE taskbound.task_execution_state s
-        SET returned_rows = s.returned_rows + %s,
-            unique_expense_rows = s.unique_expense_rows + %s
-        WHERE s.task_id = %L
-          AND %L::boolean
-          AND (SELECT status FROM decision) = 'ok'
-          AND (SELECT ok FROM owner)
-        RETURNING s.unique_expense_rows, s.actor
-      ),
-      receipt_input AS (
-        SELECT
-          gen_random_uuid() AS receipt_id,
-          gen_random_uuid() AS execution_id,
-          COALESCE((SELECT actor FROM updated), (SELECT actor FROM existing), '') AS actor,
-          COALESCE(%L::text[], ARRAY[]::text[]) AS touched_views,
-          clock_timestamp() AS receipt_created_at
-      ),
+	      ),
+	      updated AS (
+	        UPDATE taskbound.task_execution_state s
+	        SET query_count = s.query_count + 1,
+	            returned_rows = s.returned_rows + %s,
+	            unique_expense_rows = s.unique_expense_rows + %s
+	        WHERE s.task_id = %L
+	          AND %L::boolean
+	          AND (SELECT status FROM decision) = 'ok'
+	          AND (SELECT ok FROM owner)
+	        RETURNING s.unique_expense_rows, s.actor
+	      ),
+	      counted_denial AS (
+	        UPDATE taskbound.task_execution_state s
+	        SET query_count = s.query_count + 1
+	        WHERE s.task_id = %L
+	          AND %L::boolean
+	          AND (SELECT status FROM decision) = 'result tuple budget exceeded'
+	          AND (SELECT ok FROM owner)
+	        RETURNING s.unique_expense_rows, s.actor
+	      ),
+	      receipt_input AS (
+	        SELECT
+	          gen_random_uuid() AS receipt_id,
+	          gen_random_uuid() AS execution_id,
+	          COALESCE(
+	            (SELECT actor FROM updated),
+	            (SELECT actor FROM counted_denial),
+	            (SELECT actor FROM existing),
+	            ''
+	          ) AS actor,
+	          COALESCE(%L::text[], ARRAY[]::text[]) AS touched_views,
+	          clock_timestamp() AS receipt_created_at
+	      ),
       chain AS (
         INSERT INTO taskbound.task_receipt_chain_heads (
           task_id, last_sequence, last_receipt_hash
@@ -913,11 +1032,15 @@ BEGIN
           CASE WHEN (SELECT status FROM decision) = 'ok' THEN %s::bigint ELSE 0::bigint END AS rows_for_receipt,
           CASE WHEN (SELECT status FROM decision) = 'ok' AND %L::boolean THEN %s::bigint ELSE 0::bigint END AS unique_added_for_receipt,
           CASE
-            WHEN NOT %L::boolean THEN NULL::bigint
-            WHEN (SELECT status FROM decision) = 'ok'
-              THEN %s::bigint - COALESCE((SELECT unique_expense_rows FROM updated), 0)
-            ELSE %s::bigint - COALESCE((SELECT unique_expense_rows FROM existing), 0)
-          END AS remaining_budget_for_receipt,
+	            WHEN NOT %L::boolean THEN NULL::bigint
+	            WHEN (SELECT status FROM decision) = 'ok'
+	              THEN %s::bigint - COALESCE((SELECT unique_expense_rows FROM updated), 0)
+	            ELSE %s::bigint - COALESCE(
+	              (SELECT unique_expense_rows FROM counted_denial),
+	              (SELECT unique_expense_rows FROM existing),
+	              0
+	            )
+	          END AS remaining_budget_for_receipt,
           CASE WHEN (SELECT status FROM decision) = 'ok' THEN NULL::text ELSE (SELECT status FROM decision) END AS reason_for_receipt
         FROM receipt_input, previous
       ),
@@ -971,11 +1094,15 @@ BEGIN
       SELECT
         status,
         unique_added_for_receipt AS disclosure_added,
-        CASE
-          WHEN %L::boolean AND status = 'ok'
-            THEN COALESCE((SELECT unique_expense_rows FROM updated), 0)
-          ELSE COALESCE((SELECT unique_expense_rows FROM existing), 0)
-        END AS unique_after,
+	        CASE
+	          WHEN %L::boolean AND status = 'ok'
+	            THEN COALESCE((SELECT unique_expense_rows FROM updated), 0)
+	          ELSE COALESCE(
+	            (SELECT unique_expense_rows FROM counted_denial),
+	            (SELECT unique_expense_rows FROM existing),
+	            0
+	          )
+	        END AS unique_after,
         remaining_budget_for_receipt AS remaining_unique_row_budget
       FROM hashed, (SELECT count(*) FROM chain_update) AS chain_applied(n)
       $sql$,
@@ -987,11 +1114,15 @@ BEGIN
       COALESCE(v_binding_id::text, ''),
       COALESCE(v_fence_token, 0),
       COALESCE(v_task_id, ''),
-	      COALESCE(v_budget_accounting_enabled, true),
-	      GREATEST(COALESCE(v_rows_returned, 0), 0),
+      COALESCE(v_budget_accounting_enabled, true),
+      GREATEST(COALESCE(v_max_queries, 0), 0),
+      COALESCE(v_budget_accounting_enabled, true),
+      GREATEST(COALESCE(v_rows_returned, 0), 0),
       GREATEST(COALESCE(v_max_rows, 0), 0),
       GREATEST(COALESCE(v_rows_returned, 0), 0),
       GREATEST(COALESCE(v_rows_returned, 0), 0),
+      COALESCE(v_task_id, ''),
+      COALESCE(v_budget_accounting_enabled, true),
       COALESCE(v_task_id, ''),
       COALESCE(v_budget_accounting_enabled, true),
       COALESCE(v_touched_views, ARRAY[]::text[])::text,
@@ -1060,6 +1191,208 @@ BEGIN
   IF v_status <> 'ok' THEN
     RAISE EXCEPTION 'SessionBoundDB denied query: %', COALESCE(v_status, 'query denied');
   END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION taskbound.native_record_query_denial_status(
+  v_task_id text,
+  v_budget_account text,
+  sql_text text,
+  reason text,
+  v_max_queries int,
+  v_max_rows int,
+  v_budget_accounting_enabled boolean,
+  v_receipts_enabled boolean,
+  v_binding_id uuid,
+  v_fence_token bigint
+)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = taskbound, public, pg_temp
+AS $$
+DECLARE
+  v_conn text := taskbound.audit_connection_name();
+  v_connections text[];
+  v_status text;
+  v_query_digest text := encode(public.digest(COALESCE(sql_text, ''), 'sha256'), 'hex');
+  v_touched_views text[] := ARRAY[]::text[];
+BEGIN
+  IF NOT COALESCE(v_budget_accounting_enabled, true)
+     AND NOT COALESCE(v_receipts_enabled, true) THEN
+    RETURN COALESCE(NULLIF(reason, ''), 'query denied');
+  END IF;
+
+  v_touched_views := taskbound.extract_touched_views(sql_text);
+
+  SELECT public.dblink_get_connections() INTO v_connections;
+  IF NOT v_conn = ANY(COALESCE(v_connections, ARRAY[]::text[])) THEN
+    PERFORM public.dblink_connect(v_conn, 'dbname=' || current_database());
+  END IF;
+
+  /*
+   * Post-execution denials are the counterpart to native_finish_query_status:
+   * count the admitted attempt and append its denied receipt in one fenced
+   * autonomous transaction. A backend crash before this point leaves no durable
+   * transition; a crash after this statement leaves both state and receipt.
+   */
+  SELECT status
+  INTO v_status
+  FROM public.dblink(
+    v_conn,
+    format(
+      $sql$
+      WITH receipt_lock AS (
+        SELECT pg_advisory_xact_lock(hashtextextended(%L, 0))
+      ),
+      input AS (
+        SELECT COALESCE(NULLIF(%L, ''), 'query denied') AS supplied_reason
+      ),
+      owner AS (
+        SELECT taskbound.mutation_fence_ok(%L, %L::uuid, %s) AS ok
+        FROM receipt_lock
+      ),
+      active_binding AS (
+        SELECT a.task_id, a.payload, a.credential_id, a.owner_session_user,
+               a.token_expires_at
+        FROM taskbound.active_sessions a
+        WHERE a.task_id = %L
+          AND a.binding_id = %L::uuid
+          AND a.fence_token = %s
+      ),
+      current_snapshot AS (
+        SELECT taskbound.safe_view_registry_snapshot(
+                 taskbound.jsonb_text_array(active_binding.payload->'allowed_views')
+               ) AS snapshot
+        FROM active_binding
+        WHERE jsonb_typeof(active_binding.payload->'allowed_views') = 'array'
+      ),
+      existing AS (
+        SELECT task_id, query_count, returned_rows, unique_expense_rows,
+               revoked, actor
+        FROM taskbound.task_execution_state
+        WHERE task_id = %L
+        FOR UPDATE
+      ),
+      decision AS (
+        SELECT
+          CASE
+            WHEN NOT (SELECT ok FROM owner) THEN 'BINDING_FENCED'
+            WHEN NOT EXISTS (SELECT 1 FROM existing) THEN 'task execution state is missing'
+            WHEN NOT EXISTS (SELECT 1 FROM active_binding) THEN 'BINDING_FENCED'
+            WHEN EXISTS (SELECT 1 FROM existing WHERE revoked) THEN 'task is revoked'
+            WHEN EXISTS (
+              SELECT 1 FROM active_binding WHERE token_expires_at <= clock_timestamp()
+            ) THEN 'task token is expired'
+            WHEN EXISTS (
+              SELECT 1
+              FROM active_binding ab
+              WHERE ab.credential_id <> ''
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM taskbound.credential_ledger c
+                  WHERE c.credential_id = ab.credential_id
+                    AND NOT c.revoked
+                    AND c.expires_at > clock_timestamp()
+                    AND c.db_user = ab.owner_session_user
+                )
+            ) THEN 'runtime credential is expired, revoked, or no longer matches the session'
+            WHEN EXISTS (
+              SELECT 1
+              FROM active_binding ab
+              WHERE jsonb_typeof(ab.payload->'allowed_views') IS DISTINCT FROM 'array'
+                 OR NOT (ab.payload ? 'safe_view_registry')
+                 OR NOT (ab.payload ? 'database_oid')
+                 OR NOT (ab.payload ? 'safe_view_registry_version')
+                 OR NOT (ab.payload ? 'view_definition_hash')
+                 OR NOT (ab.payload ? 'exposed_column_hash')
+                 OR NOT (ab.payload ? 'view_dependency_hash')
+                 OR NOT (ab.payload ? 'view_option_hash')
+                 OR NOT EXISTS (SELECT 1 FROM current_snapshot)
+            ) THEN 'task token safe-view registry drift claims are missing from active binding'
+            WHEN EXISTS (
+              SELECT 1
+              FROM active_binding ab, current_snapshot s
+              WHERE ab.payload->'safe_view_registry' <> s.snapshot
+                 OR ab.payload->>'database_oid' <> s.snapshot->>'database_oid'
+                 OR ab.payload->>'safe_view_registry_version' <> s.snapshot->>'safe_view_registry_version'
+                 OR ab.payload->>'view_definition_hash' <> s.snapshot->>'view_definition_hash'
+                 OR ab.payload->>'exposed_column_hash' <> s.snapshot->>'exposed_column_hash'
+                 OR ab.payload->>'view_dependency_hash' <> s.snapshot->>'view_dependency_hash'
+                 OR ab.payload->>'view_option_hash' <> s.snapshot->>'view_option_hash'
+            ) THEN 'task token safe-view registry snapshot is stale; re-approval is required'
+            WHEN %L::boolean
+              AND EXISTS (
+                SELECT 1
+                FROM existing
+                WHERE query_count >= %s
+              )
+              THEN 'query budget exhausted'
+            ELSE (SELECT supplied_reason FROM input)
+          END AS status
+      ),
+      counted AS (
+        UPDATE taskbound.task_execution_state s
+        SET query_count = s.query_count + 1
+        WHERE s.task_id = %L
+          AND %L::boolean
+          AND (SELECT ok FROM owner)
+          AND (SELECT status FROM decision) = (SELECT supplied_reason FROM input)
+        RETURNING s.unique_expense_rows, s.actor
+      ),
+      receipt AS (
+        SELECT taskbound.append_query_receipt_local(
+          %L, %L, %L::uuid, %s, %L, 'denied', 0, 0,
+          CASE
+            WHEN NOT %L::boolean THEN NULL::bigint
+            ELSE %s::bigint - COALESCE(
+              (SELECT unique_expense_rows FROM counted),
+              (SELECT unique_expense_rows FROM existing),
+              0
+            )
+          END,
+          (SELECT status FROM decision),
+          COALESCE(
+            (SELECT actor FROM counted),
+            (SELECT actor FROM existing),
+            ''
+          ),
+          COALESCE(%L::text[], ARRAY[]::text[]),
+          gen_random_uuid()
+        ) AS receipt_id
+        WHERE %L::boolean
+          AND (SELECT ok FROM owner)
+          AND EXISTS (SELECT 1 FROM existing)
+      )
+      SELECT (SELECT status FROM decision) AS status
+      FROM (SELECT count(*) FROM receipt) AS receipt_applied(n)
+      $sql$,
+      COALESCE(v_task_id, ''),
+      COALESCE(reason, ''),
+      COALESCE(v_task_id, ''),
+      COALESCE(v_binding_id::text, ''),
+      COALESCE(v_fence_token, 0),
+      COALESCE(v_task_id, ''),
+      COALESCE(v_binding_id::text, ''),
+      COALESCE(v_fence_token, 0),
+      COALESCE(v_task_id, ''),
+      COALESCE(v_budget_accounting_enabled, true),
+      GREATEST(COALESCE(v_max_queries, 0), 0),
+      COALESCE(v_task_id, ''),
+      COALESCE(v_budget_accounting_enabled, true),
+      COALESCE(v_task_id, ''),
+      COALESCE(v_budget_account, v_task_id),
+      COALESCE(v_binding_id::text, ''),
+      COALESCE(v_fence_token, 0),
+      v_query_digest,
+      COALESCE(v_budget_accounting_enabled, true),
+      GREATEST(COALESCE(v_max_rows, 0), 0),
+      COALESCE(v_touched_views, ARRAY[]::text[])::text,
+      COALESCE(v_receipts_enabled, true)
+    )
+  ) AS t(status text);
+
+  RETURN COALESCE(v_status, COALESCE(NULLIF(reason, ''), 'query denied'));
 END;
 $$;
 
@@ -1296,9 +1629,9 @@ BEGIN
     RAISE EXCEPTION 'SessionBoundDB denied query: query shape violates task policy';
   END;
 
-  /* Reserve the query counter through the same fenced autonomous path used by
-   * native SQL.  This keeps wrapper/native query-budget semantics identical
-   * and makes an overflow denial rollback-surviving as well. */
+  /* Preflight the query budget through the same fenced autonomous path used by
+   * native SQL. The durable query-count transition now happens with the release
+   * receipt, so a crash before release cannot leave a budget-only orphan. */
   PERFORM taskbound.native_reserve_query(
     v_task_id,
     v_budget_account,

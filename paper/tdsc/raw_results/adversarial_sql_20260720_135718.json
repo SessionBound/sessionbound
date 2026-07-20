@@ -1,0 +1,71 @@
+{
+  "records": [
+    {
+      "accounting_evidence": {},
+      "actual": "Blocked",
+      "ast_allowed": false,
+      "ast_flags": [
+        "aggregate_template_required",
+        "payload_aggregation"
+      ],
+      "bucket": "blocked_payload_aggregation",
+      "category": "Payload aggregation / compression",
+      "error": "AST preflight denied query: aggregate release requires an approved aggregate template; payload aggregation function j_s_o_n_array_agg is not allowed; payload aggregation function json_agg is not allowed",
+      "expected": "Blocked",
+      "id": "C01",
+      "infra_error": false,
+      "passed": true,
+      "receipt_decisions": [
+        "denied"
+      ],
+      "row_count": 0,
+      "sql": "SELECT json_agg(e) FROM expenses e;"
+    },
+    {
+      "accounting_evidence": {
+        "allowed_receipt_count": 1,
+        "exactly_one_allowed_receipt": true,
+        "ok": true,
+        "receipt_count": 1,
+        "receipt_rows": 347,
+        "receipt_rows_match_result": true,
+        "row_count": 347,
+        "state_query_count": 1,
+        "state_query_count_accounted": true,
+        "state_returned_rows": 347,
+        "state_returned_rows_match_result": true
+      },
+      "actual": "Allowed but accounted",
+      "ast_allowed": true,
+      "ast_flags": [],
+      "bucket": "allowed_safe_view_analytical_cases",
+      "category": "Obfuscation and aliases",
+      "error": "",
+      "expected": "Allowed but accounted",
+      "id": "D03",
+      "infra_error": false,
+      "passed": true,
+      "receipt_decisions": [
+        "allowed"
+      ],
+      "row_count": 347,
+      "sql": "SELECT e.amount + 0 AS amount2 FROM expenses e;"
+    }
+  ],
+  "run": {
+    "base_url": "http://localhost:8000",
+    "bucket_counts": {
+      "allowed_safe_view_analytical_cases": 1,
+      "blocked_payload_aggregation": 1
+    },
+    "case_count": 2,
+    "classification_counts": {
+      "Allowed but accounted": 1,
+      "Blocked": 1
+    },
+    "commit": "108f7ae",
+    "failed": 0,
+    "passed": 2,
+    "timestamp": "2026-07-20T05:57:22Z"
+  }
+}

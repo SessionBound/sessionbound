@@ -497,7 +497,17 @@ def todo_for_row(row: dict[str, Any], role: str) -> dict[str, Any] | None:
 
 def bind(cur, payload_text: str, signature: str) -> dict[str, Any]:
     cur.execute("SELECT taskbound.bind_task(%s, %s)", (payload_text, signature))
-    return cur.fetchone()[0]
+    result = cur.fetchone()[0]
+    if not isinstance(result, dict) or result.get("bound") is not True:
+        raise ValueError("task token binding failed")
+    return result
+
+
+def safe_session_diagnostics(
+    session: TaskboundSession,
+    bound: dict[str, Any] | None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    return [], []
 
 
 def fetch_state(cur) -> list[dict[str, Any]]:
@@ -1574,6 +1584,7 @@ def query(req: QueryRequest):
     with connect() as conn:
         with conn.cursor() as cur:
             session = TaskboundSession(cur=cur)
+            bound: dict[str, Any] | None = None
             try:
                 bound = session.bind_task(req.payload_text, req.signature)
                 validation = ast_preflight(cur, req.payload_text, req.sql)
@@ -1607,12 +1618,7 @@ def query(req: QueryRequest):
             except Exception as exc:
                 if is_active_binding_conflict(exc):
                     raise HTTPException(status_code=409, detail="ACTIVE_BINDING_EXISTS") from exc
-                try:
-                    state = session.inspect_state()
-                    receipts = session.receipts()
-                except Exception:
-                    state = []
-                    receipts = []
+                state, receipts = safe_session_diagnostics(session, bound)
                 return {
                     "ok": False,
                     "error": agent_safe_error(exc),
@@ -1631,6 +1637,7 @@ def agent_query(req: AgentQueryRequest):
     with conn:
         with conn.cursor() as cur:
             session = TaskboundSession(cur=cur)
+            bound: dict[str, Any] | None = None
             try:
                 bound = session.bind_task(req.payload_text, req.signature)
                 validation = ast_preflight(cur, req.payload_text, req.sql)
@@ -1666,12 +1673,7 @@ def agent_query(req: AgentQueryRequest):
             except Exception as exc:
                 if is_active_binding_conflict(exc):
                     raise HTTPException(status_code=409, detail="ACTIVE_BINDING_EXISTS") from exc
-                try:
-                    state = session.inspect_state()
-                    receipts = session.receipts()
-                except Exception:
-                    state = []
-                    receipts = []
+                state, receipts = safe_session_diagnostics(session, bound)
                 return {
                     "ok": False,
                     "used_dynamic_credential": req.credential.db_user,
@@ -1729,6 +1731,7 @@ def agent_question(req: AgentQuestionRequest):
     with conn:
         with conn.cursor() as cur:
             session = TaskboundSession(cur=cur)
+            bound: dict[str, Any] | None = None
             try:
                 bound = session.bind_task(req.payload_text, req.signature)
                 validation = ast_preflight(cur, req.payload_text, sql_text)
@@ -1770,12 +1773,7 @@ def agent_question(req: AgentQuestionRequest):
             except Exception as exc:
                 if is_active_binding_conflict(exc):
                     raise HTTPException(status_code=409, detail="ACTIVE_BINDING_EXISTS") from exc
-                try:
-                    state = session.inspect_state()
-                    receipts = session.receipts()
-                except Exception:
-                    state = []
-                    receipts = []
+                state, receipts = safe_session_diagnostics(session, bound)
                 return {
                     "ok": False,
                     "question": req.question,

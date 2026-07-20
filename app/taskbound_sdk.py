@@ -57,7 +57,10 @@ class TaskboundSession:
     def bind_task(self, payload_text: str, signature: str) -> dict[str, Any]:
         def run(cur):
             cur.execute("SELECT taskbound.bind_task(%s, %s)", (payload_text, signature))
-            return cur.fetchone()[0]
+            result = cur.fetchone()[0]
+            if not isinstance(result, dict) or result.get("bound") is not True:
+                raise ValueError("task token binding failed")
+            return result
 
         return self._with_cursor(run)
 

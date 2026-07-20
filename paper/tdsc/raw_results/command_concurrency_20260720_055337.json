@@ -1,0 +1,75 @@
+{
+  "run": {
+    "run_id": "20260720_055337",
+    "commit": "108f7ae",
+    "expense_id": "tdsc_cmd_race_20260720_055337",
+    "passed": true,
+    "expected": "exactly one concurrent pay_expense attempt has a business effect"
+  },
+  "attempts": [
+    {
+      "index": 0,
+      "elapsed_ms": 60.01353900137474,
+      "ok": false,
+      "result": {
+        "ok": false,
+        "used_dynamic_credential": "agent_tdsc_command_race_0_20260720_055337_6ee2bb83",
+        "bound": {
+          "bound": true,
+          "purpose": "reimbursement_payment_readiness_audit",
+          "task_id": "tdsc_command_race_0_20260720_055337",
+          "binding_id": "5699f435-4842-4ae8-a8ec-1108609125c0",
+          "fence_token": 2336,
+          "credential_id": "agent_tdsc_command_race_0_20260720_055337_6ee2bb83",
+          "budget_account": "tdsc_command_race_0_20260720_055337",
+          "stale_recovered": false,
+          "advisory_lock_key": 1749894874803868553
+        },
+        "command_result": {
+          "ok": false,
+          "error": "SessionBoundDB denied command",
+          "command": "pay_expense"
+        },
+        "error": "SessionBoundDB denied command"
+      }
+    },
+    {
+      "index": 1,
+      "elapsed_ms": 57.46739899768727,
+      "ok": true,
+      "result": {
+        "ok": true,
+        "used_dynamic_credential": "agent_tdsc_command_race_1_20260720_055337_331f36c5",
+        "bound": {
+          "bound": true,
+          "purpose": "reimbursement_payment_readiness_audit",
+          "task_id": "tdsc_command_race_1_20260720_055337",
+          "binding_id": "feefc2df-4613-4f53-8872-732547cd9628",
+          "fence_token": 2337,
+          "credential_id": "agent_tdsc_command_race_1_20260720_055337_331f36c5",
+          "budget_account": "tdsc_command_race_1_20260720_055337",
+          "stale_recovered": false,
+          "advisory_lock_key": -3936922436537889795
+        },
+        "command_result": {
+          "ok": true,
+          "amount": 42.0,
+          "ledger": "travel_expense -> cash",
+          "command": "pay_expense",
+          "receipt": "payment ledger written in the same database transaction",
+          "expense_id": "tdsc_cmd_race_20260720_055337",
+          "new_status": "paid",
+          "receipt_id": "3818d8ae-c40d-438f-a515-e1bb76023935",
+          "execution_id": "be2ca9f3-51a2-47e0-a7ad-d9a5a109b227",
+          "receipt_hash": "3c9741086f859eef3346b23b1d7f87234b51501c83bc6d1c7c1739a3fb942ad8",
+          "receipt_sequence": 1
+        }
+      }
+    }
+  ],
+  "business_effect": {
+    "expense_status": "paid",
+    "ledger_count": 1,
+    "paid_event_count": 1
+  }
+}
